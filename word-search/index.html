@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Search Game</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="game-container">
+        <!-- Header -->
+        <header class="game-header">
+            <h1 class="game-title">
+                <i class="fas fa-search"></i>
+                Word Search
+            </h1>
+            <div class="header-controls">
+                <button class="btn-icon audio-toggle" id="audioToggle" title="Toggle Sound">
+                    <i class="fas fa-volume-up"></i>
+                </button>
+                <button class="btn-icon info-btn" id="infoBtn" title="Instructions">
+                    <i class="fas fa-info-circle"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Game Controls -->
+        <div class="game-controls">
+            <button class="btn btn-primary" id="newGameBtn">
+                <i class="fas fa-plus"></i>
+                New Game
+            </button>
+            <button class="btn btn-secondary" id="hintBtn">
+                <i class="fas fa-lightbulb"></i>
+                Hint
+            </button>
+            <button class="btn btn-secondary" id="checkBtn">
+                <i class="fas fa-check"></i>
+                Check
+            </button>
+            <button class="btn btn-warning" id="autoSolveBtn">
+                <i class="fas fa-magic"></i>
+                Auto-Solve
+            </button>
+        </div>
+
+        <!-- Game Progress -->
+        <div class="game-progress">
+            <div class="progress-info">
+                <span class="progress-text">Words Found: <span id="wordsFound">0</span>/<span id="totalWords">0</span></span>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Board Container -->
+        <div class="game-board-container">
+            <!-- Word Grid -->
+            <div class="grid-container">
+                <div class="word-grid" id="wordGrid"></div>
+            </div>
+
+            <!-- Word List -->
+            <div class="word-list-container">
+                <h3 class="word-list-title">Find These Words:</h3>
+                <div class="word-list" id="wordList"></div>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div class="loading-overlay hidden" id="loadingOverlay">
+            <div class="loader">
+                <div class="spinner"></div>
+                <p class="loading-text">Generating puzzle...</p>
+            </div>
+        </div>
+
+        <!-- Success Modal -->
+        <div class="modal hidden" id="successModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2><i class="fas fa-trophy"></i> Congratulations!</h2>
+                </div>
+                <div class="modal-body">
+                    <p>You found all the words!</p>
+                    <div class="success-stats">
+                        <div class="stat">
+                            <i class="fas fa-clock"></i>
+                            <span>Time: <span id="gameTime">00:00</span></span>
+                        </div>
+                        <div class="stat">
+                            <i class="fas fa-search"></i>
+                            <span>Words: <span id="finalWordCount">0</span></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" id="playAgainBtn">
+                        <i class="fas fa-play"></i>
+                        Play Again
+                    </button>
+                    <button class="btn btn-secondary" id="closeSuccessBtn">
+                        <i class="fas fa-times"></i>
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Instructions Modal -->
+        <div class="modal hidden" id="instructionsModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2><i class="fas fa-book"></i> How to Play</h2>
+                    <button class="btn-close" id="closeInstructionsBtn">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="instructions">
+                        <div class="instruction-item">
+                            <i class="fas fa-hand-pointer"></i>
+                            <div>
+                                <h4>Find Words</h4>
+                                <p>Drag across letters to select words. Words can be horizontal, vertical, or diagonal.</p>
+                            </div>
+                        </div>
+                        <div class="instruction-item">
+                            <i class="fas fa-lightbulb"></i>
+                            <div>
+                                <h4>Use Hints</h4>
+                                <p>Click the hint button to highlight the first letter of an unfound word.</p>
+                            </div>
+                        </div>
+                        <div class="instruction-item">
+                            <i class="fas fa-check"></i>
+                            <div>
+                                <h4>Check Progress</h4>
+                                <p>Use the check button to validate your current selections.</p>
+                            </div>
+                        </div>
+                        <div class="instruction-item">
+                            <i class="fas fa-magic"></i>
+                            <div>
+                                <h4>Auto-Solve</h4>
+                                <p>Reveal all remaining words instantly with the auto-solve feature.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
