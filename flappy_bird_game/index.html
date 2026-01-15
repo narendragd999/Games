@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Flappy Bird Pro - Full Screen & Dual Score</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Press+Start+2P&display=swap');
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100dvh; /* Dynamic viewport height for mobile browsers */
+      height: 100vh; /* Fallback for older browsers */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(to bottom, #87CEEB 0%, #E0F6FF 100%);
+      font-family: 'Luckiest Guy', cursive;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      touch-action: manipulation; /* Crucial for preventing browser gestures */
+      overflow: hidden; /* Prevent scrolling */
+      -webkit-tap-highlight-color: transparent; /* Remove tap highlight on iOS */
+    }
+    #game-container {
+      position: relative;
+      /* On larger screens, constrain to original game dimensions */
+      max-width: 360px;
+      max-height: 640px;
+      /* For smaller screens, allow it to fill, but maintain aspect ratio */
+      width: 100vw; /* Take full viewport width */
+      height: 100dvh; /* Take full viewport height */
+      aspect-ratio: 360 / 640; /* Crucial to maintain aspect ratio on all screen sizes */
+      margin: auto; /* Center the container */
+
+      overflow: hidden;
+      border: 8px solid #3d2c1f;
+      border-radius: 15px;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.3), 0 0 0 2px #a0816f inset;
+
+      /* To make sure it always scales down without going over max-width/height */
+      object-fit: contain; /* ensures the content inside scales down if needed */
+    }
+    canvas {
+      display: block;
+      width: 100%; /* Canvas fills its parent #game-container */
+      height: 100%; /* Canvas fills its parent #game-container */
+      background: transparent;
+      /* Canvas internal resolution will be handled by JS */
+    }
+    .game-overlay {
+      position:absolute; top:0; left:0; width:100%; height:100%;
+      background-color:rgba(0,0,0,0.6); color:white;
+      display:flex; flex-direction:column; justify-content:center; align-items:center;
+      text-align:center; z-index:100; padding:20px; box-sizing:border-box;
+      opacity:0; transition:opacity 0.3s ease-in-out; pointer-events:none;
+    }
+    .game-overlay.active { opacity:1; pointer-events:auto; }
+    .game-overlay h1 { font-size:3.5em; margin-bottom:15px; text-shadow:4px 4px #2e7d32; color:#FFF; }
+    .game-overlay p { font-family:'Press Start 2P', cursive; font-size:1em; margin-bottom:25px; color:#eee; line-height:1.4; }
+    .game-button {
+      background:linear-gradient(to bottom,#FFD700 0%,#FFA500 100%);
+      border:none; color:#3d2c1f; padding:15px 30px; font-size:1.3em;
+      border-radius:10px; cursor:pointer; box-shadow:0 6px 0 #d68900;
+      transition:all 0.2s ease; text-transform:uppercase; font-family:'Luckiest Guy', cursive;
+    }
+    .game-button:hover { transform:translateY(-3px); box-shadow:0 9px 0 #d68900; }
+    .game-button:active { transform:translateY(2px); box-shadow:0 3px 0 #d68900; }
+
+    #score-display {
+      position:absolute;
+      top:15px;
+      left:15px;
+      color:white;
+      font-family:'Press Start 2P', cursive;
+      font-size:1.6em;
+      text-shadow:2px 2px #333;
+      background:rgba(0,0,0,0.4);
+      padding:8px 18px;
+      border-radius:10px;
+      z-index:50;
+      display:flex;
+      flex-direction:column;
+      align-items: flex-start;
+      box-sizing: border-box;
+      white-space: nowrap;
+    }
+    #current-score { font-size:1.2em; margin-bottom:0; }
+
+    #high-score-display {
+      position:absolute;
+      top:15px;
+      right:15px;
+      color:#ffeb3b;
+      font-family:'Press Start 2P', cursive;
+      font-size:1.2em;
+      text-shadow:2px 2px #333;
+      background:rgba(0,0,0,0.4);
+      padding:8px 18px;
+      border-radius:10px;
+      z-index:50;
+      display:flex;
+      align-items:center;
+      gap: 5px;
+      box-sizing: border-box;
+      white-space: nowrap;
+    }
+
+    #loading-screen {
+      position:absolute; top:0; left:0; width:100%; height:100%;
+      background-color:#3d2c1f; color:white;
+      display:flex; flex-direction:column; justify-content:center; align-items:center;
+      z-index:200; font-family:'Press Start 2P', cursive; font-size:1.2em; gap:20px;
+    }
+    .spinner {
+      border:4px solid rgba(255,255,255,0.3);
+      border-top:4px solid #FFA500; border-radius:50%; width:30px; height:30px;
+      animation:spin 1s linear infinite;
+    }
+    @keyframes spin { 0%{transform:rotate(0deg);} 100%{transform:rotate(360deg);} }
+  </style>
+</head>
+<body>
+<div id="game-container">
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="loading-screen"><div class="spinner"></div><p>लोड हो रहा है...</p></div>
+
+  <div id="start-screen" class="game-overlay">
+    <h1>Flappy Bird</h1>
+    <p>जंप करने के लिए टैप या स्पेसबार दबाएं</p>
+    <button id="startButton" class="game-button">खेल शुरू करें</button>
+  </div>
+
+  <div id="game-over-screen" class="game-overlay">
+    <h1>गेम ओवर!</h1>
+    <p>आपका स्कोर: <span id="final-score">0</span></p>
+    <p id="best-text">🏆 सर्वश्रेष्ठ स्कोर: <span id="best-score">0</span></p>
+    <button id="restartButton" class="game-button">फिर से खेलें</button>
+  </div>
+
+  <div id="score-display">
+    स्कोर: <span id="current-score">0</span>
+  </div>
+
+  <div id="high-score-display">
+    🏆 <span id="high-score-value">0</span>
+  </div>
+</div>
+
+<script>
+const canvas=document.getElementById('gameCanvas');
+const ctx=canvas.getContext('2d');
+const startScreen=document.getElementById('start-screen');
+const gameOverScreen=document.getElementById('game-over-screen');
+const loadingScreen=document.getElementById('loading-screen');
+const startButton=document.getElementById('startButton');
+const restartButton=document.getElementById('restartButton');
+const currentScoreSpan=document.getElementById('current-score');
+const finalScoreSpan=document.getElementById('final-score');
+const bestScoreSpan=document.getElementById('best-score');
+const highScoreValue=document.getElementById('high-score-value');
+
+const BASE_GAME_WIDTH=360; // Original logical game width
+const BASE_GAME_HEIGHT=640; // Original logical game height
+
+// GAME_WIDTH and GAME_HEIGHT now refer to the CANVAS's internal resolution,
+// which will always be BASE_GAME_WIDTH/HEIGHT for consistent game logic.
+// The CSS handles visual scaling.
+const GAME_WIDTH = BASE_GAME_WIDTH;
+const GAME_HEIGHT = BASE_GAME_HEIGHT;
+let currentScaleFactor = 1; // Used for drawing coordinates if ctx.scale isn't enough, but ctx.scale is generally preferred.
+
+const BIRD_WIDTH=34, BIRD_HEIGHT=24;
+const GRAVITY=0.25, JUMP_STRENGTH=-5.5;
+let PIPE_WIDTH=52, PIPE_HEIGHT=320, PIPE_GAP=130, PIPE_SPEED=2;
+const PIPE_SPAWN_INTERVAL=1700, GROUND_HEIGHT=112;
+const BIRD_ANIMATION_FRAMES=3, BIRD_ANIMATION_SPEED=100;
+
+let SPRITE_FRAME_WIDTH=0, SPRITE_FRAME_HEIGHT=0;
+let gameRunning=false, gameOver=false;
+let score=0, bestScore=localStorage.getItem("bestScore")||0;
+let bird,pipes=[],floatingTexts=[],lastPipeSpawnTime=0,animationFrameId,lastTime=0;
+let backgroundX=0,groundX=0,birdFrame=0,lastBirdFrameTime=0;
+
+// Assets
+const birdSprite=new Image();
+birdSprite.src="assets/bird_sprite.png";
+let scaledBirdSprite = null;
+
+birdSprite.onload=()=>{
+  SPRITE_FRAME_WIDTH=birdSprite.width/3;
+  SPRITE_FRAME_HEIGHT=birdSprite.height;
+
+  if (SPRITE_FRAME_WIDTH > BIRD_WIDTH || SPRITE_FRAME_HEIGHT > BIRD_HEIGHT) {
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = BIRD_WIDTH * BIRD_ANIMATION_FRAMES;
+    tempCanvas.height = BIRD_HEIGHT;
+    const tempCtx = tempCanvas.getContext('2d');
+
+    for (let i = 0; i < BIRD_ANIMATION_FRAMES; i++) {
+      tempCtx.drawImage(
+          birdSprite,
+          i * SPRITE_FRAME_WIDTH, 0, SPRITE_FRAME_WIDTH, SPRITE_FRAME_HEIGHT,
+          i * BIRD_WIDTH, 0, BIRD_WIDTH, BIRD_HEIGHT
+      );
+    }
+    scaledBirdSprite = new Image();
+    scaledBirdSprite.src = tempCanvas.toDataURL();
+    scaledBirdSprite.onload = assetLoaded;
+  } else {
+    scaledBirdSprite = birdSprite;
+    assetLoaded();
+  }
+};
+
+const pipeTopImg=new Image(); pipeTopImg.src="assets/pipe-green.png"; pipeTopImg.onload=assetLoaded;
+const pipeBottomImg=new Image(); pipeBottomImg.src="assets/pipe-green.png"; pipeBottomImg.onload=assetLoaded;
+const backgroundImg=new Image(); backgroundImg.src="assets/bg.png"; backgroundImg.onload=assetLoaded;
+const groundImg=new Image(); groundImg.src="assets/ground.png"; groundImg.onload=assetLoaded;
+const jumpSound=new Audio("audio/swoosh.wav");
+const scoreSound=new Audio("audio/point.wav");
+const hitSound=new Audio("audio/die.wav");
+
+let assetsLoadedCount=0;
+const totalAssets=8;
+function assetLoaded(){
+  assetsLoadedCount++;
+  if(assetsLoadedCount>=totalAssets){
+    loadingScreen.style.display='none';
+    startScreen.classList.add('active');
+    highScoreValue.textContent=bestScore;
+    resizeCanvas(); // Initial canvas setup (resolution for drawing)
+  }
+}
+[jumpSound,scoreSound,hitSound].forEach(snd=>{ snd.addEventListener('canplaythrough',assetLoaded); snd.addEventListener('error',assetLoaded); snd.load(); });
+
+// === CANVAS RESIZING LOGIC ===
+function resizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  // Set the canvas's internal resolution to the base game dimensions
+  canvas.width = BASE_GAME_WIDTH * dpr;
+  canvas.height = BASE_GAME_HEIGHT * dpr;
+
+  // Scale the drawing context so everything is drawn at the base resolution,
+  // but appears sharper on high-DPI screens.
+  ctx.scale(dpr, dpr);
+
+  // The CSS will handle the visual size of the canvas element itself
+  // to fit within #game-container, maintaining aspect ratio.
+}
+
+window.addEventListener('resize', resizeCanvas); // Update canvas resolution on window resize
+// === END CANVAS RESIZING LOGIC ===
+
+
+function playSound(snd){ if(snd.readyState>=2){ snd.currentTime=0; snd.play().catch(()=>{}); } }
+
+function handleJump(e){
+  const isStartScreenActive = startScreen.classList.contains('active');
+
+  if(gameRunning){
+    if(e.code==="Space" || e.type==="click" || e.type==="touchstart"){
+      bird.velocityY = JUMP_STRENGTH;
+      playSound(jumpSound);
+      e.preventDefault();
+    }
+  } else if(!gameRunning && !gameOver && isStartScreenActive){
+    startGame();
+    e.preventDefault();
+  }
+}
+
+function startGame(){
+  if(gameRunning) return;
+
+  startScreen.classList.remove("active");
+  startScreen.style.display='none';
+  gameOverScreen.classList.remove("active");
+
+  gameRunning=true;
+  gameOver=false;
+  score=0;
+  currentScoreSpan.textContent=score;
+
+  // Bird position is now relative to BASE_GAME_WIDTH/HEIGHT, no need to scale here
+  bird={x:50, y: BASE_GAME_HEIGHT/2 - BIRD_HEIGHT/2, velocityY:0};
+  pipes=[];
+  floatingTexts=[];
+  backgroundX=groundX=0;
+  birdFrame=0;
+  lastBirdFrameTime=performance.now();
+  lastPipeSpawnTime=performance.now();
+  PIPE_GAP=130;
+  PIPE_SPEED=2;
+
+  animationFrameId=requestAnimationFrame(gameLoop);
+}
+
+function restartGame(){
+  cancelAnimationFrame(animationFrameId);
+  startGame();
+}
+
+function generatePipe(){
+  const minHeight=60;
+  const maxTop=BASE_GAME_HEIGHT - PIPE_GAP - minHeight - GROUND_HEIGHT;
+  const topHeight=Math.floor(Math.random()*(maxTop-minHeight+1))+minHeight;
+  const bottomY=topHeight + PIPE_GAP;
+  pipes.push({x:BASE_GAME_WIDTH,topHeight,bottomY,passed:false});
+}
+
+function update(){
+  if(!gameRunning||gameOver) return;
+
+  // Physics logic remains on BASE_GAME_WIDTH/HEIGHT
+  bird.velocityY+=GRAVITY;
+  bird.y+=bird.velocityY;
+
+  // Collision with ground/ceiling
+  if(bird.y + BIRD_HEIGHT > BASE_GAME_HEIGHT - GROUND_HEIGHT || bird.y < 0){
+    endGame(); return;
+  }
+  if(performance.now()-lastPipeSpawnTime>PIPE_SPAWN_INTERVAL){ generatePipe(); lastPipeSpawnTime=performance.now(); }
+
+  for(let p of pipes){
+    p.x-=PIPE_SPEED;
+    const birdRight=bird.x+BIRD_WIDTH;
+    const birdBottom=bird.y+BIRD_HEIGHT;
+    const pipeRight=p.x+PIPE_WIDTH;
+
+    // Collision detection
+    if(birdRight > p.x && bird.x < pipeRight){
+      if(bird.y < p.topHeight || birdBottom > p.bottomY){ endGame(); return; }
+    }
+    if(p.x + PIPE_WIDTH < bird.x && !p.passed){
+      score++;
+      p.passed=true;
+      currentScoreSpan.textContent=score;
+      playSound(scoreSound);
+      addFloatingText("+1",bird.x+BIRD_WIDTH/2,bird.y);
+      updateDifficulty();
+    }
+  }
+  pipes=pipes.filter(p=>p.x+PIPE_WIDTH > 0);
+  backgroundX=(backgroundX-PIPE_SPEED*0.5)%(BASE_GAME_WIDTH);
+  groundX=(groundX-PIPE_SPEED)%(BASE_GAME_WIDTH);
+}
+
+function updateDifficulty(){
+  if(score>0&&score%5===0){
+    if(PIPE_GAP>90)PIPE_GAP-=5;
+    if(PIPE_SPEED<4)PIPE_SPEED=Math.min(4,PIPE_SPEED+0.2);
+  }
+}
+
+function addFloatingText(text,x,y){ floatingTexts.push({text,x,y,alpha:1,startY:y}); }
+
+function drawFloatingTexts(){
+  if (floatingTexts.length === 0) return;
+
+  ctx.font="14px 'Press Start 2P'"; // Font size is fixed, not scaled by ctx.scale
+  ctx.textAlign="center";
+  for(let i = floatingTexts.length - 1; i >= 0; i--){
+    const t = floatingTexts[i];
+    ctx.fillStyle=`rgba(255,255,255,${t.alpha})`;
+    ctx.fillText(t.text,t.x,t.y); // Coordinates are already base game units
+    t.y-=0.8;
+    t.alpha-=0.03;
+    if(t.alpha<=0)floatingTexts.splice(i,1);
+  }
+  ctx.textAlign="left";
+}
+
+function drawBird(){
+  if (!scaledBirdSprite) return;
+
+  ctx.save();
+  ctx.translate(bird.x+BIRD_WIDTH/2,bird.y+BIRD_HEIGHT/2);
+  let angle=Math.max(-Math.PI/4,Math.min(Math.PI/3,(bird.velocityY/15)*Math.PI/6));
+  ctx.rotate(angle);
+  const now=performance.now();
+  if(now-lastBirdFrameTime>BIRD_ANIMATION_SPEED){ birdFrame=(birdFrame+1)%BIRD_ANIMATION_FRAMES; lastBirdFrameTime=now; }
+
+  ctx.drawImage(scaledBirdSprite,
+                birdFrame * BIRD_WIDTH,
+                0,
+                BIRD_WIDTH,
+                BIRD_HEIGHT,
+                -BIRD_WIDTH/2,
+                -BIRD_HEIGHT/2,
+                BIRD_WIDTH,
+                BIRD_HEIGHT);
+  ctx.restore();
+}
+
+function draw(){
+  ctx.clearRect(0,0,GAME_WIDTH,GAME_HEIGHT);
+  // Drawing all elements at their BASE_GAME_WIDTH/HEIGHT coordinates
+  ctx.drawImage(backgroundImg,backgroundX,0,BASE_GAME_WIDTH,BASE_GAME_HEIGHT);
+  ctx.drawImage(backgroundImg,backgroundX+BASE_GAME_WIDTH,0,BASE_GAME_WIDTH,BASE_GAME_HEIGHT);
+
+  for(let p of pipes){
+    ctx.drawImage(pipeTopImg,p.x,p.topHeight-PIPE_HEIGHT,PIPE_WIDTH,PIPE_HEIGHT);
+    ctx.drawImage(pipeBottomImg,p.x,p.bottomY,PIPE_WIDTH,PIPE_HEIGHT);
+  }
+
+  drawBird();
+  drawFloatingTexts();
+
+  ctx.drawImage(groundImg,groundX,BASE_GAME_HEIGHT-GROUND_HEIGHT,BASE_GAME_WIDTH,GROUND_HEIGHT);
+  ctx.drawImage(groundImg,groundX+BASE_GAME_WIDTH,BASE_GAME_HEIGHT-GROUND_HEIGHT,BASE_GAME_WIDTH,GROUND_HEIGHT);
+}
+
+function gameLoop(currentTime=0){
+  const delta=currentTime-lastTime; lastTime=currentTime;
+  if(gameRunning&&!gameOver){
+    update();
+    draw();
+    animationFrameId=requestAnimationFrame(gameLoop);
+  }
+  else if(gameOver){
+    gameOverScreen.classList.add("active");
+    finalScoreSpan.textContent=score;
+    if(score>bestScore){
+      bestScore=score;
+      localStorage.setItem("bestScore",bestScore);
+    }
+    bestScoreSpan.textContent=bestScore;
+    highScoreValue.textContent=bestScore;
+  }
+}
+
+function endGame(){
+  playSound(hitSound);
+  gameRunning=false;
+  gameOver=true;
+  cancelAnimationFrame(animationFrameId);
+}
+
+// Event Listeners
+document.addEventListener("keydown",handleJump);
+canvas.addEventListener("click",handleJump);
+canvas.addEventListener("touchstart",handleJump,{passive:false});
+startButton.addEventListener("click",startGame);
+restartButton.addEventListener("click",restartGame);
+
+// Initial setup
+highScoreValue.textContent=bestScore;
+</script>
+</body>
+</html>
