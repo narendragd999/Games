@@ -1,0 +1,49 @@
+/* css/style.css
+Role: Styling for canvas and UI; disables overscroll and double-tap zoom edge cases for mobile.
+*/
+
+:root{
+  --bg:#70c5ce;
+  --accent:#ffd166;
+  --muted:#7aa7b0;
+  --text:#083344;
+  --btn-bg:#ff6b6b;
+  --safe-area-top: env(safe-area-inset-top);
+  --safe-area-bottom: env(safe-area-inset-bottom);
+}
+
+*{box-sizing:border-box}
+html,body,#app{height:100%;margin:0;background:linear-gradient(#cfeff3,var(--bg));-webkit-font-smoothing:antialiased}
+body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;color:var(--text);touch-action:manipulation; /* helps reduce double-tap zoom */ -webkit-user-select:none; -ms-touch-action:manipulation; overscroll-behavior:none}
+
+/* Canvas fills viewport in portrait-first layout */
+#gameCanvas{display:block;width:100vw;height:100vh;background:transparent}
+
+/* Overlay UI */
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.screen{background:rgba(255,255,255,0.95);backdrop-filter:blur(4px);padding:18px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.18);text-align:center;pointer-events:auto;max-width:360px;margin:16px}
+h1{font-size:2.4rem;margin:0 0 8px}
+.subtitle{margin:0 0 12px;color:var(--muted)}
+.primary{background:var(--btn-bg);color:white;border:0;padding:12px 18px;border-radius:10px;font-size:1rem;cursor:pointer}
+.row{display:flex;gap:8px;justify-content:center;margin-top:10px}
+.hidden{display:none}
+
+/* Flap button */
+.flap-btn{position:fixed;right:18px;bottom:calc(18px + var(--safe-area-bottom));width:72px;height:72px;border-radius:50%;border:0;background:linear-gradient(180deg,#ff8d8d,#ff6b6b);box-shadow:0 6px 18px rgba(0,0,0,0.2);pointer-events:auto;z-index:20}
+.flap-btn:active{transform:scale(0.98)}
+.flap-btn::after{content:"";display:block;width:100%;height:100%;border-radius:inherit;background-image:radial-gradient(circle at 30% 30%, rgba(255,255,255,0.2), transparent 30%);}
+
+/* Pause banner */
+.banner{position:fixed;top:calc(16px + var(--safe-area-top));left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.6);color:white;padding:8px 16px;border-radius:999px;pointer-events:none}
+
+/* FPS readout */
+.fps{position:fixed;left:8px;top:8px;background:rgba(0,0,0,0.5);color:#fff;padding:6px 8px;border-radius:6px;font-size:12px;pointer-events:none}
+
+/* Accessibility: larger hit area on wide screens */
+@media (min-width:700px){
+  .flap-btn{width:92px;height:92px}
+  .screen{max-width:420px}
+}
+
+/* prevent text zoom on iOS when double-tapping controls */
+button{font-family:inherit}
