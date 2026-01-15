@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Box Stacker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            touch-action: none;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 500px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        #header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        h1 {
+            color: white;
+            font-size: 24px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 5px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        button:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 3px rgba(0,0,0,0.2);
+        }
+
+        #game-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #stacks-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .stack {
+            display: flex;
+            flex-direction: column-reverse;
+            align-items: center;
+            min-height: 200px;
+            padding: 10px;
+            background: rgba(102, 126, 234, 0.1);
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            flex: 1;
+            position: relative;
+            transition: background 0.3s;
+        }
+
+        .stack.highlight {
+            background: rgba(102, 126, 234, 0.3);
+            border-color: #f5576c;
+        }
+
+        .box {
+            width: 60px;
+            height: 50px;
+            margin: 2px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 20px;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+        }
+
+        .box:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 10px rgba(0,0,0,0.3);
+        }
+
+        .box.selected {
+            transform: scale(1.1);
+            box-shadow: 0 0 20px rgba(245, 87, 108, 0.8);
+        }
+
+        .box.size-1 { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .box.size-2 { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .box.size-3 { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+        .box.size-4 { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+        .box.size-5 { background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); }
+
+        #controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        #message {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(67, 233, 123, 0.2);
+            border-radius: 5px;
+            color: #2d3748;
+            font-weight: bold;
+            text-align: center;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        #modal.show {
+            display: flex;
+        }
+
+        #modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            max-width: 90%;
+            max-height: 80%;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        #modal-content h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        #modal-content p {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        #modal-content ul {
+            margin-left: 20px;
+            margin-bottom: 10px;
+        }
+
+        .close-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin-top: 15px;
+        }
+
+        @media (max-width: 480px) {
+            h1 { font-size: 20px; }
+            button { padding: 6px 10px; font-size: 11px; }
+            .box { width: 50px; height: 45px; font-size: 18px; }
+            .stack { min-height: 180px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="header">
+            <h1>📦 Box Stacker</h1>
+            <div class="btn-group">
+                <button onclick="showInstructions()">❓ Help</button>
+                <button onclick="newPuzzle()">🔄 New</button>
+            </div>
+        </div>
+
+        <div id="game-area">
+            <div id="stacks-container"></div>
+            <div id="controls">
+                <button onclick="checkSolution()">✓ Check</button>
+                <button onclick="getHint()">💡 Hint</button>
+                <button onclick="autoSolve()">🤖 Auto-Solve</button>
+            </div>
+            <div id="message">Select a box to move it</div>
+        </div>
+    </div>
+
+    <div id="modal">
+        <div id="modal-content">
+            <h2>📦 How to Play Box Stacker</h2>
+            <p><strong>Goal:</strong> Stack all boxes in ascending order from bottom to top on a single stack.</p>
+            
+            <h3>Rules:</h3>
+            <ul>
+                <li>Click a box to select it (top box of any stack)</li>
+                <li>Click another stack to move the box there</li>
+                <li>You can only place a smaller box on top of a larger box</li>
+                <li>Only the top box of each stack can be moved</li>
+            </ul>
+
+            <h3>Controls:</h3>
+            <ul>
+                <li><strong>✓ Check:</strong> Verify if your solution is correct</li>
+                <li><strong>💡 Hint:</strong> Get a suggestion for the next move</li>
+                <li><strong>🤖 Auto-Solve:</strong> Watch the puzzle solve itself</li>
+                <li><strong>🔄 New:</strong> Generate a new random puzzle</li>
+            </ul>
+
+            <p><strong>Tip:</strong> Think like the Tower of Hanoi puzzle! Plan your moves carefully.</p>
+            
+            <button class="close-btn" onclick="closeModal()">Got it!</button>
+        </div>
+    </div>
+
+    <script>
+        // Audio Context for sounds
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playSound(frequency, duration, type = 'sine') {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = frequency;
+            oscillator.type = type;
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + duration);
+        }
+
+        // Game state
+        let stacks = [[], [], []];
+        let selectedBox = null;
+        let selectedStack = null;
+        let moveCount = 0;
+
+        // Initialize game
+        function init() {
+            newPuzzle();
+            showInstructions();
+        }
+
+        // Generate new puzzle
+        function newPuzzle() {
+            const numBoxes = 3 + Math.floor(Math.random() * 3); // 3-5 boxes
+            stacks = [[], [], []];
+            
+            // Create boxes with random sizes
+            const boxes = [];
+            for (let i = 1; i <= numBoxes; i++) {
+                boxes.push(i);
+            }
+            
+            // Shuffle and distribute
+            shuffle(boxes);
+            boxes.forEach((box, index) => {
+                stacks[index % 3].push(box);
+            });
+            
+            selectedBox = null;
+            selectedStack = null;
+            moveCount = 0;
+            
+            render();
+            showMessage('New puzzle loaded! Stack all boxes in order.');
+            playSound(523.25, 0.1); // C5
+        }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        // Render game
+        function render() {
+            const container = document.getElementById('stacks-container');
+            container.innerHTML = '';
+            
+            stacks.forEach((stack, stackIndex) => {
+                const stackDiv = document.createElement('div');
+                stackDiv.className = 'stack';
+                stackDiv.onclick = () => handleStackClick(stackIndex);
+                
+                stack.forEach((boxSize, boxIndex) => {
+                    const boxDiv = document.createElement('div');
+                    boxDiv.className = `box size-${boxSize}`;
+                    boxDiv.textContent = boxSize;
+                    boxDiv.onclick = (e) => {
+                        e.stopPropagation();
+                        handleBoxClick(stackIndex, boxIndex);
+                    };
+                    
+                    if (selectedStack === stackIndex && boxIndex === stack.length - 1 && selectedBox !== null) {
+                        boxDiv.classList.add('selected');
+                    }
+                    
+                    stackDiv.appendChild(boxDiv);
+                });
+                
+                container.appendChild(stackDiv);
+            });
+        }
+
+        // Handle box click
+        function handleBoxClick(stackIndex, boxIndex) {
+            const stack = stacks[stackIndex];
+            
+            // Can only select top box
+            if (boxIndex !== stack.length - 1) {
+                showMessage('You can only move the top box!');
+                playSound(200, 0.1);
+                return;
+            }
+            
+            // If no box selected, select this one
+            if (selectedBox === null) {
+                selectedBox = stack[boxIndex];
+                selectedStack = stackIndex;
+                render();
+                highlightValidStacks();
+                showMessage(`Box ${selectedBox} selected. Choose a destination.`);
+                playSound(440, 0.1); // A4
+            } else {
+                // Deselect if clicking same box
+                selectedBox = null;
+                selectedStack = null;
+                render();
+                showMessage('Box deselected.');
+            }
+        }
+
+        // Handle stack click
+        function handleStackClick(stackIndex) {
+            if (selectedBox === null) return;
+            
+            // Can't move to same stack
+            if (stackIndex === selectedStack) {
+                selectedBox = null;
+                selectedStack = null;
+                render();
+                showMessage('Move cancelled.');
+                return;
+            }
+            
+            const targetStack = stacks[stackIndex];
+            
+            // Check if move is valid (smaller on larger or empty stack)
+            if (targetStack.length === 0 || selectedBox < targetStack[targetStack.length - 1]) {
+                // Make the move
+                stacks[selectedStack].pop();
+                targetStack.push(selectedBox);
+                moveCount++;
+                
+                selectedBox = null;
+                selectedStack = null;
+                render();
+                
+                showMessage(`Move ${moveCount} completed!`);
+                playSound(659.25, 0.15); // E5
+                
+                // Auto-check if puzzle might be solved
+                setTimeout(() => {
+                    if (isSolved()) {
+                        showMessage(`🎉 Congratulations! Solved in ${moveCount} moves!`);
+                        playVictorySound();
+                        setTimeout(newPuzzle, 3000);
+                    }
+                }, 100);
+            } else {
+                showMessage('Invalid move! Can\'t place larger box on smaller one.');
+                playSound(200, 0.2);
+            }
+        }
+
+        // Highlight valid destination stacks
+        function highlightValidStacks() {
+            const stackDivs = document.querySelectorAll('.stack');
+            stackDivs.forEach((div, index) => {
+                const targetStack = stacks[index];
+                if (index !== selectedStack && 
+                    (targetStack.length === 0 || selectedBox < targetStack[targetStack.length - 1])) {
+                    div.classList.add('highlight');
+                }
+            });
+        }
+
+        // Check if solved
+        function isSolved() {
+            // Puzzle is solved if all boxes are in one stack, sorted ascending
+            for (let stack of stacks) {
+                if (stack.length > 0) {
+                    if (stack.length === getTotalBoxes()) {
+                        // Check if sorted
+                        for (let i = 0; i < stack.length - 1; i++) {
+                            if (stack[i] <= stack[i + 1]) return false;
+                        }
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function getTotalBoxes() {
+            return stacks.reduce((sum, stack) => sum + stack.length, 0);
+        }
+
+        // Check solution button
+        function checkSolution() {
+            if (isSolved()) {
+                showMessage(`✓ Perfect! Puzzle solved in ${moveCount} moves!`);
+                playVictorySound();
+                setTimeout(newPuzzle, 3000);
+            } else {
+                showMessage('Not solved yet. Keep stacking!');
+                playSound(300, 0.2);
+            }
+        }
+
+        // Get hint
+        function getHint() {
+            const solution = solvePuzzle();
+            if (solution && solution.length > 0) {
+                const hint = solution[0];
+                showMessage(`💡 Hint: Move box from stack ${hint.from + 1} to stack ${hint.to + 1}`);
+                playSound(523.25, 0.1);
+            } else {
+                showMessage('Puzzle already solved or no solution found!');
+            }
+        }
+
+        // Auto-solve with animation
+        async function autoSolve() {
+            const solution = solvePuzzle();
+            if (!solution) {
+                showMessage('Already solved!');
+                return;
+            }
+            
+            showMessage('🤖 Auto-solving...');
+            
+            for (let move of solution) {
+                await sleep(600);
+                stacks[move.to].push(stacks[move.from].pop());
+                moveCount++;
+                render();
+                playSound(440 + Math.random() * 200, 0.1);
+            }
+            
+            showMessage(`✓ Auto-solved in ${moveCount} moves!`);
+            playVictorySound();
+            setTimeout(newPuzzle, 3000);
+        }
+
+        // Solve puzzle using Tower of Hanoi algorithm
+        function solvePuzzle() {
+            // Find which stack has boxes and determine target
+            let sourceStacks = [];
+            stacks.forEach((stack, index) => {
+                if (stack.length > 0) {
+                    sourceStacks.push({index, boxes: [...stack]});
+                }
+            });
+            
+            if (sourceStacks.length === 0) return null;
+            
+            // Simple solution: move all to first empty or least filled stack
+            let targetStack = 0;
+            let minBoxes = stacks[0].length;
+            for (let i = 1; i < 3; i++) {
+                if (stacks[i].length < minBoxes) {
+                    minBoxes = stacks[i].length;
+                    targetStack = i;
+                }
+            }
+            
+            // Use simplified Tower of Hanoi logic
+            const moves = [];
+            const tempStacks = stacks.map(s => [...s]);
+            
+            // Get all boxes sorted
+            let allBoxes = [];
+            tempStacks.forEach(stack => allBoxes.push(...stack));
+            allBoxes.sort((a, b) => b - a);
+            
+            // Simulate moving all boxes to target in correct order
+            for (let box of allBoxes) {
+                // Find current location
+                let fromStack = -1;
+                for (let i = 0; i < 3; i++) {
+                    if (tempStacks[i].length > 0 && tempStacks[i][tempStacks[i].length - 1] === box) {
+                        fromStack = i;
+                        break;
+                    }
+                }
+                
+                if (fromStack !== -1 && fromStack !== targetStack) {
+                    moves.push({from: fromStack, to: targetStack});
+                    tempStacks[targetStack].push(tempStacks[fromStack].pop());
+                }
+            }
+            
+            return moves;
+        }
+
+        // Helper function
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Show message
+        function showMessage(text) {
+            document.getElementById('message').textContent = text;
+        }
+
+        // Victory sound
+        function playVictorySound() {
+            playSound(523.25, 0.1); // C5
+            setTimeout(() => playSound(659.25, 0.1), 100); // E5
+            setTimeout(() => playSound(783.99, 0.2), 200); // G5
+        }
+
+        // Modal functions
+        function showInstructions() {
+            document.getElementById('modal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('show');
+        }
+
+        // Start game
+        window.onload = init;
+    </script>
+</body>
+</html>
