@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alphabet Pronunciation Trainer</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-start: #6a11cb;
+            --bg-end: #fff;
+            --primary-blue: #3498db;
+            --secondary-purple: #6a11cb;
+            --card-bg: #fff;
+            --text-dark: #2c3e50;
+            --text-light: #fff;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --border-radius: 12px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+            min-height: 75vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-dark);
+            overflow-x: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 400px;
+            padding: var(--spacing-md);
+            box-sizing: border-box;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        h1 {
+            color: var(--text-light);
+            font-size: 1.6rem;
+            margin: 0 0 var(--spacing-md) 0;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .mode-toggle {
+            display: flex;
+            gap: var(--spacing-sm);
+            justify-content: center;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            min-height: 48px;
+        }
+
+        .btn-primary {
+            background: var(--primary-blue);
+            color: var(--text-light);
+        }
+
+        .btn-primary:hover {
+            background: #2980b9;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: var(--secondary-purple);
+            color: var(--text-light);
+        }
+
+        .btn-secondary:hover {
+            background: #5a0ac4;
+            transform: translateY(-1px);
+        }
+
+        .settings-card {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-md);
+        }
+
+        .settings-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+
+        label {
+            font-weight: 600;
+            color: var(--text-dark);
+            font-size: 0.9rem;
+        }
+
+        select, input[type="range"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+
+        input[type="range"] {
+            accent-color: var(--primary-blue);
+        }
+
+        .rate-value {
+            font-weight: 600;
+            color: var(--secondary-purple);
+        }
+
+        .grid-view, .quiz-view, .phonics-view {
+            display: none;
+        }
+
+        .grid-view.active, .quiz-view.active, .phonics-view.active {
+            display: block;
+        }
+
+        .letter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
+            gap: var(--spacing-sm);
+            max-width: 100%;
+            margin: 0 auto;
+        }
+
+        .letter-btn {
+            aspect-ratio: 1;
+            font-size: 1.5rem;
+            font-weight: bold;
+            background: var(--card-bg);
+            border: 2px solid transparent;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-dark);
+        }
+
+        .letter-btn:hover {
+            transform: scale(1.05);
+            border-color: var(--primary-blue);
+        }
+
+        .letter-btn.played {
+            background: linear-gradient(135deg, var(--primary-blue), var(--secondary-purple));
+            color: var(--text-light);
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .quiz-letter {
+            font-size: 8rem;
+            font-weight: bold;
+            text-align: center;
+            color: var(--text-dark);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            user-select: none;
+            margin: var(--spacing-lg) 0;
+        }
+
+        .quiz-letter:hover {
+            transform: scale(1.05);
+        }
+
+        .quiz-letter.played {
+            color: var(--primary-blue);
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        .quiz-info {
+            text-align: center;
+            color: var(--text-light);
+            font-size: 1.1rem;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .phonics-letter {
+            font-size: 8rem;
+            font-weight: bold;
+            text-align: center;
+            color: var(--text-dark);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            user-select: none;
+            margin: var(--spacing-lg) 0;
+        }
+
+        .phonics-letter:hover {
+            transform: scale(1.05);
+        }
+
+        .phonics-letter.played {
+            color: var(--primary-blue);
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        .phonics-info {
+            text-align: center;
+            color: var(--text-light);
+            font-size: 1.1rem;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .phonics-details {
+            text-align: center;
+            color: var(--text-light);
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin: var(--spacing-md) 0;
+        }
+
+        .phonics-sound {
+            font-size: 1.5rem;
+            color: var(--primary-blue);
+        }
+
+        .phonics-word {
+            font-size: 1rem;
+            margin-top: var(--spacing-sm);
+        }
+
+        /* Mobile Optimizations */
+        @media (max-width: 480px) {
+            .container {
+                padding: var(--spacing-sm);
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .letter-grid {
+                grid-template-columns: repeat(6, 1fr);
+                gap: var(--spacing-sm);
+            }
+
+            .letter-btn {
+                font-size: 1.2rem;
+                min-height: 50px;
+            }
+
+            .quiz-letter, .phonics-letter {
+                font-size: 6rem;
+            }
+
+            .mode-toggle .btn {
+                padding: 10px 16px;
+                font-size: 0.9rem;
+            }
+
+            .phonics-details {
+                font-size: 1rem;
+            }
+
+            .phonics-sound {
+                font-size: 1.2rem;
+            }
+        }
+
+        /* Loader (if needed for future expansions) */
+        .loader {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--text-light);
+            border-top: 4px solid var(--primary-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* ARIA Accessibility */
+        [role="button"] {
+            outline: none;
+        }
+
+        [role="button"]:focus {
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h3><i class="fas fa-font"></i> Alphabet Trainer</h1>
+        </header>
+
+        <div class="mode-toggle">
+            <button class="btn btn-primary active" onclick="switchMode('grid')" aria-label="Switch to Grid View">
+                <i class="fas fa-th"></i> Grid
+            </button>
+            <button class="btn btn-secondary" onclick="switchMode('quiz')" aria-label="Switch to Quiz View">
+                <i class="fas fa-question-circle"></i> Quiz
+            </button>
+            <button class="btn btn-secondary" onclick="switchMode('phonics')" aria-label="Switch to Phonics View">
+                <i class="fas fa-book"></i> Phonics
+            </button>
+        </div>
+
+        <div class="settings-card">
+            <div class="settings-group">
+                <label for="language">Language:</label>
+                <select id="language" onchange="updateSpeechSettings()">
+                    <option value="en-US">English (US)</option>
+                    <option value="en-GB">English (GB)</option>
+                    <option value="es-ES">Español</option>
+                    <option value="fr-FR">Français</option>
+                </select>
+            </div>
+            <div class="settings-group">
+                <label for="voice">Voice:</label>
+                <select id="voice" onchange="updateSpeechSettings()"></select>
+            </div>
+            <div class="settings-group">
+                <label for="rate">Speed: <span class="rate-value" id="rateValue">1.0</span></label>
+                <input type="range" id="rate" min="0.5" max="2.0" step="0.1" value="1.0" onchange="updateSpeechSettings()">
+            </div>
+        </div>
+
+        <div id="gridView" class="grid-view active" role="main" aria-label="Alphabet Grid">
+            <div class="letter-grid" role="grid">
+                <!-- Letters A-Z buttons will be generated by JS -->
+            </div>
+        </div>
+
+        <div id="quizView" class="quiz-view" role="main" aria-label="Quiz View">
+            <div class="quiz-info">Click the letter to hear it pronounced!</div>
+            <div class="quiz-letter" id="quizLetter" role="button" tabindex="0" aria-label="Quiz letter">A</div>
+        </div>
+
+        <div id="phonicsView" class="phonics-view" role="main" aria-label="Phonics View">
+            <div class="phonics-info">Click to hear the phonics lesson!</div>
+            <div class="phonics-letter" id="phonicsLetter" role="button" tabindex="0" aria-label="Phonics letter">A</div>
+            <div class="phonics-details">
+                <div class="phonics-sound" id="phonicsSound">a</div>
+                <div class="phonics-word" id="phonicsWord">like in at</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="loader" id="loader">
+        <div class="spinner"></div>
+    </div>
+
+    <script>
+        let currentMode = 'grid';
+        let currentUtterance = null;
+        let voices = [];
+        let quizLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+        let currentQuizLetter = '';
+        let phonicsLessons = [
+            {letter: 'A', sound: 'a', word: 'at'},
+            {letter: 'B', sound: 'b', word: 'but'},
+            {letter: 'C', sound: 'k', word: 'can'},
+            {letter: 'D', sound: 'd', word: 'dad'},
+            {letter: 'E', sound: 'e', word: 'get'},
+            {letter: 'F', sound: 'f', word: 'fit'},
+            {letter: 'G', sound: 'g', word: 'tag'},
+            {letter: 'H', sound: 'h', word: 'had'},
+            {letter: 'I', sound: 'i', word: 'it'},
+            {letter: 'J', sound: 'j', word: 'jet'},
+            {letter: 'K', sound: 'k', word: 'kid'},
+            {letter: 'L', sound: 'l', word: 'let'},
+            {letter: 'M', sound: 'm', word: 'man'},
+            {letter: 'N', sound: 'n', word: 'an'},
+            {letter: 'O', sound: 'o', word: 'got'},
+            {letter: 'P', sound: 'p', word: 'pat'},
+            {letter: 'Q', sound: 'kw', word: 'quit'},
+            {letter: 'R', sound: 'r', word: 'rip'},
+            {letter: 'S', sound: 's', word: 'sat'},
+            {letter: 'T', sound: 't', word: 'tap'},
+            {letter: 'U', sound: 'u', word: 'up'},
+            {letter: 'V', sound: 'v', word: 'van'},
+            {letter: 'W', sound: 'w', word: 'wig'},
+            {letter: 'X', sound: 'ks', word: 'fox'},
+            {letter: 'Y', sound: 'y', word: 'yes'},
+            {letter: 'Z', sound: 'z', word: 'zip'}
+        ];
+        let currentPhonicsIndex = 0;
+
+        // Initialize voices and populate select
+        function initVoices() {
+            voices = speechSynthesis.getVoices();
+            const voiceSelect = document.getElementById('voice');
+            voiceSelect.innerHTML = '';
+            voices.forEach((voice, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${voice.name} (${voice.lang})`;
+                voiceSelect.appendChild(option);
+            });
+            if (voices.length > 0) {
+                voiceSelect.value = 102;
+            }
+        }
+
+        // Update speech settings
+        function updateSpeechSettings() {
+            if (currentUtterance) {
+                const lang = document.getElementById('language').value;
+                const voiceIndex = document.getElementById('voice').value;
+                const rate = document.getElementById('rate').value;
+                currentUtterance.lang = lang;
+                currentUtterance.voice = voices[voiceIndex] || voices[0];
+                currentUtterance.rate = parseFloat(rate);
+                document.getElementById('rateValue').textContent = rate;
+            }
+        }
+
+        // Create grid buttons
+        function createGrid() {
+            const grid = document.querySelector('.letter-grid');
+            grid.innerHTML = '';
+            quizLetters.forEach(letter => {
+                const btn = document.createElement('button');
+                btn.className = 'letter-btn';
+                btn.textContent = letter;
+                btn.setAttribute('role', 'button');
+                btn.setAttribute('aria-label', `Pronounce letter ${letter}`);
+                btn.onclick = () => playLetter(letter, btn);
+                btn.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); playLetter(letter, btn); } };
+                grid.appendChild(btn);
+            });
+        }
+
+        // Play letter sound
+        function playLetter(letter, element) {
+            if (currentUtterance) {
+                speechSynthesis.cancel();
+            }
+
+            currentUtterance = new SpeechSynthesisUtterance(letter);
+            updateSpeechSettings();
+
+            // Visual feedback
+            element.classList.add('played');
+            setTimeout(() => element.classList.remove('played'), 500);
+
+            // Simple audio feedback (beep sound using Web Audio API)
+            playBeep();
+
+            speechSynthesis.speak(currentUtterance);
+        }
+
+        // Play phonics lesson
+        function playPhonics(lesson) {
+            if (currentUtterance) {
+                speechSynthesis.cancel();
+            }
+
+            const text = `The letter ${lesson.letter} says ${lesson.sound}, like in ${lesson.word}`;
+            currentUtterance = new SpeechSynthesisUtterance(text);
+            updateSpeechSettings();
+
+            // Visual feedback
+            const letterEl = document.getElementById('phonicsLetter');
+            letterEl.classList.add('played');
+            setTimeout(() => letterEl.classList.remove('played'), 500);
+
+            // Simple audio feedback
+            playBeep();
+
+            speechSynthesis.speak(currentUtterance);
+        }
+
+        // Simple beep sound
+        function playBeep() {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            oscillator.frequency.value = 800;
+            oscillator.type = 'sine';
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.1);
+        }
+
+        // Switch modes
+        function switchMode(mode) {
+            currentMode = mode;
+            document.getElementById('gridView').classList.toggle('active', mode === 'grid');
+            document.getElementById('quizView').classList.toggle('active', mode === 'quiz');
+            document.getElementById('phonicsView').classList.toggle('active', mode === 'phonics');
+            document.querySelectorAll('.mode-toggle .btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            if (mode === 'quiz') {
+                nextQuizLetter();
+            } else if (mode === 'phonics') {
+                currentPhonicsIndex = 0;
+                nextPhonicsLesson();
+            }
+        }
+
+        // Quiz functionality
+        function nextQuizLetter() {
+            const randomIndex = Math.floor(Math.random() * quizLetters.length);
+            currentQuizLetter = quizLetters[randomIndex];
+            const letterEl = document.getElementById('quizLetter');
+            letterEl.textContent = currentQuizLetter;
+            letterEl.setAttribute('aria-label', `Pronounce letter ${currentQuizLetter}`);
+            letterEl.classList.remove('played');
+        }
+
+        function handleQuizClick() {
+            playLetter(currentQuizLetter, document.getElementById('quizLetter'));
+            currentUtterance.onend = () => {
+                setTimeout(nextQuizLetter, 500); // Delay for feedback
+            };
+        }
+
+        // Phonics functionality
+        function nextPhonicsLesson() {
+            const lesson = phonicsLessons[currentPhonicsIndex];
+            const letterEl = document.getElementById('phonicsLetter');
+            const soundEl = document.getElementById('phonicsSound');
+            const wordEl = document.getElementById('phonicsWord');
+            letterEl.textContent = lesson.letter;
+            soundEl.textContent = lesson.sound;
+            wordEl.textContent = `like in ${lesson.word}`;
+            letterEl.setAttribute('aria-label', `Phonics lesson for ${lesson.letter}`);
+            letterEl.classList.remove('played');
+            currentPhonicsIndex = (currentPhonicsIndex + 1) % phonicsLessons.length;
+        }
+
+        function handlePhonicsClick() {
+            const lesson = phonicsLessons[(currentPhonicsIndex - 1 + phonicsLessons.length) % phonicsLessons.length];
+            playPhonics(lesson);
+            currentUtterance.onend = () => {
+                setTimeout(nextPhonicsLesson, 1000); // Longer delay for lesson
+            };
+        }
+
+        // Event listeners
+        document.getElementById('quizLetter').addEventListener('click', handleQuizClick);
+        document.getElementById('quizLetter').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleQuizClick();
+            }
+        });
+
+        document.getElementById('phonicsLetter').addEventListener('click', handlePhonicsClick);
+        document.getElementById('phonicsLetter').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handlePhonicsClick();
+            }
+        });
+
+        // Initialize on load
+        window.addEventListener('load', () => {
+            initVoices();
+            createGrid();
+            // Re-init voices if loaded async
+            speechSynthesis.onvoiceschanged = initVoices;
+        });
+
+        // Prevent scrolling on mobile for full screen feel
+        document.addEventListener('touchmove', (e) => {
+            if (e.target === document.body) e.preventDefault();
+        }, { passive: false });
+    </script>
+</body>
+</html>
