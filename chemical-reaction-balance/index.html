@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chem Balancer</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-text-size-adjust: none;
+            text-size-adjust: none;
+            touch-action: manipulation;
+        }
+        
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2980, #26d0ce);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+        }
+        
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            background: rgba(0, 0, 0, 0.25);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .title {
+            font-size: 1.3rem;
+            font-weight: bold;
+        }
+        
+        .info-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        
+        /* Stats Bar */
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 15px;
+            background: rgba(0, 0, 0, 0.2);
+            font-size: 0.85rem;
+        }
+        
+        .stat-item {
+            text-align: center;
+            flex: 1;
+        }
+        
+        .stat-value {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #4fc3f7;
+        }
+        
+        /* Equation Area */
+        .equation-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            margin: 8px 15px;
+            border-radius: 10px;
+        }
+        
+        .equation {
+            font-size: 1.2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            text-align: center;
+        }
+        
+        .coefficient {
+            width: 42px;
+            height: 36px;
+            font-size: 1.1rem;
+            text-align: center;
+            margin: 0 4px;
+            border: 2px solid #4fc3f7;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.95);
+            color: #333;
+        }
+        
+        .compound {
+            padding: 2px 6px;
+            background: rgba(79, 195, 247, 0.2);
+            border-radius: 5px;
+            margin: 0 2px;
+            white-space: nowrap;
+        }
+        
+        .plus {
+            margin: 0 4px;
+        }
+        
+        .arrow {
+            margin: 0 8px;
+            font-size: 1.3rem;
+        }
+        
+        /* Feedback */
+        .feedback {
+            margin: 0 15px 8px;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 0.85rem;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .correct {
+            background: rgba(76, 175, 80, 0.3);
+            border: 1px solid #4caf50;
+        }
+        
+        .incorrect {
+            background: rgba(244, 67, 54, 0.3);
+            border: 1px solid #f44336;
+        }
+        
+        /* Hint */
+        .hint {
+            margin: 0 15px 10px;
+            padding: 8px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 0.75rem;
+            background: rgba(255, 204, 128, 0.2);
+            border: 1px solid rgba(255, 204, 128, 0.3);
+            color: #ffcc80;
+        }
+        
+        /* Controls */
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            padding: 10px 15px 15px;
+            background: rgba(0, 0, 0, 0.3);
+        }
+        
+        button {
+            padding: 12px 8px;
+            font-size: 0.85rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            min-height: 44px;
+            transition: all 0.2s;
+        }
+        
+        button:active {
+            transform: scale(0.98);
+        }
+        
+        #check-btn {
+            background: #4caf50;
+            color: white;
+        }
+        
+        #auto-solve-btn {
+            background: #9c27b0;
+            color: white;
+        }
+        
+        #reset-btn {
+            background: #ff9800;
+            color: white;
+        }
+        
+        #next-btn {
+            background: #2196f3;
+            color: white;
+        }
+        
+        /* Instructions Overlay */
+        .instructions-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .instructions-content {
+            background: rgba(30, 30, 46, 0.95);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+        }
+        
+        .instructions-content h2 {
+            margin-bottom: 15px;
+            color: #4fc3f7;
+            text-align: center;
+        }
+        
+        .instructions-content p {
+            margin-bottom: 10px;
+            line-height: 1.4;
+            font-size: 0.9rem;
+        }
+        
+        .instructions-content ul {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .instructions-content li {
+            margin-bottom: 8px;
+            line-height: 1.4;
+            font-size: 0.9rem;
+        }
+        
+        .close-btn {
+            align-self: flex-end;
+            background: #f44336;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 15px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        
+        /* Game Complete Overlay */
+        .complete-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .complete-content {
+            background: rgba(30, 30, 46, 0.95);
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            max-width: 300px;
+            width: 100%;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+        }
+        
+        .complete-content h2 {
+            margin-bottom: 15px;
+            color: #4fc3f7;
+        }
+        
+        .final-score {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #4caf50;
+            margin: 15px 0;
+        }
+        
+        .restart-btn {
+            background: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 25px;
+            font-size: 1rem;
+            font-weight: bold;
+            margin-top: 15px;
+            width: 100%;
+        }
+        
+        /* Media queries for very small screens */
+        @media (max-height: 650px) {
+            .equation {
+                font-size: 1.1rem;
+            }
+            
+            .coefficient {
+                width: 38px;
+                height: 32px;
+                font-size: 1rem;
+            }
+            
+            .stats {
+                padding: 6px 15px;
+            }
+            
+            .equation-container {
+                padding: 10px;
+                margin: 5px 15px;
+            }
+            
+            .feedback, .hint {
+                margin-left: 10px;
+                margin-right: 10px;
+                padding: 8px;
+                font-size: 0.8rem;
+                min-height: 40px;
+            }
+            
+            .controls {
+                padding: 8px 10px 10px;
+            }
+        }
+        
+        @media (max-height: 570px) {
+            .header {
+                padding: 8px 15px;
+            }
+            
+            .title {
+                font-size: 1.1rem;
+            }
+            
+            .stats {
+                font-size: 0.75rem;
+            }
+            
+            .stat-value {
+                font-size: 1rem;
+            }
+            
+            .hint {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title">Chem Balancer</div>
+        <div class="info-icon" id="info-btn">?</div>
+    </div>
+    
+    <div class="stats">
+        <div class="stat-item">
+            <div>Score</div>
+            <div class="stat-value" id="score">0</div>
+        </div>
+        <div class="stat-item">
+            <div>Puzzle</div>
+            <div class="stat-value" id="puzzle-count">1/20</div>
+        </div>
+        <div class="stat-item">
+            <div>Time</div>
+            <div class="stat-value" id="timer">60</div>
+        </div>
+    </div>
+    
+    <div class="equation-container">
+        <div class="equation" id="equation">
+            <!-- Equation will be dynamically generated -->
+        </div>
+    </div>
+    
+    <div class="feedback" id="feedback">
+        Adjust coefficients to balance the equation
+    </div>
+    
+    <div class="hint" id="hint">
+        <!-- Hint will appear here -->
+    </div>
+    
+    <div class="controls">
+        <button id="check-btn">Check</button>
+        <button id="auto-solve-btn">Auto Solve</button>
+        <button id="reset-btn">Reset</button>
+        <button id="next-btn">Next</button>
+    </div>
+    
+    <!-- Instructions Popup -->
+    <div class="instructions-overlay" id="instructions-overlay">
+        <button class="close-btn" id="close-btn">Close</button>
+        <div class="instructions-content">
+            <h2>How to Play</h2>
+            <p>Balance chemical equations by adjusting coefficients:</p>
+            <ul>
+                <li>Change numbers in front of compounds</li>
+                <li>Same atoms must appear on both sides</li>
+                <li>Tap "Check" to verify your solution</li>
+                <li>Use "Auto Solve" for help (reduces points)</li>
+                <li>Complete puzzles before time runs out</li>
+            </ul>
+            <p><strong>Examples:</strong></p>
+            <p>H₂ + O₂ → H₂O becomes 2H₂ + O₂ → 2H₂O</p>
+            <p>CH₄ + O₂ → CO₂ + H₂O becomes CH₄ + 2O₂ → CO₂ + 2H₂O</p>
+        </div>
+    </div>
+    
+    <!-- Game Complete Popup -->
+    <div class="complete-overlay" id="complete-overlay">
+        <div class="complete-content">
+            <h2>Game Complete!</h2>
+            <p>You've balanced all the equations</p>
+            <div class="final-score" id="final-score">0</div>
+            <button class="restart-btn" id="restart-btn">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        // Game state
+        const gameState = {
+            score: 0,
+            currentPuzzle: 0,
+            timeLeft: 60,
+            timer: null,
+            isGameActive: true,
+            usedAutoSolve: false
+        };
+
+        // Chemical equations database (20 most common)
+        const equations = [
+            // Simple reactions
+            {
+                reactants: ["H₂", "O₂"],
+                products: ["H₂O"],
+                coefficients: [2, 1, 2],
+                difficulty: 1,
+                hint: "Remember that water has 2 hydrogen atoms and 1 oxygen atom"
+            },
+            {
+                reactants: ["N₂", "H₂"],
+                products: ["NH₃"],
+                coefficients: [1, 3, 2],
+                difficulty: 1,
+                hint: "Ammonia has 1 nitrogen and 3 hydrogen atoms"
+            },
+            {
+                reactants: ["CH₄", "O₂"],
+                products: ["CO₂", "H₂O"],
+                coefficients: [1, 2, 1, 2],
+                difficulty: 2,
+                hint: "Count carbon, hydrogen, and oxygen atoms on both sides"
+            },
+            {
+                reactants: ["Fe", "O₂"],
+                products: ["Fe₂O₃"],
+                coefficients: [4, 3, 2],
+                difficulty: 2,
+                hint: "Rust formation - iron oxide has 2 iron and 3 oxygen atoms"
+            },
+            {
+                reactants: ["Al", "O₂"],
+                products: ["Al₂O₃"],
+                coefficients: [4, 3, 2],
+                difficulty: 2,
+                hint: "Aluminum oxide has 2 aluminum and 3 oxygen atoms"
+            },
+            {
+                reactants: ["Na", "Cl₂"],
+                products: ["NaCl"],
+                coefficients: [2, 1, 2],
+                difficulty: 1,
+                hint: "Sodium chloride has 1 sodium and 1 chlorine atom"
+            },
+            {
+                reactants: ["P₄", "O₂"],
+                products: ["P₂O₅"],
+                coefficients: [1, 5, 2],
+                difficulty: 3,
+                hint: "Phosphorus pentoxide has 2 phosphorus and 5 oxygen atoms"
+            },
+            {
+                reactants: ["C₃H₈", "O₂"],
+                products: ["CO₂", "H₂O"],
+                coefficients: [1, 5, 3, 4],
+                difficulty: 3,
+                hint: "Propane combustion - count carbons, hydrogens, and oxygens"
+            },
+            {
+                reactants: ["KClO₃"],
+                products: ["KCl", "O₂"],
+                coefficients: [2, 2, 3],
+                difficulty: 2,
+                hint: "Potassium chlorate decomposition - oxygen is diatomic"
+            },
+            {
+                reactants: ["H₂SO₄", "NaOH"],
+                products: ["Na₂SO₄", "H₂O"],
+                coefficients: [1, 2, 1, 2],
+                difficulty: 3,
+                hint: "Acid-base reaction - sodium sulfate has 2 sodium atoms"
+            },
+            // Additional reactions
+            {
+                reactants: ["CaCO₃"],
+                products: ["CaO", "CO₂"],
+                coefficients: [1, 1, 1],
+                difficulty: 1,
+                hint: "Limestone decomposition - all coefficients are 1"
+            },
+            {
+                reactants: ["Zn", "HCl"],
+                products: ["ZnCl₂", "H₂"],
+                coefficients: [1, 2, 1, 1],
+                difficulty: 2,
+                hint: "Zinc reacts with acid to produce hydrogen gas"
+            },
+            {
+                reactants: ["AgNO₃", "NaCl"],
+                products: ["AgCl", "NaNO₃"],
+                coefficients: [1, 1, 1, 1],
+                difficulty: 1,
+                hint: "Precipitation reaction - all coefficients are 1"
+            },
+            {
+                reactants: ["Cu", "AgNO₃"],
+                products: ["Cu(NO₃)₂", "Ag"],
+                coefficients: [1, 2, 1, 2],
+                difficulty: 2,
+                hint: "Single displacement - copper nitrate has 2 nitrate groups"
+            },
+            {
+                reactants: ["Fe", "CuSO₄"],
+                products: ["FeSO₄", "Cu"],
+                coefficients: [1, 1, 1, 1],
+                difficulty: 1,
+                hint: "Iron displaces copper - all coefficients are 1"
+            },
+            {
+                reactants: ["Mg", "O₂"],
+                products: ["MgO"],
+                coefficients: [2, 1, 2],
+                difficulty: 1,
+                hint: "Magnesium oxide has 1 magnesium and 1 oxygen atom"
+            },
+            {
+                reactants: ["C₂H₅OH", "O₂"],
+                products: ["CO₂", "H₂O"],
+                coefficients: [1, 3, 2, 3],
+                difficulty: 3,
+                hint: "Ethanol combustion - count all atoms carefully"
+            },
+            {
+                reactants: ["NH₃", "O₂"],
+                products: ["NO", "H₂O"],
+                coefficients: [4, 5, 4, 6],
+                difficulty: 4,
+                hint: "Ammonia oxidation - this one is tricky with fractional oxygen"
+            },
+            {
+                reactants: ["SO₂", "O₂"],
+                products: ["SO₃"],
+                coefficients: [2, 1, 2],
+                difficulty: 2,
+                hint: "Sulfur trioxide formation - balance sulfur first"
+            },
+            {
+                reactants: ["Na₂O", "H₂O"],
+                products: ["NaOH"],
+                coefficients: [1, 1, 2],
+                difficulty: 2,
+                hint: "Sodium oxide with water produces sodium hydroxide"
+            },
+            {
+                reactants: ["K", "H₂O"],
+                products: ["KOH", "H₂"],
+                coefficients: [2, 2, 2, 1],
+                difficulty: 2,
+                hint: "Potassium reacts vigorously with water"
+            },
+            {
+                reactants: ["CaO", "H₂O"],
+                products: ["Ca(OH)₂"],
+                coefficients: [1, 1, 1],
+                difficulty: 1,
+                hint: "Quicklime with water produces slaked lime"
+            },
+            {
+                reactants: ["CO", "O₂"],
+                products: ["CO₂"],
+                coefficients: [2, 1, 2],
+                difficulty: 2,
+                hint: "Carbon monoxide combustion - oxygen is diatomic"
+            },
+            {
+                reactants: ["NO₂", "H₂O"],
+                products: ["HNO₃", "NO"],
+                coefficients: [3, 1, 2, 1],
+                difficulty: 4,
+                hint: "Nitrogen dioxide with water - this is a disproportionation reaction"
+            },
+            {
+                reactants: ["Fe₂O₃", "CO"],
+                products: ["Fe", "CO₂"],
+                coefficients: [1, 3, 2, 3],
+                difficulty: 3,
+                hint: "Iron oxide reduction - count iron and oxygen atoms carefully"
+            },
+            {
+                reactants: ["Al", "HCl"],
+                products: ["AlCl₃", "H₂"],
+                coefficients: [2, 6, 2, 3],
+                difficulty: 3,
+                hint: "Aluminum reacts with acid - aluminum chloride has 3 chlorine atoms"
+            },
+            {
+                reactants: ["CuO", "H₂"],
+                products: ["Cu", "H₂O"],
+                coefficients: [1, 1, 1, 1],
+                difficulty: 1,
+                hint: "Copper oxide reduction - all coefficients are 1"
+            },
+            {
+                reactants: ["Na", "H₂O"],
+                products: ["NaOH", "H₂"],
+                coefficients: [2, 2, 2, 1],
+                difficulty: 2,
+                hint: "Sodium reacts with water - hydrogen is diatomic"
+            },
+            {
+                reactants: ["H₂O₂"],
+                products: ["H₂O", "O₂"],
+                coefficients: [2, 2, 1],
+                difficulty: 2,
+                hint: "Hydrogen peroxide decomposition - oxygen is diatomic"
+            },
+            {
+                reactants: ["C", "O₂"],
+                products: ["CO₂"],
+                coefficients: [1, 1, 1],
+                difficulty: 1,
+                hint: "Carbon combustion - all coefficients are 1"
+            },
+            {
+                reactants: ["Fe", "S"],
+                products: ["FeS"],
+                coefficients: [1, 1, 1],
+                difficulty: 1,
+                hint: "Iron sulfide formation - all coefficients are 1"
+            },
+            {
+                reactants: ["NH₄Cl", "Ca(OH)₂"],
+                products: ["NH₃", "CaCl₂", "H₂O"],
+                coefficients: [2, 1, 2, 1, 2],
+                difficulty: 4,
+                hint: "Ammonia preparation - count all atoms carefully"
+            },
+            {
+                reactants: ["Pb(NO₃)₂", "KI"],
+                products: ["PbI₂", "KNO₃"],
+                coefficients: [1, 2, 1, 2],
+                difficulty: 2,
+                hint: "Lead iodide precipitation - potassium iodide has 1 iodine atom"
+            },
+            {
+                reactants: ["BaCl₂", "Na₂SO₄"],
+                products: ["BaSO₄", "NaCl"],
+                coefficients: [1, 1, 1, 2],
+                difficulty: 2,
+                hint: "Barium sulfate precipitation - sodium chloride has 1 chlorine atom"
+            },
+            {
+                reactants: ["CaCl₂", "Na₂CO₃"],
+                products: ["CaCO₃", "NaCl"],
+                coefficients: [1, 1, 1, 2],
+                difficulty: 2,
+                hint: "Calcium carbonate precipitation - sodium chloride has 1 chlorine atom"
+            },
+            {
+                reactants: ["HCl", "CaCO₃"],
+                products: ["CaCl₂", "CO₂", "H₂O"],
+                coefficients: [2, 1, 1, 1, 1],
+                difficulty: 3,
+                hint: "Acid with carbonate - hydrochloric acid has 1 hydrogen atom"
+            },
+            {
+                reactants: ["H₂", "Cl₂"],
+                products: ["HCl"],
+                coefficients: [1, 1, 2],
+                difficulty: 1,
+                hint: "Hydrogen chloride formation - product is diatomic"
+            },
+            {
+                reactants: ["Na₂O₂", "H₂O"],
+                products: ["NaOH", "H₂O₂"],
+                coefficients: [1, 2, 2, 1],
+                difficulty: 3,
+                hint: "Sodium peroxide with water - hydrogen peroxide is produced"
+            },
+            {
+                reactants: ["KMnO₄", "HCl"],
+                products: ["KCl", "MnCl₂", "Cl₂", "H₂O"],
+                coefficients: [2, 16, 2, 2, 5, 8],
+                difficulty: 5,
+                hint: "Potassium permanganate with HCl - this is a redox reaction"
+            },
+            {
+                reactants: ["Cu", "HNO₃"],
+                products: ["Cu(NO₃)₂", "NO₂", "H₂O"],
+                coefficients: [1, 4, 1, 2, 2],
+                difficulty: 4,
+                hint: "Copper with concentrated nitric acid - nitrogen dioxide is produced"
+            },
+            {
+                reactants: ["Zn", "H₂SO₄"],
+                products: ["ZnSO₄", "H₂"],
+                coefficients: [1, 1, 1, 1],
+                difficulty: 1,
+                hint: "Zinc with sulfuric acid - all coefficients are 1"
+            },
+            {
+                reactants: ["CaC₂", "H₂O"],
+                products: ["C₂H₂", "Ca(OH)₂"],
+                coefficients: [1, 2, 1, 1],
+                difficulty: 2,
+                hint: "Calcium carbide with water produces acetylene"
+            },
+            {
+                reactants: ["FeCl₃", "NaOH"],
+                products: ["Fe(OH)₃", "NaCl"],
+                coefficients: [1, 3, 1, 3],
+                difficulty: 2,
+                hint: "Iron(III) chloride with sodium hydroxide"
+            },
+            {
+                reactants: ["Ag₂O"],
+                products: ["Ag", "O₂"],
+                coefficients: [2, 4, 1],
+                difficulty: 2,
+                hint: "Silver oxide decomposition - oxygen is diatomic"
+            },
+            {
+                reactants: ["CH₃COOH", "NaOH"],
+                products: ["CH₃COONa", "H₂O"],
+                coefficients: [1, 1, 1, 1],
+                difficulty: 1,
+                hint: "Acetic acid with sodium hydroxide - all coefficients are 1"
+            },
+            {
+                reactants: ["NH₃", "HCl"],
+                products: ["NH₄Cl"],
+                coefficients: [1, 1, 1],
+                difficulty: 1,
+                hint: "Ammonia with hydrogen chloride - all coefficients are 1"
+            },
+            {
+                reactants: ["SO₃", "H₂O"],
+                products: ["H₂SO₄"],
+                coefficients: [1, 1, 1],
+                difficulty: 1,
+                hint: "Sulfur trioxide with water produces sulfuric acid"
+            },
+            {
+                reactants: ["Na₂CO₃", "HCl"],
+                products: ["NaCl", "CO₂", "H₂O"],
+                coefficients: [1, 2, 2, 1, 1],
+                difficulty: 2,
+                hint: "Sodium carbonate with acid - hydrochloric acid has 1 hydrogen atom"
+            },
+            {
+                reactants: ["CuSO₄", "Zn"],
+                products: ["ZnSO₄", "Cu"],
+                coefficients: [1, 1, 1, 1],
+                difficulty: 1,
+                hint: "Zinc displaces copper - all coefficients are 1"
+            }
+        ];
+
+        // DOM elements
+        const equationElement = document.getElementById('equation');
+        const scoreElement = document.getElementById('score');
+        const puzzleCountElement = document.getElementById('puzzle-count');
+        const timerElement = document.getElementById('timer');
+        const feedbackElement = document.getElementById('feedback');
+        const hintElement = document.getElementById('hint');
+        const checkButton = document.getElementById('check-btn');
+        const autoSolveButton = document.getElementById('auto-solve-btn');
+        const resetButton = document.getElementById('reset-btn');
+        const nextButton = document.getElementById('next-btn');
+        const infoButton = document.getElementById('info-btn');
+        const instructionsOverlay = document.getElementById('instructions-overlay');
+        const closeButton = document.getElementById('close-btn');
+        const completeOverlay = document.getElementById('complete-overlay');
+        const finalScoreElement = document.getElementById('final-score');
+        const restartButton = document.getElementById('restart-btn');
+
+        // Initialize the game
+        function initGame() {
+            gameState.score = 0;
+            gameState.currentPuzzle = 0;
+            gameState.timeLeft = 60;
+            gameState.isGameActive = true;
+            gameState.usedAutoSolve = false;
+            
+            updateScore();
+            updatePuzzleCount();
+            updateTimer();
+            loadPuzzle();
+            startTimer();
+            
+            // Reset feedback
+            feedbackElement.textContent = "Adjust coefficients to balance the equation";
+            feedbackElement.className = "feedback";
+            
+            // Hide overlays
+            instructionsOverlay.style.display = 'none';
+            completeOverlay.style.display = 'none';
+        }
+
+        // Load a puzzle
+        function loadPuzzle() {
+            const puzzle = equations[gameState.currentPuzzle];
+            
+            // Clear previous equation
+            equationElement.innerHTML = '';
+            
+            // Create reactants
+            puzzle.reactants.forEach((reactant, index) => {
+                // Create coefficient input
+                const coefficientInput = document.createElement('input');
+                coefficientInput.type = 'number';
+                coefficientInput.min = '1';
+                coefficientInput.value = '1';
+                coefficientInput.className = 'coefficient';
+                coefficientInput.dataset.index = index;
+                
+                // Create compound span
+                const compoundSpan = document.createElement('span');
+                compoundSpan.className = 'compound';
+                compoundSpan.textContent = reactant;
+                
+                // Add to equation
+                equationElement.appendChild(coefficientInput);
+                equationElement.appendChild(compoundSpan);
+                
+                // Add plus sign if not the last reactant
+                if (index < puzzle.reactants.length - 1) {
+                    const plusSpan = document.createElement('span');
+                    plusSpan.className = 'plus';
+                    plusSpan.textContent = '+';
+                    equationElement.appendChild(plusSpan);
+                }
+            });
+            
+            // Create arrow
+            const arrowSpan = document.createElement('span');
+            arrowSpan.className = 'arrow';
+            arrowSpan.textContent = '→';
+            equationElement.appendChild(arrowSpan);
+            
+            // Create products
+            puzzle.products.forEach((product, index) => {
+                // Create coefficient input
+                const coefficientInput = document.createElement('input');
+                coefficientInput.type = 'number';
+                coefficientInput.min = '1';
+                coefficientInput.value = '1';
+                coefficientInput.className = 'coefficient';
+                coefficientInput.dataset.index = puzzle.reactants.length + index;
+                
+                // Create compound span
+                const compoundSpan = document.createElement('span');
+                compoundSpan.className = 'compound';
+                compoundSpan.textContent = product;
+                
+                // Add to equation
+                equationElement.appendChild(coefficientInput);
+                equationElement.appendChild(compoundSpan);
+                
+                // Add plus sign if not the last product
+                if (index < puzzle.products.length - 1) {
+                    const plusSpan = document.createElement('span');
+                    plusSpan.className = 'plus';
+                    plusSpan.textContent = '+';
+                    equationElement.appendChild(plusSpan);
+                }
+            });
+            
+            // Show hint
+            hintElement.textContent = puzzle.hint;
+        }
+
+        // Check if the equation is balanced
+        function checkBalance() {
+            if (!gameState.isGameActive) return;
+            
+            const puzzle = equations[gameState.currentPuzzle];
+            const coefficientInputs = document.querySelectorAll('.coefficient');
+            const userCoefficients = Array.from(coefficientInputs).map(input => parseInt(input.value) || 1);
+            
+            // Check if coefficients match the solution
+            let isCorrect = true;
+            for (let i = 0; i < puzzle.coefficients.length; i++) {
+                if (userCoefficients[i] !== puzzle.coefficients[i]) {
+                    isCorrect = false;
+                    break;
+                }
+            }
+            
+            if (isCorrect) {
+                // Correct answer
+                let pointsEarned = 10;
+                
+                // Reduce points if auto-solve was used
+                if (gameState.usedAutoSolve) {
+                    pointsEarned = 5;
+                    gameState.usedAutoSolve = false;
+                }
+                
+                gameState.score += pointsEarned;
+                updateScore();
+                feedbackElement.textContent = `Correct! +${pointsEarned} points`;
+                feedbackElement.className = "feedback correct";
+                
+                // Disable inputs
+                coefficientInputs.forEach(input => input.disabled = true);
+                
+                // Auto-advance after a delay if not the last puzzle
+                if (gameState.currentPuzzle < equations.length - 1) {
+                    setTimeout(() => {
+                        nextPuzzle();
+                    }, 1500);
+                } else {
+                    endGame();
+                }
+            } else {
+                // Incorrect answer
+                feedbackElement.textContent = "Not balanced. Try again!";
+                feedbackElement.className = "feedback incorrect";
+            }
+        }
+
+        // Auto-solve the equation
+        function autoSolve() {
+            if (!gameState.isGameActive) return;
+            
+            const puzzle = equations[gameState.currentPuzzle];
+            const coefficientInputs = document.querySelectorAll('.coefficient');
+            
+            // Set the correct coefficients
+            puzzle.coefficients.forEach((coef, index) => {
+                coefficientInputs[index].value = coef;
+            });
+            
+            feedbackElement.textContent = "Auto-solve applied. Points reduced.";
+            feedbackElement.className = "feedback";
+            gameState.usedAutoSolve = true;
+        }
+
+        // Reset coefficients to 1
+        function resetCoefficients() {
+            if (!gameState.isGameActive) return;
+            
+            const coefficientInputs = document.querySelectorAll('.coefficient');
+            coefficientInputs.forEach(input => {
+                input.value = '1';
+                input.disabled = false;
+            });
+            
+            feedbackElement.textContent = "Coefficients reset. Try again!";
+            feedbackElement.className = "feedback";
+            gameState.usedAutoSolve = false;
+        }
+
+        // Load next puzzle
+        function nextPuzzle() {
+            if (!gameState.isGameActive) return;
+            
+            gameState.currentPuzzle++;
+            
+            if (gameState.currentPuzzle >= equations.length) {
+                endGame();
+                return;
+            }
+            
+            updatePuzzleCount();
+            loadPuzzle();
+            
+            feedbackElement.textContent = "Adjust coefficients";
+            feedbackElement.className = "feedback";
+            gameState.usedAutoSolve = false;
+        }
+
+        // Update score display
+        function updateScore() {
+            scoreElement.textContent = gameState.score;
+        }
+
+        // Update puzzle count display
+        function updatePuzzleCount() {
+            puzzleCountElement.textContent = `${gameState.currentPuzzle + 1}/${equations.length}`;
+        }
+
+        // Update timer display
+        function updateTimer() {
+            timerElement.textContent = gameState.timeLeft;
+        }
+
+        // Start the game timer
+        function startTimer() {
+            if (gameState.timer) {
+                clearInterval(gameState.timer);
+            }
+            
+            gameState.timer = setInterval(() => {
+                gameState.timeLeft--;
+                updateTimer();
+                
+                if (gameState.timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        // End the game
+        function endGame() {
+            gameState.isGameActive = false;
+            clearInterval(gameState.timer);
+            
+            // Disable all inputs
+            const coefficientInputs = document.querySelectorAll('.coefficient');
+            coefficientInputs.forEach(input => input.disabled = true);
+            
+            // Show final score
+            finalScoreElement.textContent = gameState.score;
+            completeOverlay.style.display = 'flex';
+        }
+
+        // Show instructions
+        function showInstructions() {
+            instructionsOverlay.style.display = 'flex';
+        }
+
+        // Hide instructions
+        function hideInstructions() {
+            instructionsOverlay.style.display = 'none';
+        }
+
+        // Event listeners
+        checkButton.addEventListener('click', checkBalance);
+        autoSolveButton.addEventListener('click', autoSolve);
+        resetButton.addEventListener('click', resetCoefficients);
+        nextButton.addEventListener('click', nextPuzzle);
+        infoButton.addEventListener('click', showInstructions);
+        closeButton.addEventListener('click', hideInstructions);
+        restartButton.addEventListener('click', initGame);
+
+        // Initialize the game when the page loads
+        window.onload = initGame;
+    </script>
+</body>
+</html>
