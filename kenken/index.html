@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>KenKen Puzzle</title>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: 'Arial', sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.container {
+  width: 100vw;
+  max-width: 500px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+h1 {
+  color: white;
+  font-size: 28px;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+  margin-bottom: 5px;
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+button {
+  padding: 10px 16px;
+  font-size: 14px;
+  background: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  color: #667eea;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+  transition: all 0.2s;
+}
+
+button:active {
+  transform: scale(0.95);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+button:hover {
+  background: #f0f0f0;
+}
+
+.board {
+  background: white;
+  border: 3px solid #333;
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+  display: inline-block;
+}
+
+.grid {
+  display: grid;
+  gap: 0;
+}
+
+.cell {
+  width: 60px;
+  height: 60px;
+  border: 1px solid #999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  font-size: 24px;
+  font-weight: bold;
+  background: white;
+  transition: background 0.2s;
+}
+
+.cell:active {
+  background: #e3f2fd;
+}
+
+.cell.selected {
+  background: #bbdefb !important;
+  border: 2px solid #2196f3;
+}
+
+.cell.correct {
+  background: #c8e6c9 !important;
+}
+
+.cell.incorrect {
+  background: #ffcdd2 !important;
+}
+
+.cage-label {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  font-size: 10px;
+  font-weight: bold;
+  color: #333;
+}
+
+.number-pad {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.number-btn {
+  width: 60px;
+  height: 60px;
+  font-size: 24px;
+  background: white;
+  border: 2px solid #667eea;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  color: #667eea;
+  transition: all 0.2s;
+}
+
+.number-btn:active {
+  transform: scale(0.9);
+  background: #667eea;
+  color: white;
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.7);
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal.active {
+  display: flex;
+}
+
+.modal-content {
+  background: white;
+  padding: 30px;
+  border-radius: 16px;
+  max-width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+.modal-content h2 {
+  color: #667eea;
+  margin-bottom: 15px;
+}
+
+.modal-content p {
+  margin-bottom: 10px;
+  line-height: 1.6;
+}
+
+.close-modal {
+  margin-top: 20px;
+  width: 100%;
+  padding: 12px;
+  background: #667eea;
+  color: white;
+}
+
+@media (max-width: 400px) {
+  .cell {
+    width: 50px;
+    height: 50px;
+    font-size: 20px;
+  }
+  
+  .number-btn {
+    width: 50px;
+    height: 50px;
+    font-size: 20px;
+  }
+  
+  h1 {
+    font-size: 24px;
+  }
+  
+  button {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>KenKen Puzzle</h1>
+  
+  <div class="controls">
+    <button onclick="newPuzzle()">🎲 New</button>
+    <button onclick="checkSolution()">✓ Check</button>
+    <button onclick="autoSolve()">🤖 Solve</button>
+    <button onclick="getHint()">💡 Hint</button>
+    <button onclick="showInstructions()">❓ Help</button>
+  </div>
+  
+  <div class="board">
+    <div id="grid" class="grid"></div>
+  </div>
+  
+  <div class="number-pad">
+    <button class="number-btn" onclick="inputNumber(1)">1</button>
+    <button class="number-btn" onclick="inputNumber(2)">2</button>
+    <button class="number-btn" onclick="inputNumber(3)">3</button>
+    <button class="number-btn" onclick="inputNumber(4)">4</button>
+  </div>
+</div>
+
+<div id="modal" class="modal">
+  <div class="modal-content">
+    <h2>How to Play KenKen</h2>
+    <p><strong>Goal:</strong> Fill the grid so each row and column contains the numbers 1-4 exactly once.</p>
+    <p><strong>Cages:</strong> Groups of cells with a target number and operation (+, -, ×, ÷).</p>
+    <p><strong>Rules:</strong></p>
+    <p>• Each cage must equal its target using the operation shown</p>
+    <p>• For subtraction and division, use any order of the numbers</p>
+    <p>• No number can repeat in the same row or column</p>
+    <p><strong>Controls:</strong></p>
+    <p>• Tap a cell to select it</p>
+    <p>• Tap a number button to fill the cell</p>
+    <p>• Use hints if you get stuck!</p>
+    <button class="close-modal" onclick="closeModal()">Got it!</button>
+  </div>
+</div>
+
+<script>
+const SIZE = 4;
+let grid = [];
+let solution = [];
+let selectedCell = null;
+let cages = [];
+
+const AUDIO_CTX = new (window.AudioContext || window.webkitAudioContext)();
+
+function playSound(freq, duration = 0.1) {
+  const osc = AUDIO_CTX.createOscillator();
+  const gain = AUDIO_CTX.createGain();
+  osc.connect(gain);
+  gain.connect(AUDIO_CTX.destination);
+  osc.frequency.value = freq;
+  gain.gain.value = 0.3;
+  osc.start();
+  gain.gain.exponentialRampToValueAtTime(0.01, AUDIO_CTX.currentTime + duration);
+  osc.stop(AUDIO_CTX.currentTime + duration);
+}
+
+function generateValidGrid() {
+  const base = [1, 2, 3, 4];
+  const g = [];
+  
+  for (let i = 0; i < SIZE; i++) {
+    g[i] = [];
+    for (let j = 0; j < SIZE; j++) {
+      g[i][j] = base[(i + j) % SIZE];
+    }
+  }
+  
+  // Shuffle rows and columns
+  for (let i = 0; i < 10; i++) {
+    const r1 = Math.floor(Math.random() * SIZE);
+    const r2 = Math.floor(Math.random() * SIZE);
+    [g[r1], g[r2]] = [g[r2], g[r1]];
+  }
+  
+  return g;
+}
+
+function generateCages(grid) {
+  const used = Array(SIZE).fill(0).map(() => Array(SIZE).fill(false));
+  const cageList = [];
+  let cageId = 0;
+  
+  while (cageList.length < 8) {
+    const r = Math.floor(Math.random() * SIZE);
+    const c = Math.floor(Math.random() * SIZE);
+    
+    if (used[r][c]) continue;
+    
+    const cageSize = Math.random() < 0.5 ? 1 : 2;
+    const cells = [[r, c]];
+    used[r][c] = true;
+    
+    if (cageSize === 2) {
+      const dirs = [];
+      if (r > 0 && !used[r-1][c]) dirs.push([-1, 0]);
+      if (r < SIZE-1 && !used[r+1][c]) dirs.push([1, 0]);
+      if (c > 0 && !used[r][c-1]) dirs.push([0, -1]);
+      if (c < SIZE-1 && !used[r][c+1]) dirs.push([0, 1]);
+      
+      if (dirs.length > 0) {
+        const [dr, dc] = dirs[Math.floor(Math.random() * dirs.length)];
+        cells.push([r + dr, c + dc]);
+        used[r + dr][c + dc] = true;
+      }
+    }
+    
+    const values = cells.map(([row, col]) => grid[row][col]);
+    const ops = ['+', '-', '×', '÷'];
+    let op, target;
+    
+    if (values.length === 1) {
+      op = '';
+      target = values[0];
+    } else {
+      op = ops[Math.floor(Math.random() * ops.length)];
+      if (op === '+') target = values.reduce((a, b) => a + b);
+      else if (op === '-') target = Math.abs(values[0] - values[1]);
+      else if (op === '×') target = values.reduce((a, b) => a * b);
+      else target = Math.max(...values) / Math.min(...values);
+    }
+    
+    cageList.push({ id: cageId++, cells, target, op });
+  }
+  
+  return cageList;
+}
+
+function newPuzzle() {
+  playSound(523.25);
+  solution = generateValidGrid();
+  cages = generateCages(solution);
+  grid = Array(SIZE).fill(0).map(() => Array(SIZE).fill(0));
+  renderGrid();
+}
+
+function renderGrid() {
+  const gridEl = document.getElementById('grid');
+  gridEl.style.gridTemplateColumns = `repeat(${SIZE}, 1fr)`;
+  gridEl.innerHTML = '';
+  
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.row = r;
+      cell.dataset.col = c;
+      
+      const cage = cages.find(cg => cg.cells.some(([cr, cc]) => cr === r && cc === c));
+      if (cage && cage.cells[0][0] === r && cage.cells[0][1] === c) {
+        const label = document.createElement('div');
+        label.className = 'cage-label';
+        label.textContent = cage.target + (cage.op || '');
+        cell.appendChild(label);
+      }
+      
+      if (grid[r][c] !== 0) {
+        cell.textContent = grid[r][c];
+      }
+      
+      cell.onclick = () => selectCell(r, c);
+      gridEl.appendChild(cell);
+    }
+  }
+}
+
+function selectCell(r, c) {
+  playSound(440);
+  selectedCell = { r, c };
+  
+  document.querySelectorAll('.cell').forEach(cell => {
+    cell.classList.remove('selected', 'correct', 'incorrect');
+  });
+  
+  const cell = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
+  cell.classList.add('selected');
+}
+
+function inputNumber(num) {
+  if (!selectedCell) return;
+  
+  playSound(659.25);
+  const { r, c } = selectedCell;
+  grid[r][c] = num;
+  
+  const cell = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
+  cell.textContent = num;
+}
+
+function checkSolution() {
+  let correct = true;
+  
+  document.querySelectorAll('.cell').forEach(cell => {
+    cell.classList.remove('correct', 'incorrect');
+  });
+  
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      const cell = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
+      
+      if (grid[r][c] === 0) {
+        correct = false;
+        continue;
+      }
+      
+      if (grid[r][c] === solution[r][c]) {
+        cell.classList.add('correct');
+      } else {
+        cell.classList.add('incorrect');
+        correct = false;
+      }
+    }
+  }
+  
+  if (correct) {
+    playSound(784);
+    setTimeout(() => playSound(880), 100);
+    setTimeout(() => playSound(988), 200);
+    alert('🎉 Congratulations! Puzzle solved correctly!');
+    setTimeout(newPuzzle, 1000);
+  } else {
+    playSound(200, 0.2);
+  }
+}
+
+function autoSolve() {
+  playSound(392);
+  grid = solution.map(row => [...row]);
+  renderGrid();
+  setTimeout(() => {
+    alert('Puzzle solved automatically!');
+    setTimeout(newPuzzle, 1000);
+  }, 500);
+}
+
+function getHint() {
+  playSound(523.25);
+  
+  const empty = [];
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (grid[r][c] === 0) {
+        empty.push([r, c]);
+      }
+    }
+  }
+  
+  if (empty.length === 0) {
+    alert('Grid is full! Use Check to verify your solution.');
+    return;
+  }
+  
+  const [r, c] = empty[Math.floor(Math.random() * empty.length)];
+  grid[r][c] = solution[r][c];
+  
+  const cell = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
+  cell.textContent = grid[r][c];
+  cell.style.animation = 'none';
+  setTimeout(() => {
+    cell.style.animation = 'pulse 0.5s';
+  }, 10);
+}
+
+function showInstructions() {
+  playSound(440);
+  document.getElementById('modal').classList.add('active');
+}
+
+function closeModal() {
+  playSound(392);
+  document.getElementById('modal').classList.remove('active');
+}
+
+// Initialize
+newPuzzle();
+</script>
+</body>
+</html>
