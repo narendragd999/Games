@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Periodic Table Game</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(to bottom, #6a11cb, #fff);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+        }
+
+        .game-container {
+            width: 100%;
+            max-width: 500px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            padding: 15px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .instructions-btn {
+            background: #6a11cb;
+            color: white;
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 6px;
+            margin-bottom: 15px;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 10px;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .element {
+            background: white;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            cursor: grab;
+            transition: all 0.2s ease;
+            min-height: 50px;
+            font-size: 0.7rem;
+            text-align: center;
+            user-select: none;
+        }
+
+        .element.dragging {
+            opacity: 0.7;
+            transform: scale(1.05);
+        }
+
+        .element.blank {
+            background: #f0f0f0;
+            border: 2px dashed #ccc;
+        }
+
+        .element.solved {
+            background: #d4edda;
+            border-color: #c3e6cb;
+        }
+
+        .atomic-number {
+            font-size: 0.6rem;
+            font-weight: bold;
+            color: #6a11cb;
+        }
+
+        .symbol {
+            font-size: 1rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .name {
+            font-size: 0.5rem;
+            color: #666;
+            margin-top: 2px;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s ease;
+            box-shadow: 0 3px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #6a11cb;
+            color: white;
+        }
+
+        .btn-success {
+            background: #2ecc71;
+            color: white;
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            background: white;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 15px;
+            font-size: 0.8rem;
+        }
+
+        .progress {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .progress-bar {
+            width: 100px;
+            height: 8px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #6a11cb;
+            width: 40%;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .modal-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .instructions-list {
+            list-style-type: none;
+            margin: 15px 0;
+        }
+
+        .instructions-list li {
+            margin-bottom: 10px;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .instructions-list li:before {
+            content: "•";
+            color: #6a11cb;
+            position: absolute;
+            left: 0;
+        }
+
+        .loader {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            flex-direction: column;
+            color: white;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .hint-highlight {
+            animation: highlight 1s ease;
+        }
+
+        @keyframes highlight {
+            0% { background-color: white; }
+            50% { background-color: #fff9c4; }
+            100% { background-color: white; }
+        }
+
+        .message {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 10;
+        }
+
+        .message.show {
+            opacity: 1;
+        }
+
+        @media (max-width: 400px) {
+            .game-board {
+                grid-template-columns: repeat(5, 1fr);
+            }
+            
+            .element {
+                min-height: 45px;
+                font-size: 0.65rem;
+            }
+            
+            .symbol {
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <h1 class="title">Periodic Table Puzzle</h1>
+            <button class="instructions-btn" id="instructionsBtn">
+                <i class="fas fa-info"></i>
+            </button>
+        </div>
+        
+        <div class="game-info">
+            <div class="level">Level: <span id="level">1</span></div>
+            <div class="progress">
+                <span>Progress:</span>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="game-board" id="gameBoard">
+            <!-- Elements will be generated by JavaScript -->
+        </div>
+        
+        <div class="controls">
+            <button class="btn btn-primary" id="newGameBtn">
+                <i class="fas fa-plus-circle"></i> New Game
+            </button>
+            <button class="btn btn-secondary" id="hintBtn">
+                <i class="fas fa-lightbulb"></i> Hint
+            </button>
+            <button class="btn btn-primary" id="checkBtn">
+                <i class="fas fa-check"></i> Check
+            </button>
+            <button class="btn btn-success" id="solveBtn">
+                <i class="fas fa-robot"></i> Auto-Solve
+            </button>
+        </div>
+    </div>
+    
+    <div class="modal" id="instructionsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">How to Play</h2>
+                <button class="close-modal" id="closeInstructions">&times;</button>
+            </div>
+            <p>Rearrange the elements to complete the periodic table puzzle.</p>
+            <ul class="instructions-list">
+                <li>Drag and drop elements to their correct positions</li>
+                <li>Elements are organized by atomic number</li>
+                <li>Use hints if you get stuck</li>
+                <li>Check your solution to see if it's correct</li>
+                <li>Auto-solve will complete the puzzle for you</li>
+            </ul>
+            <p>Complete puzzles to advance to higher levels with more elements!</p>
+        </div>
+    </div>
+    
+    <div class="loader" id="loader">
+        <div class="spinner"></div>
+        <p>Loading new puzzle...</p>
+    </div>
+    
+    <div class="message" id="message"></div>
+    
+    <audio id="dragSound" src="https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3" preload="auto"></audio>
+    <audio id="dropSound" src="https://assets.mixkit.co/sfx/preview/mixkit-unlock-game-notification-253.mp3" preload="auto"></audio>
+    <audio id="buttonSound" src="https://assets.mixkit.co/sfx/preview/mixkit-click-button-1046.mp3" preload="auto"></audio>
+    <audio id="successSound" src="https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3" preload="auto"></audio>
+
+    <script>
+        // Sample periodic table data
+        const elements = [          
+          { symbol: "H", name: "Hydrogen", number: 1, category: "nonmetal" },
+          { symbol: "He", name: "Helium", number: 2, category: "noble" },
+          { symbol: "Li", name: "Lithium", number: 3, category: "alkali" },
+          { symbol: "Be", name: "Beryllium", number: 4, category: "alkaline" },
+          { symbol: "B", name: "Boron", number: 5, category: "metalloid" },
+          { symbol: "C", name: "Carbon", number: 6, category: "nonmetal" },
+          { symbol: "N", name: "Nitrogen", number: 7, category: "nonmetal" },
+          { symbol: "O", name: "Oxygen", number: 8, category: "nonmetal" },
+          { symbol: "F", name: "Fluorine", number: 9, category: "halogen" },
+          { symbol: "Ne", name: "Neon", number: 10, category: "noble" },
+          { symbol: "Na", name: "Sodium", number: 11, category: "alkali" },
+          { symbol: "Mg", name: "Magnesium", number: 12, category: "alkaline" },
+          { symbol: "Al", name: "Aluminum", number: 13, category: "metal" },
+          { symbol: "Si", name: "Silicon", number: 14, category: "metalloid" },
+          { symbol: "P", name: "Phosphorus", number: 15, category: "nonmetal" },
+          { symbol: "S", name: "Sulfur", number: 16, category: "nonmetal" },
+          { symbol: "Cl", name: "Chlorine", number: 17, category: "halogen" },
+          { symbol: "Ar", name: "Argon", number: 18, category: "noble" },
+          { symbol: "K", name: "Potassium", number: 19, category: "alkali" },
+          { symbol: "Ca", name: "Calcium", number: 20, category: "alkaline" },
+          { symbol: "Sc", name: "Scandium", number: 21, category: "transition" },
+          { symbol: "Ti", name: "Titanium", number: 22, category: "transition" },
+          { symbol: "V", name: "Vanadium", number: 23, category: "transition" },
+          { symbol: "Cr", name: "Chromium", number: 24, category: "transition" },
+          { symbol: "Mn", name: "Manganese", number: 25, category: "transition" },
+          { symbol: "Fe", name: "Iron", number: 26, category: "transition" },
+          { symbol: "Co", name: "Cobalt", number: 27, category: "transition" },
+          { symbol: "Ni", name: "Nickel", number: 28, category: "transition" },
+          { symbol: "Cu", name: "Copper", number: 29, category: "transition" },
+          { symbol: "Zn", name: "Zinc", number: 30, category: "transition" },
+          { symbol: "Ga", name: "Gallium", number: 31, category: "metal" },
+          { symbol: "Ge", name: "Germanium", number: 32, category: "metalloid" },
+          { symbol: "As", name: "Arsenic", number: 33, category: "metalloid" },
+          { symbol: "Se", name: "Selenium", number: 34, category: "nonmetal" },
+          { symbol: "Br", name: "Bromine", number: 35, category: "halogen" },
+          { symbol: "Kr", name: "Krypton", number: 36, category: "noble" },
+          { symbol: "Rb", name: "Rubidium", number: 37, category: "alkali" },
+          { symbol: "Sr", name: "Strontium", number: 38, category: "alkaline" },
+          { symbol: "Y", name: "Yttrium", number: 39, category: "transition" },
+          { symbol: "Zr", name: "Zirconium", number: 40, category: "transition" },
+          { symbol: "Nb", name: "Niobium", number: 41, category: "transition" },
+          { symbol: "Mo", name: "Molybdenum", number: 42, category: "transition" },
+          { symbol: "Tc", name: "Technetium", number: 43, category: "transition" },
+          { symbol: "Ru", name: "Ruthenium", number: 44, category: "transition" },
+          { symbol: "Rh", name: "Rhodium", number: 45, category: "transition" },
+          { symbol: "Pd", name: "Palladium", number: 46, category: "transition" },
+          { symbol: "Ag", name: "Silver", number: 47, category: "transition" },
+          { symbol: "Cd", name: "Cadmium", number: 48, category: "transition" },
+          { symbol: "In", name: "Indium", number: 49, category: "metal" },
+          { symbol: "Sn", name: "Tin", number: 50, category: "metal" },
+          { symbol: "Sb", name: "Antimony", number: 51, category: "metalloid" },
+          { symbol: "Te", name: "Tellurium", number: 52, category: "metalloid" },
+          { symbol: "I", name: "Iodine", number: 53, category: "halogen" },
+          { symbol: "Xe", name: "Xenon", number: 54, category: "noble" },
+          { symbol: "Cs", name: "Cesium", number: 55, category: "alkali" },
+          { symbol: "Ba", name: "Barium", number: 56, category: "alkaline" },
+          { symbol: "La", name: "Lanthanum", number: 57, category: "lanthanide" },
+          { symbol: "Ce", name: "Cerium", number: 58, category: "lanthanide" },
+          { symbol: "Pr", name: "Praseodymium", number: 59, category: "lanthanide" },
+          { symbol: "Nd", name: "Neodymium", number: 60, category: "lanthanide" },
+          { symbol: "Pm", name: "Promethium", number: 61, category: "lanthanide" },
+          { symbol: "Sm", name: "Samarium", number: 62, category: "lanthanide" },
+          { symbol: "Eu", name: "Europium", number: 63, category: "lanthanide" },
+          { symbol: "Gd", name: "Gadolinium", number: 64, category: "lanthanide" },
+          { symbol: "Tb", name: "Terbium", number: 65, category: "lanthanide" },
+          { symbol: "Dy", name: "Dysprosium", number: 66, category: "lanthanide" },
+          { symbol: "Ho", name: "Holmium", number: 67, category: "lanthanide" },
+          { symbol: "Er", name: "Erbium", number: 68, category: "lanthanide" },
+          { symbol: "Tm", name: "Thulium", number: 69, category: "lanthanide" },
+          { symbol: "Yb", name: "Ytterbium", number: 70, category: "lanthanide" },
+          { symbol: "Lu", name: "Lutetium", number: 71, category: "lanthanide" },
+          { symbol: "Hf", name: "Hafnium", number: 72, category: "transition" },
+          { symbol: "Ta", name: "Tantalum", number: 73, category: "transition" },
+          { symbol: "W", name: "Tungsten", number: 74, category: "transition" },
+          { symbol: "Re", name: "Rhenium", number: 75, category: "transition" },
+          { symbol: "Os", name: "Osmium", number: 76, category: "transition" },
+          { symbol: "Ir", name: "Iridium", number: 77, category: "transition" },
+          { symbol: "Pt", name: "Platinum", number: 78, category: "transition" },
+          { symbol: "Au", name: "Gold", number: 79, category: "transition" },
+          { symbol: "Hg", name: "Mercury", number: 80, category: "transition" },
+          { symbol: "Tl", name: "Thallium", number: 81, category: "metal" },
+          { symbol: "Pb", name: "Lead", number: 82, category: "metal" },
+          { symbol: "Bi", name: "Bismuth", number: 83, category: "metal" },
+          { symbol: "Po", name: "Polonium", number: 84, category: "metalloid" },
+          { symbol: "At", name: "Astatine", number: 85, category: "halogen" },
+          { symbol: "Rn", name: "Radon", number: 86, category: "noble" },
+          { symbol: "Fr", name: "Francium", number: 87, category: "alkali" },
+          { symbol: "Ra", name: "Radium", number: 88, category: "alkaline" },
+          { symbol: "Ac", name: "Actinium", number: 89, category: "actinide" },
+          { symbol: "Th", name: "Thorium", number: 90, category: "actinide" },
+          { symbol: "Pa", name: "Protactinium", number: 91, category: "actinide" },
+          { symbol: "U", name: "Uranium", number: 92, category: "actinide" },
+          { symbol: "Np", name: "Neptunium", number: 93, category: "actinide" },
+          { symbol: "Pu", name: "Plutonium", number: 94, category: "actinide" },
+          { symbol: "Am", name: "Americium", number: 95, category: "actinide" },
+          { symbol: "Cm", name: "Curium", number: 96, category: "actinide" },
+          { symbol: "Bk", name: "Berkelium", number: 97, category: "actinide" },
+          { symbol: "Cf", name: "Californium", number: 98, category: "actinide" },
+          { symbol: "Es", name: "Einsteinium", number: 99, category: "actinide" },
+          { symbol: "Fm", name: "Fermium", number: 100, category: "actinide" },
+          { symbol: "Md", name: "Mendelevium", number: 101, category: "actinide" },
+          { symbol: "No", name: "Nobelium", number: 102, category: "actinide" },
+          { symbol: "Lr", name: "Lawrencium", number: 103, category: "actinide" },
+          { symbol: "Rf", name: "Rutherfordium", number: 104, category: "transition" },
+          { symbol: "Db", name: "Dubnium", number: 105, category: "transition" },
+          { symbol: "Sg", name: "Seaborgium", number: 106, category: "transition" },
+          { symbol: "Bh", name: "Bohrium", number: 107, category: "transition" },
+          { symbol: "Hs", name: "Hassium", number: 108, category: "transition" },
+          { symbol: "Mt", name: "Meitnerium", number: 109, category: "transition" },
+          { symbol: "Ds", name: "Darmstadtium", number: 110, category: "transition" },
+          { symbol: "Rg", name: "Roentgenium", number: 111, category: "transition" },
+          { symbol: "Cn", name: "Copernicium", number: 112, category: "transition" },
+          { symbol: "Nh", name: "Nihonium", number: 113, category: "metal" },
+          { symbol: "Fl", name: "Flerovium", number: 114, category: "metal" },
+          { symbol: "Mc", name: "Moscovium", number: 115, category: "metal" },
+          { symbol: "Lv", name: "Livermorium", number: 116, category: "metal" },
+          { symbol: "Ts", name: "Tennessine", number: 117, category: "halogen" },
+          { symbol: "Og", name: "Oganesson", number: 118, category: "noble" }
+
+        ];
+
+        // Game state
+        let gameState = {
+            level: 1,
+            currentPuzzle: [],
+            correctOrder: [],
+            draggedElement: null,
+            progress: 0
+        };
+
+        // DOM elements
+        const gameBoard = document.getElementById('gameBoard');
+        const levelDisplay = document.getElementById('level');
+        const progressFill = document.getElementById('progressFill');
+        const instructionsBtn = document.getElementById('instructionsBtn');
+        const instructionsModal = document.getElementById('instructionsModal');
+        const closeInstructions = document.getElementById('closeInstructions');
+        const newGameBtn = document.getElementById('newGameBtn');
+        const hintBtn = document.getElementById('hintBtn');
+        const checkBtn = document.getElementById('checkBtn');
+        const solveBtn = document.getElementById('solveBtn');
+        const loader = document.getElementById('loader');
+        const message = document.getElementById('message');
+        const dragSound = document.getElementById('dragSound');
+        const dropSound = document.getElementById('dropSound');
+        const buttonSound = document.getElementById('buttonSound');
+        const successSound = document.getElementById('successSound');
+
+        // Initialize the game
+        function initGame() {
+            generatePuzzle();
+            renderGameBoard();
+            updateProgress();
+        }
+
+        // Generate a new puzzle based on current level
+        function generatePuzzle() {
+            // Number of elements increases with level
+            const elementCount = Math.min(6 + gameState.level * 2, elements.length);
+            
+            // Select random elements for the puzzle
+            const selectedElements = [...elements]
+                .sort(() => Math.random() - 0.5)
+                .slice(0, elementCount)
+                .sort((a, b) => a.number - b.number);
+            
+            // Store correct order
+            gameState.correctOrder = [...selectedElements];
+            
+            // Create shuffled puzzle
+            gameState.currentPuzzle = [...selectedElements].sort(() => Math.random() - 0.5);
+        }
+
+        // Render the game board with current puzzle
+        function renderGameBoard() {
+            gameBoard.innerHTML = '';
+            
+            gameState.currentPuzzle.forEach((element, index) => {
+                const elementDiv = document.createElement('div');
+                elementDiv.className = 'element';
+                elementDiv.draggable = true;
+                elementDiv.dataset.index = index;
+                
+                elementDiv.innerHTML = `
+                    
+                    <div class="symbol">${element.symbol}</div>
+                    <div class="name">${element.name}</div>
+                `;
+                
+                // Add drag event listeners
+                elementDiv.addEventListener('dragstart', handleDragStart);
+                elementDiv.addEventListener('dragend', handleDragEnd);
+                elementDiv.addEventListener('dragover', handleDragOver);
+                elementDiv.addEventListener('drop', handleDrop);
+                
+                // Add touch event listeners for mobile
+                elementDiv.addEventListener('touchstart', handleTouchStart);
+                elementDiv.addEventListener('touchend', handleTouchEnd);
+                elementDiv.addEventListener('touchmove', handleTouchMove);
+                
+                gameBoard.appendChild(elementDiv);
+            });
+        }
+
+        // Drag and drop handlers
+        function handleDragStart(e) {
+            gameState.draggedElement = this;
+            this.classList.add('dragging');
+            dragSound.currentTime = 0;
+            dragSound.play();
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.innerHTML);
+        }
+
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            dropSound.currentTime = 0;
+            dropSound.play();
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            return false;
+        }
+
+        function handleDrop(e) {
+            e.stopPropagation();
+            
+            if (gameState.draggedElement !== this) {
+                const fromIndex = parseInt(gameState.draggedElement.dataset.index);
+                const toIndex = parseInt(this.dataset.index);
+                
+                // Swap elements in the puzzle array
+                [gameState.currentPuzzle[fromIndex], gameState.currentPuzzle[toIndex]] = 
+                [gameState.currentPuzzle[toIndex], gameState.currentPuzzle[fromIndex]];
+                
+                // Update dataset indexes
+                gameState.draggedElement.dataset.index = toIndex;
+                this.dataset.index = fromIndex;
+                
+                // Re-render the board
+                renderGameBoard();
+                updateProgress();
+            }
+            
+            return false;
+        }
+
+        // Touch event handlers for mobile
+        let touchStartX, touchStartY, draggedElementTouch;
+
+        function handleTouchStart(e) {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            draggedElementTouch = this;
+            this.classList.add('dragging');
+            dragSound.currentTime = 0;
+            dragSound.play();
+            e.preventDefault();
+        }
+
+        function handleTouchMove(e) {
+            if (!draggedElementTouch) return;
+            
+            const touchX = e.touches[0].clientX;
+            const touchY = e.touches[0].clientY;
+            
+            // Calculate movement
+            const deltaX = touchX - touchStartX;
+            const deltaY = touchY - touchStartY;
+            
+            // Apply transform to dragged element
+            draggedElementTouch.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+            
+            e.preventDefault();
+        }
+
+        function handleTouchEnd(e) {
+            if (!draggedElementTouch) return;
+            
+            draggedElementTouch.classList.remove('dragging');
+            draggedElementTouch.style.transform = '';
+            
+            // Find the element at the drop position
+            const touchX = e.changedTouches[0].clientX;
+            const touchY = e.changedTouches[0].clientY;
+            
+            const elements = document.querySelectorAll('.element');
+            let dropTarget = null;
+            
+            elements.forEach(el => {
+                const rect = el.getBoundingClientRect();
+                if (
+                    touchX >= rect.left &&
+                    touchX <= rect.right &&
+                    touchY >= rect.top &&
+                    touchY <= rect.bottom &&
+                    el !== draggedElementTouch
+                ) {
+                    dropTarget = el;
+                }
+            });
+            
+            if (dropTarget) {
+                const fromIndex = parseInt(draggedElementTouch.dataset.index);
+                const toIndex = parseInt(dropTarget.dataset.index);
+                
+                // Swap elements in the puzzle array
+                [gameState.currentPuzzle[fromIndex], gameState.currentPuzzle[toIndex]] = 
+                [gameState.currentPuzzle[toIndex], gameState.currentPuzzle[fromIndex]];
+                
+                // Update dataset indexes
+                draggedElementTouch.dataset.index = toIndex;
+                dropTarget.dataset.index = fromIndex;
+                
+                // Re-render the board
+                renderGameBoard();
+                updateProgress();
+                dropSound.currentTime = 0;
+                dropSound.play();
+            }
+            
+            draggedElementTouch = null;
+            e.preventDefault();
+        }
+
+        // Update progress bar
+        function updateProgress() {
+            let correctCount = 0;
+            
+            gameState.currentPuzzle.forEach((element, index) => {
+                if (element.number === gameState.correctOrder[index].number) {
+                    correctCount++;
+                }
+            });
+            
+            const progress = (correctCount / gameState.currentPuzzle.length) * 100;
+            gameState.progress = progress;
+            progressFill.style.width = `${progress}%`;
+            
+            // Check if puzzle is solved
+            if (progress === 100) {
+                showMessage("Puzzle solved! Advancing to next level.", "success");
+                successSound.play();
+                
+                setTimeout(() => {
+                    gameState.level++;
+                    levelDisplay.textContent = gameState.level;
+                    showLoader();
+                    
+                    setTimeout(() => {
+                        generatePuzzle();
+                        renderGameBoard();
+                        updateProgress();
+                        hideLoader();
+                    }, 1500);
+                }, 1000);
+            }
+        }
+
+        // Show a message to the user
+        function showMessage(text, type) {
+            message.textContent = text;
+            message.className = 'message';
+            
+            if (type === 'success') {
+                message.style.background = '#2ecc71';
+            } else if (type === 'error') {
+                message.style.background = '#e74c3c';
+            } else {
+                message.style.background = '#333';
+            }
+            
+            message.classList.add('show');
+            
+            setTimeout(() => {
+                message.classList.remove('show');
+            }, 3000);
+        }
+
+        // Show loader
+        function showLoader() {
+            loader.style.display = 'flex';
+        }
+
+        // Hide loader
+        function hideLoader() {
+            loader.style.display = 'none';
+        }
+
+        // Check solution
+        function checkSolution() {
+            buttonSound.play();
+            
+            let correctCount = 0;
+            const elements = document.querySelectorAll('.element');
+            
+            gameState.currentPuzzle.forEach((element, index) => {
+                if (element.number === gameState.correctOrder[index].number) {
+                    correctCount++;
+                    elements[index].classList.add('solved');
+                } else {
+                    elements[index].classList.remove('solved');
+                }
+            });
+            
+            if (correctCount === gameState.currentPuzzle.length) {
+                showMessage("Perfect! All elements are in the correct position.", "success");
+            } else {
+                showMessage(`${correctCount} out of ${gameState.currentPuzzle.length} elements are correct.`, "info");
+            }
+        }
+
+        // Provide a hint
+        function provideHint() {
+            buttonSound.play();
+            
+            // Find first incorrect element
+            let hintIndex = -1;
+            for (let i = 0; i < gameState.currentPuzzle.length; i++) {
+                if (gameState.currentPuzzle[i].number !== gameState.correctOrder[i].number) {
+                    hintIndex = i;
+                    break;
+                }
+            }
+            
+            if (hintIndex === -1) {
+                showMessage("All elements are already correct!", "info");
+                return;
+            }
+            
+            // Find the correct position for the element
+            const correctElement = gameState.correctOrder[hintIndex];
+            const currentPosition = gameState.currentPuzzle.findIndex(el => el.number === correctElement.number);
+            
+            // Highlight both positions
+            const elements = document.querySelectorAll('.element');
+            elements[hintIndex].classList.add('hint-highlight');
+            elements[currentPosition].classList.add('hint-highlight');
+            
+            showMessage(`Move ${correctElement.name} to position ${hintIndex + 1}`, "info");
+            
+            // Remove highlight after animation
+            setTimeout(() => {
+                elements[hintIndex].classList.remove('hint-highlight');
+                elements[currentPosition].classList.remove('hint-highlight');
+            }, 2000);
+        }
+
+        // Auto-solve the puzzle
+        function autoSolve() {
+            buttonSound.play();
+            showLoader();
+            
+            // Animate solving process
+            let step = 0;
+            const solveInterval = setInterval(() => {
+                if (step >= gameState.currentPuzzle.length) {
+                    clearInterval(solveInterval);
+                    gameState.currentPuzzle = [...gameState.correctOrder];
+                    renderGameBoard();
+                    updateProgress();
+                    hideLoader();
+                    successSound.play();
+                    showMessage("Puzzle solved automatically!", "success");
+                    return;
+                }
+                
+                // Move correct element to current position
+                const correctElement = gameState.correctOrder[step];
+                const currentPosition = gameState.currentPuzzle.findIndex(el => el.number === correctElement.number);
+                
+                if (currentPosition !== step) {
+                    [gameState.currentPuzzle[step], gameState.currentPuzzle[currentPosition]] = 
+                    [gameState.currentPuzzle[currentPosition], gameState.currentPuzzle[step]];
+                }
+                
+                step++;
+            }, 300);
+        }
+
+        // Start a new game
+        function newGame() {
+            buttonSound.play();
+            showLoader();
+            
+            setTimeout(() => {
+                gameState.level = 1;
+                levelDisplay.textContent = gameState.level;
+                generatePuzzle();
+                renderGameBoard();
+                updateProgress();
+                hideLoader();
+                showMessage("New game started!", "info");
+            }, 1000);
+        }
+
+        // Event listeners for buttons
+        instructionsBtn.addEventListener('click', () => {
+            buttonSound.play();
+            instructionsModal.style.display = 'flex';
+        });
+
+        closeInstructions.addEventListener('click', () => {
+            buttonSound.play();
+            instructionsModal.style.display = 'none';
+        });
+
+        newGameBtn.addEventListener('click', newGame);
+        hintBtn.addEventListener('click', provideHint);
+        checkBtn.addEventListener('click', checkSolution);
+        solveBtn.addEventListener('click', autoSolve);
+
+        // Close modal when clicking outside
+        window.addEventListener('click', (e) => {
+            if (e.target === instructionsModal) {
+                instructionsModal.style.display = 'none';
+            }
+        });
+
+        // Initialize the game
+        initGame();
+    </script>
+</body>
+</html>
