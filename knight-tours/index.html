@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Knight's Tour Puzzle</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Roboto+Slab:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: #fff;
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+            touch-action: manipulation;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        header {
+            text-align: center;
+            width: 100%;
+            padding: 10px 0;
+            position: relative;
+        }
+
+        h1 {
+            font-family: 'Roboto Slab', serif;
+            font-size: 2.2rem;
+            color: #ffd700;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+            margin-bottom: 5px;
+            letter-spacing: 1px;
+        }
+
+        .subtitle {
+            font-size: 1rem;
+            color: #a0c8ff;
+            margin-bottom: 10px;
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            background: rgba(0, 20, 40, 0.7);
+            border-radius: 12px;
+            padding: 12px 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            margin-bottom: 5px;
+            flex-wrap: wrap;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+        }
+
+        .stat-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #4dabf7;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #a0c8ff;
+        }
+
+        .board-container {
+            position: relative;
+            width: 100%;
+            max-width: 95vw;
+            max-width: min(95vw, 500px);
+            margin: 0 auto;
+        }
+
+        .board {
+            display: grid;
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            background-color: #2a2a3a;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+            border: 3px solid #4a4a5a;
+        }
+
+        .cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            position: relative;
+            user-select: none;
+        }
+
+        .cell.light {
+            background-color: #f0d9b5;
+        }
+
+        .cell.dark {
+            background-color: #b58863;
+        }
+
+        .cell.visited {
+            background-color: rgba(77, 171, 247, 0.6);
+        }
+
+        .cell.current {
+            background-color: #ffd700;
+            box-shadow: inset 0 0 15px rgba(255, 215, 0, 0.7);
+        }
+
+        .cell.start {
+            background-color: #4CAF50;
+        }
+
+        .cell.valid-move {
+            cursor: pointer;
+            box-shadow: inset 0 0 0 3px rgba(76, 175, 80, 0.7);
+        }
+
+        .cell.valid-move:hover {
+            background-color: rgba(76, 175, 80, 0.4);
+        }
+
+        .knight {
+            font-size: 1.8rem;
+            color: #1a1a2e;
+            font-weight: bold;
+            z-index: 10;
+        }
+
+        .move-number {
+            position: absolute;
+            bottom: 3px;
+            right: 3px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            color: rgba(0, 0, 0, 0.7);
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn {
+            background: linear-gradient(to bottom, #4dabf7, #1c7ed6);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 0.95rem;
+            padding: 14px 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s;
+            touch-action: manipulation;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn i {
+            font-size: 1.3rem;
+        }
+
+        .btn-hint {
+            background: linear-gradient(to bottom, #ffa94d, #f76707);
+        }
+
+        .btn-solve {
+            background: linear-gradient(to bottom, #40c057, #2b8a3e);
+        }
+
+        .btn-reset {
+            background: linear-gradient(to bottom, #fa5252, #c92a2a);
+        }
+
+        .btn-instructions {
+            background: linear-gradient(to bottom, #be4bdb, #862e9c);
+        }
+
+        .mode-selector {
+            display: flex;
+            background: rgba(0, 20, 40, 0.7);
+            border-radius: 12px;
+            padding: 10px;
+            width: 100%;
+            margin-top: 5px;
+            justify-content: space-around;
+            flex-wrap: wrap;
+        }
+
+        .mode-btn {
+            padding: 10px 15px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #a0c8ff;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            flex: 1;
+            margin: 3px;
+            min-width: 70px;
+        }
+
+        .mode-btn.active {
+            background: linear-gradient(to right, #4dabf7, #1c7ed6);
+            color: white;
+            box-shadow: 0 4px 8px rgba(28, 126, 214, 0.3);
+        }
+
+        .message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(145deg, #1e3a8a, #1e40af);
+            border-radius: 15px;
+            padding: 25px;
+            width: 90%;
+            max-width: 500px;
+            z-index: 1000;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            border: 2px solid #4dabf7;
+        }
+
+        .message-box h2 {
+            color: #ffd700;
+            margin-bottom: 15px;
+            font-size: 1.8rem;
+        }
+
+        .message-box p {
+            margin-bottom: 15px;
+            line-height: 1.5;
+            color: #e6f7ff;
+        }
+
+        .message-box ul {
+            text-align: left;
+            margin-bottom: 20px;
+            padding-left: 20px;
+            color: #e6f7ff;
+        }
+
+        .message-box li {
+            margin-bottom: 8px;
+        }
+
+        .close-btn {
+            background: linear-gradient(to bottom, #4dabf7, #1c7ed6);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            padding: 12px 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 10px;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 999;
+            display: none;
+        }
+
+        .success-animation {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(0, 0, 0, 0.7);
+            border-radius: 8px;
+            z-index: 50;
+            display: none;
+        }
+
+        .success-animation i {
+            font-size: 5rem;
+            color: #ffd700;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        .sound-toggle {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(0, 20, 40, 0.7);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        .sound-toggle i {
+            font-size: 1.3rem;
+            color: #4dabf7;
+        }
+
+        footer {
+            margin-top: 15px;
+            font-size: 0.8rem;
+            color: #a0c8ff;
+            text-align: center;
+            width: 100%;
+            padding: 10px;
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+            
+            .controls {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+            
+            .btn {
+                padding: 12px 8px;
+                font-size: 0.85rem;
+            }
+            
+            .btn i {
+                font-size: 1.2rem;
+            }
+            
+            .game-info {
+                flex-direction: column;
+                gap: 10px;
+                align-items: center;
+            }
+            
+            .stats {
+                width: 100%;
+                justify-content: space-around;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>♞ Knight's Tour</h1>
+            <div class="subtitle">Visit every square exactly once!</div>
+            <div class="sound-toggle" id="soundToggle">
+                <i class="fas fa-volume-up"></i>
+            </div>
+        </header>
+        
+        <div class="game-info">
+            <div class="stats">
+                <div class="stat-box">
+                    <div class="stat-value" id="moveCount">0</div>
+                    <div class="stat-label">Moves</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="boardSize">8×8</div>
+                    <div class="stat-label">Board</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="remaining">64</div>
+                    <div class="stat-label">Remaining</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mode-selector">
+            <div class="mode-btn active" data-size="5">5×5 (Easy)</div>
+            <div class="mode-btn" data-size="6">6×6 (Medium)</div>
+            <div class="mode-btn" data-size="8">8×8 (Hard)</div>
+        </div>
+        
+        <div class="board-container">
+            <div class="board" id="board"></div>
+            <div class="success-animation" id="successAnimation">
+                <i class="fas fa-trophy"></i>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button class="btn btn-hint" id="hintBtn">
+                <i class="fas fa-lightbulb"></i>
+                <span>Hint</span>
+            </button>
+            <button class="btn btn-solve" id="solveBtn">
+                <i class="fas fa-robot"></i>
+                <span>Auto-Solve</span>
+            </button>
+            <button class="btn btn-reset" id="resetBtn">
+                <i class="fas fa-redo"></i>
+                <span>New Game</span>
+            </button>
+            <button class="btn btn-instructions" id="instructionsBtn">
+                <i class="fas fa-book"></i>
+                <span>How to Play</span>
+            </button>
+        </div>
+        
+        <footer>
+            <p>Move the knight to visit every square without repeating any. Knight moves in an L-shape: 2 squares in one direction, then 1 perpendicular.</p>
+        </footer>
+    </div>
+    
+    <div class="overlay" id="overlay"></div>
+    
+    <div class="message-box" id="instructionsBox">
+        <h2>How to Play Knight's Tour</h2>
+        <p>The knight moves in an <strong>L-shape</strong>: 2 squares in one direction, then 1 square perpendicular.</p>
+        <ul>
+            <li><strong>Goal:</strong> Visit every square on the board exactly once.</li>
+            <li><strong>Tap</strong> on highlighted squares to move the knight.</li>
+            <li>You cannot revisit a square you've already been to.</li>
+            <li>Start from any square - we'll place the knight randomly.</li>
+            <li>Complete the tour by visiting all squares!</li>
+        </ul>
+        <p><strong>Pro Tip:</strong> Use Warnsdorff's rule: move to the square with the fewest onward moves.</p>
+        <button class="close-btn" id="closeInstructions">Got it!</button>
+    </div>
+    
+    <div class="message-box" id="winBox">
+        <h2>Tour Complete! 🏆</h2>
+        <p>Congratulations! You've successfully completed the Knight's Tour!</p>
+        <p id="winStats">You made 0 moves on a 8×8 board.</p>
+        <p>Try a different board size for a new challenge!</p>
+        <button class="close-btn" id="closeWin">Play Again</button>
+    </div>
+
+    <!-- Audio elements -->
+    <audio id="moveSound" preload="auto">
+        <source src="https://assets.mixkit.co/sfx/preview/mixkit-chess-piece-move-757.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="winSound" preload="auto">
+        <source src="https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="hintSound" preload="auto">
+        <source src="https://assets.mixkit.co/sfx/preview/mixkit-magic-sparkles-300.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="clickSound" preload="auto">
+        <source src="https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        // Game state
+        const gameState = {
+            boardSize: 8,
+            board: [],
+            knightPosition: { row: -1, col: -1 },
+            visited: [],
+            moveHistory: [],
+            moveCount: 0,
+            isSolving: false,
+            soundEnabled: true,
+            gameStarted: false
+        };
+
+        // DOM elements
+        const boardElement = document.getElementById('board');
+        const moveCountElement = document.getElementById('moveCount');
+        const boardSizeElement = document.getElementById('boardSize');
+        const remainingElement = document.getElementById('remaining');
+        const hintBtn = document.getElementById('hintBtn');
+        const solveBtn = document.getElementById('solveBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const instructionsBtn = document.getElementById('instructionsBtn');
+        const modeButtons = document.querySelectorAll('.mode-btn');
+        const soundToggle = document.getElementById('soundToggle');
+        const instructionsBox = document.getElementById('instructionsBox');
+        const winBox = document.getElementById('winBox');
+        const overlay = document.getElementById('overlay');
+        const closeInstructions = document.getElementById('closeInstructions');
+        const closeWin = document.getElementById('closeWin');
+        const successAnimation = document.getElementById('successAnimation');
+        const winStats = document.getElementById('winStats');
+
+        // Audio elements
+        const moveSound = document.getElementById('moveSound');
+        const winSound = document.getElementById('winSound');
+        const hintSound = document.getElementById('hintSound');
+        const clickSound = document.getElementById('clickSound');
+
+        // Initialize the game
+        function initGame() {
+            createBoard(gameState.boardSize);
+            placeKnightRandomly();
+            updateUI();
+            setupEventListeners();
+        }
+
+        // Create the chessboard
+        function createBoard(size) {
+            gameState.boardSize = size;
+            gameState.board = [];
+            gameState.visited = [];
+            gameState.moveCount = 0;
+            gameState.moveHistory = [];
+            gameState.gameStarted = false;
+            
+            // Update UI
+            boardSizeElement.textContent = `${size}×${size}`;
+            remainingElement.textContent = size * size;
+            
+            // Clear the board
+            boardElement.innerHTML = '';
+            boardElement.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+            boardElement.style.gridTemplateRows = `repeat(${size}, 1fr)`;
+            
+            // Create cells
+            for (let row = 0; row < size; row++) {
+                gameState.board[row] = [];
+                gameState.visited[row] = [];
+                
+                for (let col = 0; col < size; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = `cell ${(row + col) % 2 === 0 ? 'light' : 'dark'}`;
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    
+                    gameState.board[row][col] = cell;
+                    gameState.visited[row][col] = false;
+                    
+                    boardElement.appendChild(cell);
+                }
+            }
+        }
+
+        // Place knight at a random position
+        function placeKnightRandomly() {
+            const size = gameState.boardSize;
+            const row = Math.floor(Math.random() * size);
+            const col = Math.floor(Math.random() * size);
+            
+            placeKnight(row, col);
+            gameState.gameStarted = true;
+        }
+
+        // Place knight at specific position
+        function placeKnight(row, col) {
+            // Clear previous knight position
+            if (gameState.knightPosition.row >= 0 && gameState.knightPosition.col >= 0) {
+                const prevCell = gameState.board[gameState.knightPosition.row][gameState.knightPosition.col];
+                prevCell.classList.remove('current');
+                prevCell.innerHTML = '';
+                
+                if (gameState.visited[gameState.knightPosition.row][gameState.knightPosition.col]) {
+                    prevCell.classList.add('visited');
+                }
+            }
+            
+            // Set new knight position
+            gameState.knightPosition = { row, col };
+            gameState.visited[row][col] = true;
+            
+            // Update cell
+            const cell = gameState.board[row][col];
+            cell.classList.add('current');
+            cell.classList.remove('visited');
+            cell.innerHTML = `<div class="knight">♞</div><div class="move-number">${gameState.moveCount + 1}</div>`;
+            
+            // Highlight valid moves
+            highlightValidMoves();
+        }
+
+        // Get all valid knight moves from a position
+        function getValidMoves(row, col) {
+            const moves = [
+                { row: row - 2, col: col - 1 },
+                { row: row - 2, col: col + 1 },
+                { row: row - 1, col: col - 2 },
+                { row: row - 1, col: col + 2 },
+                { row: row + 1, col: col - 2 },
+                { row: row + 1, col: col + 2 },
+                { row: row + 2, col: col - 1 },
+                { row: row + 2, col: col + 1 }
+            ];
+            
+            const size = gameState.boardSize;
+            return moves.filter(move => 
+                move.row >= 0 && move.row < size && 
+                move.col >= 0 && move.col < size &&
+                !gameState.visited[move.row][move.col]
+            );
+        }
+
+        // Highlight valid moves on the board
+        function highlightValidMoves() {
+            // Clear previous highlights
+            for (let row = 0; row < gameState.boardSize; row++) {
+                for (let col = 0; col < gameState.boardSize; col++) {
+                    gameState.board[row][col].classList.remove('valid-move');
+                }
+            }
+            
+            // Highlight new valid moves
+            const validMoves = getValidMoves(gameState.knightPosition.row, gameState.knightPosition.col);
+            validMoves.forEach(move => {
+                const cell = gameState.board[move.row][move.col];
+                cell.classList.add('valid-move');
+                
+                // Add click listener for valid moves
+                cell.addEventListener('click', () => makeMove(move.row, move.col));
+            });
+        }
+
+        // Make a move to the specified position
+        function makeMove(row, col) {
+            if (gameState.isSolving) return;
+            
+            // Check if move is valid
+            const validMoves = getValidMoves(gameState.knightPosition.row, gameState.knightPosition.col);
+            const isValid = validMoves.some(move => move.row === row && move.col === col);
+            
+            if (!isValid) {
+                playSound(clickSound);
+                return;
+            }
+            
+            // Record move
+            gameState.moveHistory.push({...gameState.knightPosition});
+            gameState.moveCount++;
+            
+            // Move the knight
+            placeKnight(row, col);
+            
+            // Update UI
+            updateUI();
+            playSound(moveSound);
+            
+            // Check for win
+            if (checkWin()) {
+                showWin();
+            }
+        }
+
+        // Update the UI
+        function updateUI() {
+            moveCountElement.textContent = gameState.moveCount;
+            
+            // Count visited cells
+            let visitedCount = 0;
+            for (let row = 0; row < gameState.boardSize; row++) {
+                for (let col = 0; col < gameState.boardSize; col++) {
+                    if (gameState.visited[row][col]) visitedCount++;
+                }
+            }
+            
+            remainingElement.textContent = (gameState.boardSize * gameState.boardSize) - visitedCount;
+        }
+
+        // Check if the player has won
+        function checkWin() {
+            for (let row = 0; row < gameState.boardSize; row++) {
+                for (let col = 0; col < gameState.boardSize; col++) {
+                    if (!gameState.visited[row][col]) return false;
+                }
+            }
+            return true;
+        }
+
+        // Show win screen
+        function showWin() {
+            playSound(winSound);
+            
+            // Show success animation
+            successAnimation.style.display = 'flex';
+            setTimeout(() => {
+                successAnimation.style.display = 'none';
+                
+                // Show win message
+                winStats.textContent = `You made ${gameState.moveCount} moves on a ${gameState.boardSize}×${gameState.boardSize} board.`;
+                winBox.style.display = 'flex';
+                overlay.style.display = 'block';
+            }, 2000);
+        }
+
+        // Show hint (Warnsdorff's rule)
+        function showHint() {
+            if (gameState.isSolving) return;
+            
+            const validMoves = getValidMoves(gameState.knightPosition.row, gameState.knightPosition.col);
+            if (validMoves.length === 0) return;
+            
+            // Apply Warnsdorff's rule: choose move with fewest onward moves
+            let bestMove = validMoves[0];
+            let minMoves = Infinity;
+            
+            validMoves.forEach(move => {
+                const onwardMoves = getValidMoves(move.row, move.col).length;
+                if (onwardMoves < minMoves) {
+                    minMoves = onwardMoves;
+                    bestMove = move;
+                }
+            });
+            
+            // Highlight the best move
+            const cell = gameState.board[bestMove.row][bestMove.col];
+            cell.style.boxShadow = 'inset 0 0 0 4px #ffd700';
+            cell.style.transition = 'box-shadow 0.3s';
+            
+            playSound(hintSound);
+            
+            // Remove highlight after 2 seconds
+            setTimeout(() => {
+                cell.style.boxShadow = '';
+            }, 2000);
+        }
+
+        // Auto-solve the puzzle using Warnsdorff's algorithm
+        async function autoSolve() {
+            if (gameState.isSolving) return;
+            
+            gameState.isSolving = true;
+            solveBtn.disabled = true;
+            solveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Solving...</span>';
+            
+            // Reset the board
+            const startRow = gameState.knightPosition.row;
+            const startCol = gameState.knightPosition.col;
+            const size = gameState.boardSize;
+            
+            // Clear visited except starting position
+            for (let row = 0; row < size; row++) {
+                for (let col = 0; col < size; col++) {
+                    gameState.visited[row][col] = false;
+                }
+            }
+            
+            gameState.visited[startRow][startCol] = true;
+            gameState.moveCount = 1;
+            gameState.moveHistory = [{ row: startRow, col: startCol }];
+            
+            // Solve using Warnsdorff's algorithm with backtracking
+            const path = await solveKnightTour(startRow, startCol);
+            
+            // Animate the solution
+            if (path && path.length === size * size) {
+                for (let i = 1; i < path.length; i++) {
+                    await sleep(300); // Delay between moves
+                    placeKnight(path[i].row, path[i].col);
+                    gameState.moveCount = i + 1;
+                    updateUI();
+                }
+                
+                // Show win after completion
+                setTimeout(() => {
+                    showWin();
+                }, 500);
+            } else {
+                alert("Could not find a complete tour from this starting position. Try a different starting position.");
+            }
+            
+            gameState.isSolving = false;
+            solveBtn.disabled = false;
+            solveBtn.innerHTML = '<i class="fas fa-robot"></i><span>Auto-Solve</span>';
+        }
+
+        // Knight's tour solver using Warnsdorff's algorithm with backtracking
+        async function solveKnightTour(startRow, startCol) {
+            const size = gameState.boardSize;
+            const totalCells = size * size;
+            
+            // Initialize board
+            const board = Array(size).fill().map(() => Array(size).fill(-1));
+            board[startRow][startCol] = 0; // First move
+            
+            // Possible knight moves
+            const rowMoves = [2, 1, -1, -2, -2, -1, 1, 2];
+            const colMoves = [1, 2, 2, 1, -1, -2, -2, -1];
+            
+            // Recursive function to solve
+            function solveUtil(row, col, moveNum) {
+                if (moveNum === totalCells) {
+                    return true; // All cells visited
+                }
+                
+                // Get all possible next moves
+                let nextMoves = [];
+                for (let i = 0; i < 8; i++) {
+                    const nextRow = row + rowMoves[i];
+                    const nextCol = col + colMoves[i];
+                    
+                    if (nextRow >= 0 && nextRow < size && 
+                        nextCol >= 0 && nextCol < size && 
+                        board[nextRow][nextCol] === -1) {
+                        
+                        // Count onward moves for Warnsdorff's rule
+                        let count = 0;
+                        for (let j = 0; j < 8; j++) {
+                            const onwardRow = nextRow + rowMoves[j];
+                            const onwardCol = nextCol + colMoves[j];
+                            
+                            if (onwardRow >= 0 && onwardRow < size && 
+                                onwardCol >= 0 && onwardCol < size && 
+                                board[onwardRow][onwardCol] === -1) {
+                                count++;
+                            }
+                        }
+                        
+                        nextMoves.push({ row: nextRow, col: nextCol, count });
+                    }
+                }
+                
+                // Sort by fewest onward moves (Warnsdorff's rule)
+                nextMoves.sort((a, b) => a.count - b.count);
+                
+                // Try each move
+                for (let i = 0; i < nextMoves.length; i++) {
+                    const { row: nextRow, col: nextCol } = nextMoves[i];
+                    
+                    board[nextRow][nextCol] = moveNum;
+                    if (solveUtil(nextRow, nextCol, moveNum + 1)) {
+                        return true;
+                    }
+                    
+                    // Backtrack
+                    board[nextRow][nextCol] = -1;
+                }
+                
+                return false;
+            }
+            
+            // Start solving
+            if (!solveUtil(startRow, startCol, 1)) {
+                return null;
+            }
+            
+            // Convert board to path
+            const path = Array(totalCells);
+            for (let row = 0; row < size; row++) {
+                for (let col = 0; col < size; col++) {
+                    path[board[row][col]] = { row, col };
+                }
+            }
+            
+            return path;
+        }
+
+        // Utility function for delays
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Play sound if enabled
+        function playSound(audioElement) {
+            if (!gameState.soundEnabled) return;
+            
+            audioElement.currentTime = 0;
+            audioElement.play().catch(e => console.log("Audio play failed:", e));
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Hint button
+            hintBtn.addEventListener('click', () => {
+                playSound(clickSound);
+                showHint();
+            });
+            
+            // Solve button
+            solveBtn.addEventListener('click', () => {
+                playSound(clickSound);
+                autoSolve();
+            });
+            
+            // Reset button
+            resetBtn.addEventListener('click', () => {
+                playSound(clickSound);
+                createBoard(gameState.boardSize);
+                placeKnightRandomly();
+                updateUI();
+            });
+            
+            // Instructions button
+            instructionsBtn.addEventListener('click', () => {
+                playSound(clickSound);
+                instructionsBox.style.display = 'flex';
+                overlay.style.display = 'block';
+            });
+            
+            // Mode selector buttons
+            modeButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    playSound(clickSound);
+                    
+                    // Update active button
+                    modeButtons.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    
+                    // Change board size
+                    const size = parseInt(btn.dataset.size);
+                    createBoard(size);
+                    placeKnightRandomly();
+                    updateUI();
+                });
+            });
+            
+            // Sound toggle
+            soundToggle.addEventListener('click', () => {
+                gameState.soundEnabled = !gameState.soundEnabled;
+                const icon = soundToggle.querySelector('i');
+                icon.className = gameState.soundEnabled ? 'fas fa-volume-up' : 'fas fa-volume-mute';
+                playSound(clickSound);
+            });
+            
+            // Close instructions
+            closeInstructions.addEventListener('click', () => {
+                instructionsBox.style.display = 'none';
+                overlay.style.display = 'none';
+                playSound(clickSound);
+            });
+            
+            // Close win message
+            closeWin.addEventListener('click', () => {
+                winBox.style.display = 'none';
+                overlay.style.display = 'none';
+                playSound(clickSound);
+                createBoard(gameState.boardSize);
+                placeKnightRandomly();
+                updateUI();
+            });
+            
+            // Close overlay
+            overlay.addEventListener('click', () => {
+                instructionsBox.style.display = 'none';
+                winBox.style.display = 'none';
+                overlay.style.display = 'none';
+            });
+            
+            // Touch device optimizations
+            document.addEventListener('touchstart', function() {}, {passive: true});
+        }
+
+        // Initialize the game when page loads
+        window.addEventListener('DOMContentLoaded', initGame);
+    </script>
+</body>
+</html>
