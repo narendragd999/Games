@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+<title>Color Switch — Levels & Lives</title>
+<style>
+  :root{
+    --primary:#3498db;
+    --accent:#6a11cb;
+    --card:#ffffff;
+    --bg-start:#1a1a2e;
+    --bg-end:#16213e;
+    --text-dark:#222;
+  }
+  html,body{
+    height:100%;
+    margin:0;
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    background: linear-gradient(to bottom, var(--bg-start), var(--bg-end));
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    overflow:hidden;
+    touch-action: manipulation;
+  }
+
+  .stage {
+    position:relative;
+    width:100%;
+    height:100%;
+    max-width:1000px;
+    max-height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+  }
+
+  canvas {
+    width:100%;
+    height:100%;
+    display:block;
+    touch-action: none;
+  }
+
+  .topbar {
+    position:absolute;
+    top:10px;
+    left:12px;
+    right:12px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    pointer-events:none;
+    z-index:10;
+  }
+  .card {
+    pointer-events:auto;
+    background: var(--card);
+    color: var(--text-dark);
+    padding:8px 12px;
+    border-radius:12px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+    display:flex;
+    gap:10px;
+    align-items:center;
+    font-weight:600;
+    font-size:16px;
+  }
+  .score {
+    min-width:86px;
+    text-align:center;
+  }
+
+  .lives {
+    display:flex;
+    gap:5px;
+    align-items:center;
+  }
+  .life {
+    width:12px;
+    height:12px;
+    border-radius:50%;
+    background:#e74c3c;
+  }
+  .life.lost {
+    background:#ccc;
+    opacity:0.5;
+  }
+
+  .icon-btn {
+    pointer-events:auto;
+    background:transparent;
+    border:none;
+    padding:8px;
+    border-radius:10px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    font-size:18px;
+  }
+  .info {
+    position:absolute;
+    top:14px;
+    right:14px;
+    pointer-events:auto;
+    width:44px;
+    height:44px;
+    border-radius:12px;
+    background: rgba(255,255,255,0.95);
+    box-shadow:0 6px 18px rgba(0,0,0,0.12);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:700;
+    color:var(--accent);
+    font-size:18px;
+    z-index:10;
+  }
+
+  .overlay {
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:20;
+    pointer-events:auto;
+    background: rgba(0,0,0,0.7);
+  }
+  .panel {
+    width:min(92%,420px);
+    background:var(--card);
+    color:var(--text-dark);
+    padding:24px;
+    border-radius:20px;
+    text-align:center;
+    box-shadow:0 14px 40px rgba(0,0,0,0.25);
+    transform: translateY(0);
+    animation: panelAppear 0.3s ease-out;
+  }
+  @keyframes panelAppear {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .panel h1 { margin-bottom:8px; font-size:24px; }
+  .panel p { margin:10px 0 18px; font-size:15px; color:#333; line-height:1.4; }
+  .btn-row { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:16px; }
+  .btn {
+    border:0;
+    padding:12px 20px;
+    border-radius:14px;
+    font-weight:700;
+    cursor:pointer;
+    min-width:120px;
+    font-size:16px;
+    transition: transform 0.1s, box-shadow 0.2s;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    touch-action: manipulation;
+  }
+  .btn:active {
+    transform: scale(0.96);
+  }
+  .btn.primary { background:var(--primary); color:#fff; }
+  .btn.secondary { background:var(--accent); color:#fff; }
+
+  .hint {
+    position:absolute;
+    bottom:16px;
+    left:50%;
+    transform:translateX(-50%);
+    background:rgba(255,255,255,0.92);
+    padding:8px 16px;
+    border-radius:12px;
+    box-shadow:0 8px 20px rgba(0,0,0,0.12);
+    font-weight:600;
+    font-size:14px;
+    z-index:10;
+    transition: opacity 0.3s;
+    text-align:center;
+    max-width:90%;
+  }
+
+  .palette {
+    display:flex;
+    gap:8px;
+    justify-content:center;
+    margin:12px 0;
+  }
+  .dot {
+    width:32px; height:32px; border-radius:50%;
+    box-shadow:0 4px 12px rgba(0,0,0,0.15);
+  }
+
+  .game-stats {
+    margin-top: 12px;
+    font-size: 14px;
+    color: #666;
+  }
+  .level-indicator {
+    margin-top: 8px;
+    font-weight: bold;
+    color: var(--primary);
+  }
+
+  @media (max-width:420px){
+    .card { font-size:14px; padding:6px 10px; }
+    .panel h1 { font-size:20px; }
+    .panel p { font-size:14px; }
+    .btn { padding:10px 16px; min-width:110px; font-size:15px; }
+    .hint { font-size:13px; padding:6px 12px; }
+  }
+  
+  @media (max-height:600px){
+    .hint { display:none; }
+    .topbar { top:5px; }
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <canvas id="game" aria-label="Color Switch game"></canvas>
+
+    <div class="topbar" aria-hidden="false">
+      <div class="card score" id="scoreCard">Score: 0</div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <div class="card lives" id="livesCard">
+          <div class="life"></div>
+          <div class="life"></div>
+          <div class="life"></div>
+        </div>
+        <button id="soundToggle" class="icon-btn" title="Toggle sound" aria-label="sound toggle">
+          🔊
+        </button>
+      </div>
+    </div>
+
+    <button class="info" id="infoBtn" title="Instructions">i</button>
+
+    <div id="startOverlay" class="overlay">
+      <div class="panel">
+        <h1>Color Switch — Levels & Lives</h1>
+        <p>Control your ball precisely! You have 3 lives. Pass through matching colors to score. Each level gets faster and more challenging!</p>
+        <div class="palette" aria-hidden="true">
+          <div class="dot" style="background:#f1c40f"></div>
+          <div class="dot" style="background:#e74c3c"></div>
+          <div class="dot" style="background:#3498db"></div>
+          <div class="dot" style="background:#9b59b6"></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn primary" id="startBtn">Start Game</button>
+          <button class="btn secondary" id="howBtn">How to Play</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="gameOverOverlay" class="overlay" style="display:none;pointer-events:none;">
+      <div class="panel">
+        <h1>Game Over</h1>
+        <p>Your Score: <strong id="finalScore">0</strong></p>
+        <p class="game-stats">Level Reached: <span id="finalLevel">1</span></p>
+        <p class="game-stats">Rings Passed: <span id="ringsPassed">0</span></p>
+        <div class="btn-row">
+          <button class="btn primary" id="retryBtn">Play Again</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="hint" class="hint">Tap to jump • Match colors to pass • You have 3 lives</div>
+  </div>
+
+<script>
+/* -----------------------
+   Configuration & state
+   ----------------------- */
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let W = window.innerWidth;
+let H = window.innerHeight;
+const DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+/* Colors used in the game */
+const COLORS = ['#f1c40f','#e74c3c','#3498db','#9b59b6']; // yellow, red, blue, purple
+
+/* Game parameters - Focus on control and timing */
+// Initialize with default values first
+let BALL_RADIUS = Math.max(8, Math.min(14, window.innerWidth * 0.03));
+let RING_RADIUS = Math.min(window.innerWidth * 0.25, 120);
+let RING_THICKNESS = Math.max(8, Math.min(14, window.innerWidth * 0.02));
+let BASE_OBSTACLE_SPACING = Math.max(200, window.innerHeight * 0.4);
+
+const GRAVITY = 0.15; // Very low gravity for maximum control
+const JUMP_V = -4; // Small, precise jumps
+let OBSTACLE_SPEED = 0.6; // Very slow movement
+let RING_SPIN_SPEED = 0.03; // Fast rotation for more color match opportunities
+
+function resize(){
+  W = window.innerWidth;
+  H = window.innerHeight;
+  
+  // Ensure canvas fits screen properly
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  canvas.width = Math.floor(W * DPR);
+  canvas.height = Math.floor(H * DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  
+  // Update game parameters based on new size
+  updateGameParameters();
+}
+
+// Update game parameters based on screen size
+function updateGameParameters() {
+  // Adjust sizes based on screen dimensions
+  BALL_RADIUS = Math.max(8, Math.min(14, W * 0.03));
+  RING_RADIUS = Math.min(W * 0.25, 120);
+  RING_THICKNESS = Math.max(8, Math.min(14, W * 0.02));
+  BASE_OBSTACLE_SPACING = Math.max(200, H * 0.4);
+}
+
+// Initialize on load
+resize();
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', resize);
+
+/* Sound engine */
+let audioCtx = null;
+let soundEnabled = true;
+const soundToggleBtn = document.getElementById('soundToggle');
+soundToggleBtn.addEventListener('click', ()=>{
+  soundEnabled = !soundEnabled;
+  soundToggleBtn.textContent = soundEnabled ? '🔊' : '🔈';
+  if(soundEnabled && !audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+});
+
+function beep(freq=440,dur=0.06,vol=0.04,type='sine'){
+  if(!soundEnabled) return;
+  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type;
+  o.frequency.value = freq;
+  g.gain.value = vol;
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start();
+  o.stop(audioCtx.currentTime + dur);
+}
+
+/* ----- Game objects ----- */
+class Ball {
+  constructor(){
+    this.x = W * 0.5;
+    this.y = H * 0.8; // Start lower on screen
+    this.vy = 0;
+    this.radius = BALL_RADIUS;
+    this.colorIndex = Math.floor(Math.random() * COLORS.length); // Random start color
+    this.jumpCount = 0;
+    this.trail = [];
+    this.maxTrail = 5;
+    this.isJumping = false;
+    this.inRing = false; // Track if ball is inside a ring
+    this.currentRing = null; // Reference to the ring the ball is in
+    this.invincible = false; // For brief invincibility after losing a life
+    this.invincibleTimer = 0;
+    this.lastCollisionRing = null; // Track which ring we last collided with
+  }
+  
+  jump(){
+    if (this.isJumping && this.vy < -2) return; // Prevent excessive double jumps
+    
+    this.vy = JUMP_V;
+    this.isJumping = true;
+    this.jumpCount++;
+    beep(720,0.05,0.03,'triangle');
+    
+    // Add trail effect
+    this.trail.push({x: this.x, y: this.y, alpha: 0.7});
+    if(this.trail.length > this.maxTrail) {
+      this.trail.shift();
+    }
+  }
+  
+  update(dt){
+    // Update invincibility timer
+    if (this.invincible) {
+      this.invincibleTimer -= dt;
+      if (this.invincibleTimer <= 0) {
+        this.invincible = false;
+      }
+    }
+    
+    // Update trail
+    for(let i = 0; i < this.trail.length; i++) {
+      this.trail[i].alpha -= 0.1;
+      if(this.trail[i].alpha <= 0) {
+        this.trail.splice(i, 1);
+        i--;
+      }
+    }
+    
+    // Apply gravity
+    this.vy += GRAVITY;
+    this.y += this.vy;
+    
+    // If inside a ring, reduce gravity for better control
+    if (this.inRing && this.currentRing) {
+      this.vy *= 0.9; // Slow down vertical movement when in ring
+    }
+    
+    // Reset jumping state when on ground
+    if (this.y + this.radius >= H) {
+      this.y = H - this.radius;
+      this.vy = 0;
+      this.isJumping = false;
+    }
+    
+    // Prevent going above screen
+    if(this.y - this.radius < 0){
+      this.y = this.radius;
+      this.vy = 0;
+    }
+  }
+  
+  draw(){
+    // Draw trail
+    for(let i = 0; i < this.trail.length; i++) {
+      const t = this.trail[i];
+      ctx.beginPath();
+      ctx.fillStyle = COLORS[this.colorIndex] + Math.round(t.alpha * 100).toString(16).padStart(2, '0');
+      ctx.arc(t.x, t.y, this.radius * 0.7, 0, Math.PI*2);
+      ctx.fill();
+    }
+    
+    // Outer glow - with invincibility effect
+    if (this.invincible) {
+      // Blinking effect when invincible
+      const blink = Math.sin(Date.now() * 0.02) > 0;
+      if (blink) {
+        ctx.beginPath();
+        ctx.fillStyle = COLORS[this.colorIndex];
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+        ctx.fill();
+      }
+    } else {
+      ctx.beginPath();
+      ctx.fillStyle = COLORS[this.colorIndex];
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+      ctx.fill();
+    }
+    
+    // Highlight
+    ctx.beginPath();
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.arc(this.x - this.radius*0.3, this.y - this.radius*0.4, this.radius*0.5, 0, Math.PI*2);
+    ctx.fill();
+    
+    // Draw a small indicator when inside a ring
+    if (this.inRing) {
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+      ctx.lineWidth = 2;
+      ctx.arc(this.x, this.y, this.radius + 5, 0, Math.PI*2);
+      ctx.stroke();
+    }
+  }
+  
+  setColor(colorIndex) {
+    this.colorIndex = colorIndex;
+    beep(600,0.03,0.02,'sine');
+  }
+  
+  // Make ball invincible for a short time
+  makeInvincible(duration = 1.5) {
+    this.invincible = true;
+    this.invincibleTimer = duration;
+  }
+  
+  // Check if ball is inside a ring (for waiting)
+  checkInsideRing(ring) {
+    const dx = this.x - ring.x;
+    const dy = this.y - ring.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const ringInner = ring.radius - ring.thickness/2;
+    const ringOuter = ring.radius + ring.thickness/2;
+    
+    return dist >= ringInner && dist <= ringOuter;
+  }
+}
+
+class Ring {
+  constructor(y, level=1){
+    this.x = W * 0.5;
+    this.y = y;
+    this.radius = RING_RADIUS;
+    this.thickness = RING_THICKNESS;
+    this.rotation = Math.random() * Math.PI * 2; // Random starting rotation
+    // Fast rotation that increases with level
+    this.spinSpeed = RING_SPIN_SPEED * (0.8 + level * 0.1) * (Math.random()>0.5?1:-1);
+    this.segments = COLORS.length;
+    this.passed = false;
+    this.failed = false; // Track if this ring has already caused a life loss
+    this.pulse = 0;
+    this.pulseDirection = 1;
+    this.level = level;
+    this.hasPickup = Math.random() < 0.25; // 25% chance to have a pickup
+    this.pickupColor = Math.floor(Math.random() * COLORS.length);
+    this.ballInside = false; // Track if ball is currently inside this ring
+  }
+  
+  update(dt){
+    this.y += OBSTACLE_SPEED;
+    
+    // Fast rotation for more color match opportunities
+    this.rotation += this.spinSpeed * dt * 60;
+    
+    // Pulsing effect for visual feedback
+    this.pulse += 0.05 * this.pulseDirection;
+    if(this.pulse > 0.5 || this.pulse < 0) {
+      this.pulseDirection *= -1;
+      this.pulse = Math.max(0, Math.min(0.5, this.pulse));
+    }
+  }
+  
+  draw(){
+    const seg = this.segments;
+    const anglePer = (Math.PI*2) / seg;
+    const pulseOffset = this.pulse * 2;
+    
+    // Draw ring segments
+    for(let i=0;i<seg;i++){
+      const a0 = this.rotation + i*anglePer;
+      const a1 = a0 + anglePer;
+      ctx.beginPath();
+      ctx.lineWidth = this.thickness + pulseOffset;
+      ctx.strokeStyle = COLORS[i % COLORS.length];
+      ctx.arc(this.x, this.y, this.radius, a0, a1, false);
+      ctx.stroke();
+    }
+    
+    // Draw pickup if this ring has one
+    if (this.hasPickup && !this.passed) {
+      const pickupAngle = this.rotation + this.pickupColor * anglePer + anglePer/2;
+      const pickupX = this.x + Math.cos(pickupAngle) * (this.radius + this.thickness);
+      const pickupY = this.y + Math.sin(pickupAngle) * (this.radius + this.thickness);
+      
+      ctx.beginPath();
+      ctx.fillStyle = COLORS[this.pickupColor];
+      ctx.arc(pickupX, pickupY, BALL_RADIUS * 0.6, 0, Math.PI*2);
+      ctx.fill();
+      
+      ctx.beginPath();
+      ctx.fillStyle = '#fff';
+      ctx.arc(pickupX, pickupY, BALL_RADIUS * 0.3, 0, Math.PI*2);
+      ctx.fill();
+    }
+    
+    // Visual feedback when ball is inside this ring
+    if (this.ballInside) {
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+      ctx.lineWidth = 3;
+      ctx.arc(this.x, this.y, this.radius + 10, 0, Math.PI*2);
+      ctx.stroke();
+    }
+  }
+  
+  // Get the color of the segment at the bottom of the ring
+  getBottomSegmentColor(){
+    let bottomAngle = -Math.PI/2;
+    let relativeAngle = bottomAngle - (this.rotation % (Math.PI*2));
+    if(relativeAngle < 0) relativeAngle += Math.PI*2;
+    const anglePer = (Math.PI*2) / this.segments;
+    const segIndex = Math.floor(relativeAngle / anglePer) % this.segments;
+    return segIndex;
+  }
+  
+  // Check if ball can pass through the ring
+  checkPassThrough(ball){
+    const dx = ball.x - this.x;
+    const dy = ball.y - this.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const inner = this.radius - this.thickness/2 - ball.radius*0.9;
+    const outer = this.radius + this.thickness/2 + ball.radius*0.9;
+    
+    // Check if ball is inside the ring area
+    const isInside = dist >= inner && dist <= outer;
+    this.ballInside = isInside;
+    
+    if(isInside){
+      let a = Math.atan2(dy, dx);
+      if(a < 0) a += Math.PI*2;
+      let rel = a - (this.rotation % (Math.PI*2));
+      if(rel < 0) rel += Math.PI*2;
+      
+      // Define anglePer here to fix the error
+      const anglePer = (Math.PI*2) / this.segments;
+      const segIndex = Math.floor(rel / anglePer) % this.segments;
+      
+      // Return whether colors match and if there's a pickup to collect
+      const colorMatch = segIndex === ball.colorIndex;
+      let pickupCollected = false;
+      
+      // Check if we're collecting a pickup
+      if (colorMatch && this.hasPickup && !this.passed) {
+        const pickupAngle = this.rotation + this.pickupColor * anglePer + anglePer/2;
+        const pickupX = this.x + Math.cos(pickupAngle) * (this.radius + this.thickness);
+        const pickupY = this.y + Math.sin(pickupAngle) * (this.radius + this.thickness);
+        const pickupDist = Math.sqrt((ball.x - pickupX)**2 + (ball.y - pickupY)**2);
+        
+        if (pickupDist < (ball.radius + BALL_RADIUS * 0.6)) {
+          pickupCollected = true;
+          this.hasPickup = false;
+        }
+      }
+      
+      return {
+        passed: colorMatch,
+        pickupCollected: pickupCollected,
+        pickupColor: this.pickupColor,
+        isInside: isInside,
+        segmentIndex: segIndex
+      };
+    }
+    
+    return { passed: false, pickupCollected: false, isInside: false, segmentIndex: -1 };
+  }
+}
+
+/* ----- Game state ----- */
+let ball = null;
+let rings = [];
+let running = false;
+let score = 0;
+let level = 1;
+let lives = 3;
+let ringsPassed = 0;
+let lastSpawnY = -BASE_OBSTACLE_SPACING;
+let currentRingIndex = 0; // Track which ring the player is currently on
+const scoreCard = document.getElementById('scoreCard');
+const finalScoreEl = document.getElementById('finalScore');
+const finalLevelEl = document.getElementById('finalLevel');
+const ringsPassedEl = document.getElementById('ringsPassed');
+const livesCard = document.getElementById('livesCard');
+
+/* ----- Game functions ----- */
+function resetGame(){
+  ball = new Ball();
+  rings = [];
+  running = true;
+  score = 0;
+  level = 1;
+  lives = 3;
+  ringsPassed = 0;
+  currentRingIndex = 0;
+  lastSpawnY = -BASE_OBSTACLE_SPACING;
+  
+  // Reset game parameters
+  OBSTACLE_SPEED = 0.6;
+  RING_SPIN_SPEED = 0.03;
+  
+  // Reset lives display
+  updateLivesUI();
+  spawnInitial();
+  updateScoreUI();
+}
+
+function updateLivesUI() {
+  const lifeElements = livesCard.querySelectorAll('.life');
+  lifeElements.forEach((life, index) => {
+    if (index < lives) {
+      life.classList.remove('lost');
+    } else {
+      life.classList.add('lost');
+    }
+  });
+}
+
+function spawnInitial(){
+  let y = H * 0.2;
+  // Spawn rings closer together for continuous play
+  for (let i = 0; i < 6; i++) {
+    rings.push(new Ring(y, level));
+    y -= BASE_OBSTACLE_SPACING * 0.6; // Even closer spacing
+  }
+  lastSpawnY = y;
+}
+
+function spawnTop(){
+  const y = lastSpawnY - BASE_OBSTACLE_SPACING * 0.6; // Closer spacing
+  rings.push(new Ring(y, level));
+  lastSpawnY = y;
+}
+
+function updateLevel(){
+  // Level up every 5 rings
+  const newLevel = Math.floor(ringsPassed / 5) + 1;
+  if (newLevel > level) {
+    level = newLevel;
+    
+    // Increase difficulty with level
+    OBSTACLE_SPEED = 0.6 + (level * 0.1);
+    RING_SPIN_SPEED = 0.03 + (level * 0.005);
+    
+    // Visual and audio feedback for level up
+    beep(880,0.1,0.06,'sine');
+    setTimeout(() => beep(1100,0.08,0.05,'sine'), 100);
+  }
+}
+
+function updateScoreUI(){
+  scoreCard.textContent = `Score: ${score}`;
+}
+
+function loseLife() {
+  if (ball.invincible) return; // Can't lose life while invincible
+  
+  lives--;
+  updateLivesUI();
+  
+  if (lives <= 0) {
+    gameOver();
+  } else {
+    // Make ball invincible for a short time after losing a life
+    ball.makeInvincible(1.5);
+    beep(200,0.2,0.08,'square');
+  }
+}
+
+// Improved collision detection for life loss
+function checkCollision(ring, ball) {
+  // Only check collision with the current ring
+  const passResult = ring.checkPassThrough(ball);
+  
+  // Update ball's inside ring status
+  if (passResult.isInside) {
+    ball.inRing = true;
+    ball.currentRing = ring;
+  }
+  
+  // If ball is inside the ring and colors don't match, lose a life
+  if (passResult.isInside && !passResult.passed && !ring.failed && !ball.invincible) {
+    // Only lose a life if this is a new collision with this ring
+    if (ball.lastCollisionRing !== ring) {
+      ring.failed = true;
+      ball.lastCollisionRing = ring;
+      loseLife();
+      return false; // Collision occurred
+    }
+  }
+  
+  // If colors match and ring hasn't been passed yet
+  if (passResult.passed && !ring.passed) {
+    ring.passed = true;
+    score += 10;
+    ringsPassed++;
+    updateScoreUI();
+    updateLevel();
+    beep(560,0.04,0.02,'sine');
+    
+    // Change ball color if pickup was collected
+    if (passResult.pickupCollected) {
+      ball.setColor(passResult.pickupColor);
+      beep(950,0.06,0.04,'triangle');
+    }
+    
+    return true; // Successfully passed
+  }
+  
+  return null; // No collision or pass
+}
+
+/* ----- Input handling ----- */
+function pressJump(){
+  if(!running) return;
+  ball.jump();
+}
+
+window.addEventListener('keydown', (e)=>{
+  if(e.code === 'Space') {
+    e.preventDefault();
+    if(!running) return;
+    pressJump();
+  }
+});
+
+// Improved touch handling for mobile
+window.addEventListener('touchstart', (e)=>{
+  e.preventDefault();
+  if(!running) {
+    // If game not running, check if we're clicking on a button
+    const target = e.target;
+    if (!target.closest('.btn') && !target.closest('.info')) {
+      startGame();
+    }
+    return;
+  }
+  pressJump();
+}, {passive:false});
+
+window.addEventListener('mousedown', (e)=>{
+  if(!running) return;
+  pressJump();
+});
+
+/* UI controls */
+const startOverlay = document.getElementById('startOverlay');
+const startBtn = document.getElementById('startBtn');
+const howBtn = document.getElementById('howBtn');
+const infoBtn = document.getElementById('infoBtn');
+const gameOverOverlay = document.getElementById('gameOverOverlay');
+const retryBtn = document.getElementById('retryBtn');
+const hint = document.getElementById('hint');
+
+// Improved button event handling for mobile
+startBtn.addEventListener('click', startGame);
+startBtn.addEventListener('touchend', startGame);
+
+howBtn.addEventListener('click', showInstructions);
+howBtn.addEventListener('touchend', showInstructions);
+
+infoBtn.addEventListener('click', showInstructions);
+infoBtn.addEventListener('touchend', showInstructions);
+
+retryBtn.addEventListener('click', restartGame);
+retryBtn.addEventListener('touchend', restartGame);
+
+function showInstructions(){
+  startOverlay.style.display = 'flex';
+  const p = startOverlay.querySelector('.panel p');
+  p.textContent = 'Control your ball precisely with small jumps. You have 3 lives. Wait inside rings for your color to match the bottom segment. Pass through matching colors to score. Each level gets faster and more challenging!';
+}
+
+function startGame(){
+  startOverlay.style.display = 'none';
+  hint.style.opacity = '1';
+  resetGame();
+  beep(440,0.09,0.05,'sine');
+  setTimeout(() => beep(550,0.07,0.05,'sine'), 100);
+  setTimeout(() => beep(660,0.05,0.05,'sine'), 200);
+  requestAnimationFrame(loop);
+}
+
+function restartGame(){
+  gameOverOverlay.style.display = 'none';
+  gameOverOverlay.style.pointerEvents = 'none';
+  hint.style.opacity = '1';
+  startGame();
+}
+
+function gameOver(){
+  running = false;
+  beep(120,0.18,0.08,'square');
+  setTimeout(() => beep(90,0.15,0.06,'square'), 150);
+  
+  finalScoreEl.textContent = score;
+  finalLevelEl.textContent = level;
+  ringsPassedEl.textContent = ringsPassed;
+  gameOverOverlay.style.display = 'flex';
+  gameOverOverlay.style.pointerEvents = 'auto';
+  hint.style.opacity = '0';
+}
+
+/* ----- Main game loop ----- */
+let lastTime = performance.now();
+function loop(now){
+  const dt = Math.min(1/30, (now - lastTime) / 1000);
+  lastTime = now;
+  
+  // Clear canvas with a dark gradient
+  const gradient = ctx.createLinearGradient(0, 0, 0, H);
+  gradient.addColorStop(0, '#1a1a2e');
+  gradient.addColorStop(1, '#16213e');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, W, H);
+  
+  // Draw background elements
+  drawBackground();
+
+  if(running){
+    ball.update(dt);
+    
+    // Improved ring spawning - always keep at least 7 rings on screen
+    if(rings.length < 7 || rings[rings.length-1].y > H * 0.1) {
+      spawnTop();
+    }
+    
+    // Reset ball's inside ring status
+    ball.inRing = false;
+    ball.currentRing = null;
+    
+    // Update rings and check for interactions
+    for(let i=rings.length-1;i>=0;i--){
+      const r = rings[i];
+      r.update(dt);
+      
+      // Only check collision with the current ring
+      if(i === currentRingIndex && !r.passed){
+        const result = checkCollision(r, ball);
+        
+        // If successfully passed, move to next ring
+        if (result === true) {
+          currentRingIndex++;
+        }
+      }
+      
+      // Remove offscreen rings
+      if(r.y - r.radius - r.thickness > H + 40){
+        rings.splice(i,1);
+        // Adjust current ring index if we're removing rings before the current one
+        if (i < currentRingIndex) {
+          currentRingIndex--;
+        }
+      }
+    }
+  }
+
+  // Draw game objects
+  for(const r of rings) r.draw();
+  if (ball) ball.draw();
+  
+  // Draw UI elements on canvas
+  drawLevelIndicator();
+  drawLivesIndicator();
+
+  if(running) requestAnimationFrame(loop);
+}
+
+function drawBackground(){
+  // Draw subtle grid pattern
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 1;
+  
+  // Vertical lines
+  for(let x = 0; x < W; x += 40) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, H);
+    ctx.stroke();
+  }
+  
+  // Horizontal lines
+  for(let y = 0; y < H; y += 40) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(W, y);
+    ctx.stroke();
+  }
+}
+
+function drawLevelIndicator() {
+  // Show the current level at the top
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 16px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText(`Level ${level}`, W/2, 30);
+  
+  // Show progress to next level
+  const progress = ringsPassed % 5;
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.fillRect(W/2 - 40, 35, 80, 6);
+  ctx.fillStyle = '#3498db';
+  ctx.fillRect(W/2 - 40, 35, (80 / 5) * progress, 6);
+}
+
+function drawLivesIndicator() {
+  // Show lives on the canvas as well (in case the top bar is not visible)
+  ctx.fillStyle = 'white';
+  ctx.font = '14px Arial';
+  ctx.textAlign = 'left';
+  ctx.fillText(`Lives: ${lives}`, 20, 30);
+}
+
+/* Start paused (show overlay) */
+showInstructions();
+
+/* Prevent scrolling on mobile while playing */
+document.addEventListener('touchmove', function(e){ 
+  if(running) e.preventDefault(); 
+}, {passive:false});
+
+// Additional mobile optimizations
+document.addEventListener('DOMContentLoaded', function() {
+  // Prevent zoom on double-tap
+  document.addEventListener('touchend', function(e) {
+    if (running) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+  
+  // Prevent context menu on long press
+  document.addEventListener('contextmenu', function(e) {
+    if (running) {
+      e.preventDefault();
+    }
+  });
+});
+
+</script>
+</body>
+</html>
