@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Lights Out — Auto Solve</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { height:100%; margin:0; padding:0; font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; touch-action: manipulation; overscroll-behavior: none; }
+    body {
+      background: linear-gradient(160deg,#4c1d95 0%, #0d9488 100%);
+      display:flex; align-items:center; justify-content:center; overflow:hidden;
+    }
+
+    #game-container {
+      width:100vw; height:100vh; display:flex; flex-direction:column; gap:8px; padding:10px 12px;
+      max-width:100%;
+    }
+
+    .header { display:flex; align-items:center; justify-content:space-between; gap:12px; color:white; }
+    .title-left { display:flex; align-items:center; gap:10px; }
+    h1 { margin:0; font-size:1.2rem; font-weight:800; text-shadow:0 6px 18px rgba(0,0,0,0.25); }
+    .subtitle { margin:0; opacity:0.95; font-size:0.86rem; }
+
+    .controls { display:flex; gap:8px; align-items:center; }
+    .btn {
+      padding:8px 12px; border-radius:12px; border:none; cursor:pointer; font-weight:700; min-width:52px;
+      display:inline-flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 6px 18px rgba(0,0,0,0.2);
+      transition: transform .12s ease, box-shadow .12s ease;
+      background: rgba(255,255,255,0.12); color:white;
+    }
+    .btn:active { transform:translateY(2px); box-shadow:0 3px 10px rgba(0,0,0,0.12); }
+    .btn-primary { background:#3498db; color:#fff; }
+    .btn-secondary { background: rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.06); }
+    .btn-success { background:#2ecc71; color:#fff; }
+
+    select { padding:7px 10px; border-radius:10px; border:none; font-weight:700; background:white; cursor:pointer; box-shadow:0 6px 16px rgba(0,0,0,0.15); }
+
+    #game-area { flex:1; display:flex; align-items:center; justify-content:center; position:relative; width:100%; }
+    #game-board {
+      display:grid; gap:4px; background: rgba(255,255,255,0.04); border-radius:14px; padding:6px; box-shadow:0 12px 32px rgba(0,0,0,0.25);
+      touch-action:none; will-change:transform;
+    }
+
+    .tile {
+      width:100%; height:100%; background: #2d2d2d;
+      border-radius:10px; box-shadow:0 4px 8px rgba(0,0,0,0.2); cursor:pointer; transition: all .12s ease;
+      display:flex; align-items:center; justify-content:center; user-select:none; -webkit-user-select:none; font-weight:800; color:#eee;
+      border:none;
+    }
+    .tile:active { transform:scale(0.985); }
+
+    .tile.on {
+      background: radial-gradient(circle at 35% 30%, #fff9c4 0%, #fdd835 40%, #f9a825 100%);
+      box-shadow:0 10px 28px rgba(255,235,59,0.28), 0 0 22px rgba(255,235,59,0.12) inset;
+      color:#111;
+    }
+
+    .tile.solution-hint {
+      outline: 3px solid rgba(46,204,113,0.98);
+      box-shadow: 0 10px 30px rgba(46,204,113,0.15);
+    }
+
+    .footer { display:flex; justify-content:space-between; gap:12px; align-items:center; color:#f0ea00f0; }
+    .stat-pill { background: rgba(255,255,255,0.12); padding:6px 10px; border-radius:14px; font-weight:700; font-size:0.92rem; box-shadow:0 6px 18px rgba(0,0,0,0.12); }
+
+    .overlay { position:fixed; inset:0; background:rgba(0,0,0,0.4); display:none; z-index:90; } 
+    .overlay.visible { display:block; }
+    .help-popup { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:white; border-radius:12px; padding:16px; z-index:100; max-width:94%; width:420px; box-shadow:0 22px 68px rgba(0,0,0,0.32); display:none; }
+    .help-popup.visible { display:block; }
+
+    @media (max-width:640px) {
+      h1 { font-size:1.05rem; }
+      .subtitle { font-size:0.78rem; }
+      .btn { padding:7px 10px; font-size:0.88rem; border-radius:10px; min-width:48px; }
+      select { padding:6px 8px; }
+      #game-board { gap:3px; padding:5px; border-radius:12px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div class="header">
+      <div class="title-left">
+        <h1>Lights Out</h1>
+        <span class="subtitle">Turn all lights OFF</span>
+      </div>
+
+      <div class="controls">
+        <select id="sizeSelect">
+          <option value="3">3×3</option>
+          <option value="4">4×4</option>
+          <option value="5" selected>5×5</option>
+          <option value="6">6×6</option>
+        </select>
+        <button id="hintBtn" class="btn btn-success" title="Hint"><i class="fas fa-lightbulb"></i></button>
+        <button id="solveBtn" class="btn btn-primary" title="Auto-solve"><i class="fas fa-robot"></i></button>
+        <button id="shuffleBtn" class="btn btn-secondary" title="Shuffle"><i class="fas fa-random"></i></button>
+        <button id="resetBtn" class="btn btn-secondary" title="Reset"><i class="fas fa-undo"></i></button>
+        <button id="helpBtn" class="btn btn-secondary" title="Help"><i class="fas fa-question-circle"></i></button>
+      </div>
+    </div>
+
+    <div id="game-area"><div id="game-board"></div></div>
+
+    <div class="footer">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <div class="stat-pill">Moves: <span id="moves">0</span></div>
+        <div class="stat-pill">Status: <span id="status">Playing</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay"></div>
+  <div class="help-popup" id="helpPopup">
+    <button id="closeHelp" style="position:absolute;right:10px;top:8px;background:none;border:none;font-size:18px;cursor:pointer;color:#777;"><i class="fas fa-times"></i></button>
+    <h2 style="color:#6a11cb;margin:0 0 6px 0;"><i class="fas fa-question-circle"></i> How to Play</h2>
+    <p>Tap a tile to toggle it and its neighbors. Turn <b>all lights OFF</b> to win.</p>
+    <p>Use <b>Hint</b> for the next recommended move, or <b>Auto-solve</b> to let the game finish itself.</p>
+  </div>
+
+  <script>
+  (function(){
+    const gameBoard=document.getElementById('game-board');
+    const sizeSelect=document.getElementById('sizeSelect');
+    const shuffleBtn=document.getElementById('shuffleBtn');
+    const resetBtn=document.getElementById('resetBtn');
+    const hintBtn=document.getElementById('hintBtn');
+    const solveBtn=document.getElementById('solveBtn');
+    const helpBtn=document.getElementById('helpBtn');
+    const helpPopup=document.getElementById('helpPopup');
+    const overlay=document.getElementById('overlay');
+    const closeHelp=document.getElementById('closeHelp');
+
+    let gridSize=5,grid=[],moves=0,isWin=false;
+
+    function initAudio(){
+      if(!window.AudioContext&&!window.webkitAudioContext)return;
+      if(!window._ctx) window._ctx=new (window.AudioContext||window.webkitAudioContext)();
+    }
+    document.addEventListener('pointerdown',initAudio,{once:true});
+    function beep(f=440,d=0.06){
+      if(!window._ctx) return;
+      const ctx=window._ctx; if(ctx.state==='suspended') ctx.resume();
+      const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.value=f;
+      g.gain.setValueAtTime(0.12,ctx.currentTime);o.connect(g);g.connect(ctx.destination);
+      o.start();o.stop(ctx.currentTime+d);
+    }
+
+    function buildGrid(size){
+      gameBoard.innerHTML='';grid=[];moves=0;isWin=false;updateMoves();updateStatus('Playing');
+      const headerH=document.querySelector('.header').offsetHeight||56;
+      const footerH=document.querySelector('.footer').offsetHeight||56;
+      const availH=window.innerHeight-headerH-footerH-36,availW=Math.min(window.innerWidth-24,900);
+      const best=Math.floor(Math.min(availW,availH)),tileSize=Math.max(30,Math.floor(best/size));
+      gameBoard.style.width=(tileSize*size+(size-1)*4+12)+'px';
+      gameBoard.style.height=(tileSize*size+(size-1)*4+12)+'px';
+      gameBoard.style.gridTemplateColumns=`repeat(${size},${tileSize}px)`;
+      gameBoard.style.gridTemplateRows=`repeat(${size},${tileSize}px)`;
+      for(let r=0;r<size;r++){grid[r]=[];
+        for(let c=0;c<size;c++){const t=document.createElement('button');t.className='tile';t.style.width=t.style.height=tileSize+'px';
+          t.addEventListener('click',()=>{if(isWin)return;toggle(r,c);beep(400+r*10+c*5,0.05);});
+          gameBoard.appendChild(t);grid[r][c]={on:false,el:t};}
+      }
+      shuffle();
+    }
+
+    function toggle(r,c,count=true){[[r,c],[r-1,c],[r+1,c],[r,c-1],[r,c+1]].forEach(([rr,cc])=>{
+      if(rr>=0&&rr<gridSize&&cc>=0&&cc<gridSize){grid[rr][cc].on=!grid[rr][cc].on;
+        grid[rr][cc].on?grid[rr][cc].el.classList.add('on'):grid[rr][cc].el.classList.remove('on');}});
+      if(count){moves++;updateMoves();}if(checkWin())win();}
+    function shuffle(){for(let r=0;r<gridSize;r++)for(let c=0;c<gridSize;c++){grid[r][c].on=false;grid[r][c].el.classList.remove('on');}
+      for(let i=0;i<gridSize*3;i++)toggle(Math.floor(Math.random()*gridSize),Math.floor(Math.random()*gridSize),false);
+      moves=0;updateMoves();updateStatus('Playing');}
+    function reset(){for(let r=0;r<gridSize;r++)for(let c=0;c<gridSize;c++){grid[r][c].on=false;grid[r][c].el.classList.remove('on');}
+      moves=0;isWin=false;updateMoves();updateStatus('Playing');}
+    function checkWin(){return grid.every(row=>row.every(cell=>!cell.on));}
+    function win(){isWin=true;updateStatus('You Win!');[660,880,990,1320].forEach((f,i)=>setTimeout(()=>beep(f,0.12),i*100));}
+
+    function updateMoves(){document.getElementById('moves').textContent=moves;}
+    function updateStatus(s){document.getElementById('status').textContent=s;}
+
+    function solve(){
+      if(isWin)return;
+      const sol=calcSolution(); if(!sol.length){updateStatus('No solution');return;}
+      let i=0;updateStatus('Auto-solving...');
+      function step(){if(i>=sol.length){updateStatus('Solved!');return;}
+        const [r,c]=sol[i];toggle(r,c,true);beep(500+i*10,0.05);i++;setTimeout(step,120);}step();
+    }
+
+    function calcSolution(){
+      const n=gridSize,total=n*n,mat=Array.from({length:total},()=>new Array(total).fill(0)),b=[];
+      for(let r=0;r<n;r++)for(let c=0;c<n;c++){const idx=r*n+c;mat[idx][idx]=1;
+        if(r>0)mat[idx][(r-1)*n+c]=1;if(r<n-1)mat[idx][(r+1)*n+c]=1;if(c>0)mat[idx][r*n+(c-1)]=1;if(c<n-1)mat[idx][r*n+(c+1)]=1;
+        b[idx]=grid[r][c].on?1:0;}
+      for(let col=0,row=0;col<total&&row<total;col++){let sel=row;while(sel<total&&mat[sel][col]===0)sel++;if(sel===total)continue;
+        [mat[row],mat[sel]]=[mat[sel],mat[row]];[b[row],b[sel]]=[b[sel],b[row]];
+        for(let r=0;r<total;r++)if(r!==row&&mat[r][col]===1){for(let c=col;c<total;c++)mat[r][c]^=mat[row][c];b[r]^=b[row];}row++;}
+      const x=new Array(total).fill(0);for(let i=total-1;i>=0;i--){let lead=mat[i].indexOf(1);if(lead<0)continue;let val=b[i];
+        for(let c=lead+1;c<total;c++)val^=(mat[i][c]&x[c]);x[lead]=val;}
+      return x.map((v,i)=>v? [Math.floor(i/n),i%n]:null).filter(Boolean);
+    }
+
+    // Events
+    sizeSelect.onchange=e=>{gridSize=parseInt(e.target.value);buildGrid(gridSize);}
+    shuffleBtn.onclick=shuffle; resetBtn.onclick=reset; hintBtn.onclick=()=>{const sol=calcSolution();if(sol.length){const [r,c]=sol[0];grid[r][c].el.classList.add('solution-hint');setTimeout(()=>grid[r][c].el.classList.remove('solution-hint'),1200);}};
+    solveBtn.onclick=solve; helpBtn.onclick=()=>{helpPopup.classList.add('visible');overlay.classList.add('visible');}
+    closeHelp.onclick=()=>{helpPopup.classList.remove('visible');overlay.classList.remove('visible');}
+    overlay.onclick=()=>{helpPopup.classList.remove('visible');overlay.classList.remove('visible');}
+
+    window.onresize=()=>buildGrid(gridSize);
+    buildGrid(gridSize);
+  })();
+  </script>
+</body>
+</html>
