@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Mastermind Game</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 0;
+      color: #333;
+    }
+    
+    .container {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      width: 100%;
+      max-width: 500px;
+      margin: 20px;
+      text-align: center;
+    }
+    
+    h1 {
+      margin-bottom: 15px;
+      color: #6a11cb;
+      font-size: 2.2rem;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+    
+    .subtitle {
+      color: #666;
+      margin-bottom: 20px;
+      font-size: 1rem;
+    }
+    
+    .btn {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 50px;
+      margin: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      color: #fff;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      font-size: 1rem;
+      width: 85%;
+      max-width: 300px;
+    }
+    
+    .btn:active {
+      transform: translateY(2px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .btn-primary { 
+      background: #3498db; 
+    }
+    
+    .btn-secondary { 
+      background: #6a11cb; 
+    }
+    
+    .btn-success {
+      background: #2ecc71;
+    }
+    
+    .btn-danger {
+      background: #e74c3c;
+    }
+    
+    .btn-warning {
+      background: #f39c12;
+    }
+    
+    .game-area {
+      margin: 20px 0;
+    }
+    
+    .guess-input {
+      display: flex;
+      justify-content: center;
+      margin: 15px 0;
+      flex-wrap: wrap;
+    }
+    
+    .guess-input select {
+      margin: 0 5px;
+      padding: 12px;
+      border-radius: 12px;
+      border: 2px solid #ddd;
+      font-size: 1.2rem;
+      width: 60px;
+      height: 60px;
+      text-align: center;
+      background: white;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .history {
+      margin-top: 20px;
+      max-height: 250px;
+      overflow-y: auto;
+      text-align: left;
+      font-size: 14px;
+      padding: 10px;
+      background: #f8f9fa;
+      border-radius: 12px;
+      box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .history-item {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      align-items: center;
+    }
+    
+    .history-guess {
+      display: flex;
+      margin-right: 15px;
+    }
+    
+    .history-peg {
+      font-size: 1.5rem;
+      margin: 0 3px;
+    }
+    
+    .history-feedback {
+      display: flex;
+      margin-left: auto;
+    }
+    
+    .feedback-peg {
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      margin: 0 2px;
+    }
+    
+    .black-peg {
+      background: #000;
+      border: 1px solid #333;
+    }
+    
+    .white-peg {
+      background: #fff;
+      border: 1px solid #ccc;
+    }
+    
+    .message {
+      margin-top: 15px;
+      font-weight: bold;
+      color: #2ecc71;
+      padding: 10px;
+      border-radius: 10px;
+      background: #f8f9fa;
+    }
+    
+    .reveal {
+      margin-top: 10px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #e74c3c;
+      padding: 10px;
+      border-radius: 10px;
+      background: #f8f9fa;
+    }
+    
+    .secret-code {
+      display: flex;
+      justify-content: center;
+      margin: 15px 0;
+    }
+    
+    .secret-peg {
+      font-size: 2rem;
+      margin: 0 5px;
+    }
+    
+    .attempts {
+      margin: 10px 0;
+      font-weight: bold;
+      color: #6a11cb;
+    }
+    
+    .button-row {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 10px 0;
+    }
+    
+    @media (min-width: 768px) {
+      .button-row {
+        flex-direction: row;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      
+      .btn {
+        width: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1><i class="fas fa-brain"></i> Mastermind</h1>
+    <p class="subtitle">Crack the color code in as few attempts as possible!</p>
+    
+    <div class="button-row">
+      <button class="btn btn-primary" onclick="startManual()">
+        <i class="fas fa-hand-pointer"></i> Play Manually
+      </button>
+      <button class="btn btn-secondary" onclick="startAI()">
+        <i class="fas fa-robot"></i> AI Solve
+      </button>
+    </div>
+    
+    <div class="attempts" id="attempts">Attempts: 0</div>
+    
+    <div id="manual-play" style="display:none;">
+      <div class="guess-input" id="guess-input"></div>
+      
+      <div class="button-row">
+        <button class="btn btn-success" onclick="submitGuess()">
+          <i class="fas fa-paper-plane"></i> Submit Guess
+        </button>
+        <button class="btn btn-warning" onclick="getHint()">
+          <i class="fas fa-lightbulb"></i> Hint
+        </button>
+      </div>
+    </div>
+    
+    <div class="button-row">
+      <button class="btn btn-danger" onclick="revealSecret()">
+        <i class="fas fa-eye"></i> Reveal Secret
+      </button>
+    </div>
+    
+    <div id="message" class="message"></div>
+    <div id="reveal" class="reveal"></div>
+    
+    <h3>Guess History</h3>
+    <div class="history" id="history"></div>
+  </div>
+
+  <script>
+    const COLORS = ["🔴","🟢","🔵","🟡","🟣","🟠"];
+    let secret = [];
+    let attempts = 0;
+    let manualMode = false;
+
+    function generateSecret() {
+      secret = [];
+      for (let i=0;i<4;i++) {
+        secret.push(COLORS[Math.floor(Math.random()*COLORS.length)]);
+      }
+      console.log("Secret:", secret.join(" "));
+    }
+
+    function startManual() {
+      manualMode = true;
+      resetGame();
+      document.getElementById("manual-play").style.display = "block";
+      buildInput();
+    }
+
+    function startAI() {
+      manualMode = false;
+      resetGame();
+      document.getElementById("manual-play").style.display = "none";
+      runAISolver();
+    }
+
+    function resetGame() {
+      generateSecret();
+      attempts = 0;
+      updateAttempts();
+      document.getElementById("history").innerHTML = "";
+      document.getElementById("message").innerText = "";
+      document.getElementById("reveal").innerText = "";
+    }
+    
+    function updateAttempts() {
+      document.getElementById("attempts").innerText = `Attempts: ${attempts}`;
+    }
+
+    function buildInput() {
+      const inputDiv = document.getElementById("guess-input");
+      inputDiv.innerHTML = "";
+      for (let i=0;i<4;i++) {
+        let sel = document.createElement("select");
+        // Add a default empty option
+        let defaultOpt = document.createElement("option");
+        defaultOpt.text = "❓";
+        defaultOpt.value = "";
+        sel.add(defaultOpt);
+        
+        COLORS.forEach(c=>{
+          let opt=document.createElement("option");
+          opt.text=c;
+          sel.add(opt);
+        });
+        inputDiv.appendChild(sel);
+      }
+    }
+
+    function submitGuess() {
+      const selects = document.querySelectorAll("#guess-input select");
+      const guess = Array.from(selects).map(s=>s.value);
+      
+      // Check if all colors are selected
+      if (guess.includes("")) {
+        document.getElementById("message").innerText = "Please select all 4 colors!";
+        return;
+      }
+      
+      attempts++;
+      updateAttempts();
+      const fb = feedback(guess, secret);
+      
+      // Create a visual feedback with black and white circles
+      let feedbackHTML = "";
+      for (let i=0; i<fb.black; i++) {
+        feedbackHTML += '<div class="feedback-peg black-peg"></div>';
+      }
+      for (let i=0; i<fb.white; i++) {
+        feedbackHTML += '<div class="feedback-peg white-peg"></div>';
+      }
+      
+      document.getElementById("history").innerHTML = `
+        <div class="history-item">
+          <div class="history-guess">
+            ${guess.map(g => `<div class="history-peg">${g}</div>`).join('')}
+          </div>
+          <div class="history-feedback">
+            ${feedbackHTML}
+          </div>
+        </div>
+      ` + document.getElementById("history").innerHTML;
+      
+      if (fb.black===4) {
+        document.getElementById("message").innerText = "🎉 You Win in " + attempts + " attempts!";
+        document.getElementById("manual-play").style.display = "none";
+      }
+    }
+
+    function feedback(guess, secret) {
+      let black=0, white=0;
+      let secCopy=[...secret], gCopy=[...guess];
+      
+      // Check for black pegs (correct color and position)
+      for (let i=0;i<4;i++) {
+        if (gCopy[i]===secCopy[i]) {
+          black++;
+          secCopy[i]=gCopy[i]=null;
+        }
+      }
+      
+      // Check for white pegs (correct color, wrong position)
+      for (let i=0;i<4;i++) {
+        if (gCopy[i]) {
+          let idx=secCopy.indexOf(gCopy[i]);
+          if (idx>-1) { 
+            white++; 
+            secCopy[idx]=null; 
+          }
+        }
+      }
+      return {black,white};
+    }
+
+    function revealSecret() {
+      document.getElementById("reveal").innerHTML = `
+        <div>Secret Code:</div>
+        <div class="secret-code">
+          ${secret.map(s => `<div class="secret-peg">${s}</div>`).join('')}
+        </div>
+      `;
+    }
+
+    function getHint() {
+      let idx = Math.floor(Math.random()*secret.length);
+      document.getElementById("message").innerText = 
+        `💡 Hint: Position ${idx+1} is ${secret[idx]}`;
+    }
+
+    // AI solver with slightly better strategy
+    function runAISolver() {
+      let allPossible = getAllPossibleSolutions();
+      let guess = ["🔴","🔴","🟢","🟢"]; // Starting guess
+      let fb;
+      
+      const solveInterval = setInterval(() => {
+        if (attempts >= 20) {
+          clearInterval(solveInterval);
+          document.getElementById("message").innerText = "AI failed to solve!";
+          return;
+        }
+        
+        attempts++;
+        updateAttempts();
+        fb = feedback(guess, secret);
+        
+        // Create a visual feedback with black and white circles
+        let feedbackHTML = "";
+        for (let i=0; i<fb.black; i++) {
+          feedbackHTML += '<div class="feedback-peg black-peg"></div>';
+        }
+        for (let i=0; i<fb.white; i++) {
+          feedbackHTML += '<div class="feedback-peg white-peg"></div>';
+        }
+        
+        document.getElementById("history").innerHTML = `
+          <div class="history-item">
+            <div class="history-guess">
+              ${guess.map(g => `<div class="history-peg">${g}</div>`).join('')}
+            </div>
+            <div class="history-feedback">
+              ${feedbackHTML}
+            </div>
+          </div>
+        ` + document.getElementById("history").innerHTML;
+        
+        if (fb.black === 4) {
+          clearInterval(solveInterval);
+          document.getElementById("message").innerText = "🤖 AI cracked the code in " + attempts + " attempts!";
+          return;
+        }
+        
+        // Eliminate impossible solutions
+        allPossible = allPossible.filter(solution => {
+          const possibleFb = feedback(guess, solution);
+          return possibleFb.black === fb.black && possibleFb.white === fb.white;
+        });
+        
+        // Make a new guess from remaining possibilities
+        if (allPossible.length > 0) {
+          guess = allPossible[Math.floor(Math.random() * allPossible.length)];
+        }
+      }, 1000);
+    }
+    
+    function getAllPossibleSolutions() {
+      const solutions = [];
+      for (let a of COLORS) {
+        for (let b of COLORS) {
+          for (let c of COLORS) {
+            for (let d of COLORS) {
+              solutions.push([a, b, c, d]);
+            }
+          }
+        }
+      }
+      return solutions;
+    }
+  </script>
+</body>
+</html>
