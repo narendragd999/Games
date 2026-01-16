@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shape Fitting Puzzle</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 50%, #fff 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            color: #333;
+        }
+        #gameContainer {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        #header {
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-size: 1.8em;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        #status {
+            font-size: 0.9em;
+            font-weight: 300;
+            opacity: 0.9;
+            margin: 0;
+        }
+        #canvas {
+            border: 3px solid #3498db;
+            background: #1a1a1a; /* Dark background for contrast */
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            touch-action: none;
+            transition: transform 0.2s ease;
+        }
+        #canvas:hover {
+            transform: scale(1.02);
+        }
+        #controls {
+            width: 100%;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        button {
+            padding: 12px 16px;
+            border: none;
+            border-radius: 25px;
+            font-size: 0.85em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: white;
+            min-width: 70px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+        button:hover::before {
+            left: 100%;
+        }
+        .primary {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+        }
+        .secondary {
+            background: linear-gradient(135deg, #6a11cb, #5a0ea0);
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+        button:active {
+            transform: scale(0.98) translateY(0);
+        }
+        #shapesContainer {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            margin: 10px 0;
+        }
+        .shape {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1em;
+            font-weight: 600;
+            user-select: none;
+            touch-action: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        .shape:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+        }
+        .shape:active {
+            cursor: grabbing;
+            transform: scale(0.95);
+        }
+        #instructionsModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+        #instructionsContent {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 85%;
+            max-height: 85%;
+            overflow: auto;
+            text-align: center;
+            animation: modalSlideIn 0.3s ease;
+        }
+        @keyframes modalSlideIn {
+            from { opacity: 0; transform: scale(0.9) translateY(-20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        #instructionsContent h2 {
+            color: #6a11cb;
+            margin-top: 0;
+            font-size: 1.5em;
+            font-weight: 600;
+        }
+        #instructionsContent p {
+            line-height: 1.6;
+            color: #555;
+        }
+        #loader {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: white;
+            backdrop-filter: blur(5px);
+        }
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .icon {
+            font-size: 1em;
+            margin-right: 4px;
+        }
+        /* Responsive font sizes */
+        @media (max-width: 360px) {
+            button { font-size: 0.75em; padding: 10px 14px; min-width: 60px; }
+            #header { font-size: 1.4em; }
+            .shape { width: 35px; height: 35px; font-size: 0.9em; }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="header">
+            <h1>Shape Fitting Puzzle</h1>
+            <p id="status">Fit the shapes into the board!</p>
+        </div>
+        <canvas id="canvas" width="300" height="300"></canvas>
+        <div id="shapesContainer"></div>
+        <div id="controls">
+            <button class="primary icon" onclick="newGame()"><i class="fas fa-redo"></i> New</button>
+            <button class="secondary icon" onclick="autoSolve()"><i class="fas fa-magic"></i> Auto</button>
+            <button class="primary icon" onclick="checkSolution()"><i class="fas fa-check"></i> Check</button>
+            <button class="secondary icon" onclick="getHint()"><i class="fas fa-lightbulb"></i> Hint</button>
+            <button class="secondary icon" onclick="showInstructions()"><i class="fas fa-question-circle"></i> Info</button>
+        </div>
+    </div>
+    <div id="instructionsModal">
+        <div id="instructionsContent">
+            <h2>How to Play</h2>
+            <p>Drag and drop the shapes from the bottom to fit them perfectly into the 10x10 grid without overlapping. Each puzzle is dynamically generated and solvable. Use hints for help!</p>
+            <button class="primary" onclick="hideInstructions()">Close</button>
+        </div>
+    </div>
+    <div id="loader">
+        <div class="spinner"></div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const shapesContainer = document.getElementById('shapesContainer');
+        const status = document.getElementById('status');
+
+        const GRID_SIZE = 10;
+        const CELL_SIZE = 30;
+        canvas.width = GRID_SIZE * CELL_SIZE;
+        canvas.height = GRID_SIZE * CELL_SIZE;
+
+        let board = Array.from({length: GRID_SIZE}, () => Array(GRID_SIZE).fill(0));
+        let shapes = [];
+        let draggedShape = null;
+        let dragOffset = {x: 0, y: 0};
+        let hintUsed = false;
+
+        // Flat icon-like shapes (using simple polyomino representations)
+        const tetrominoes = [
+            {name: 'I', cells: [[1,1,1,1]], color: '#e74c3c'},
+            {name: 'O', cells: [[1,1],[1,1]], color: '#f39c12'},
+            {name: 'T', cells: [[0,1,0],[1,1,1]], color: '#3498db'},
+            {name: 'L', cells: [[1,0,0],[1,1,1]], color: '#9b59b6'},
+            {name: 'J', cells: [[0,0,1],[1,1,1]], color: '#1abc9c'},
+            {name: 'S', cells: [[0,1,1],[1,1,0]], color: '#34495e'},
+            {name: 'Z', cells: [[1,1,0],[0,1,1]], color: '#e67e22'}
+        ];
+
+        function generatePuzzle() {
+            // Simple dynamic solvable puzzle: Fill board randomly with shapes, then extract them as pieces
+            board = Array.from({length: GRID_SIZE}, () => Array(GRID_SIZE).fill(0));
+            shapes = [];
+            let placed = 0;
+            let attempts = 0;
+            const maxAttempts = 1000;
+            while (placed < 10 && attempts < maxAttempts) { // Reduced to 10 and added attempt limit
+                attempts++;
+                const shapeData = tetrominoes[Math.floor(Math.random() * tetrominoes.length)];
+                const sx = Math.floor(Math.random() * (GRID_SIZE - 4));
+                const sy = Math.floor(Math.random() * (GRID_SIZE - 4));
+                if (canPlace(shapeData, sx, sy)) {
+                    placeShape(shapeData, sx, sy);
+                    shapes.push({shape: shapeData, targetX: sx, targetY: sy, x: 0, y: 0});
+                    placed++;
+                }
+            }
+            if (placed === 0) {
+                // Fallback: place at least one
+                const shapeData = tetrominoes[0];
+                placeShape(shapeData, 0, 0);
+                shapes.push({shape: shapeData, targetX: 0, targetY: 0, x: 0, y: 0});
+            }
+            drawBoard();
+            renderShapes();
+            status.textContent = `New puzzle! Fit ${shapes.length} shapes into the silhouettes.`;
+        }
+
+        function canPlace(shapeData, x, y) {
+            // Check bounds and overlap
+            const cells = shapeData.cells;
+            const h = cells.length;
+            const w = cells[0] ? cells[0].length : 0;
+            if (x + w > GRID_SIZE || y + h > GRID_SIZE) return false;
+            for (let dy = 0; dy < h; dy++) {
+                for (let dx = 0; dx < w; dx++) {
+                    if (cells[dy] && cells[dy][dx]) {
+                        const nx = x + dx;
+                        const ny = y + dy;
+                        if (board[ny][nx]) return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        function placeShape(shapeData, x, y) {
+            const cells = shapeData.cells;
+            const h = cells.length;
+            const w = cells[0] ? cells[0].length : 0;
+            for (let dy = 0; dy < h; dy++) {
+                for (let dx = 0; dx < w; dx++) {
+                    if (cells[dy] && cells[dy][dx]) {
+                        board[y + dy][x + dx] = 1; // Mark as target
+                    }
+                }
+            }
+        }
+
+        function drawBoard() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Dark background fill
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    ctx.strokeStyle = '#34495e'; // Darker grid lines
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                    if (board[y][x] === 1) {
+                        ctx.fillStyle = '#7f8c8d'; // Darker target cells (medium gray)
+                        ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                    } else if (board[y][x] === 2) {
+                        // Placed, darker green
+                        ctx.fillStyle = '#27ae60'; // Solid dark green
+                        ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                    }
+                }
+            }
+        }
+
+        function renderShapes() {
+            shapesContainer.innerHTML = '';
+            shapes.forEach((s, index) => {
+                const div = document.createElement('div');
+                div.className = 'shape';
+                div.style.backgroundColor = s.shape.color;
+                div.textContent = s.shape.name;
+                div.draggable = true;
+                div.dataset.index = index;
+                div.addEventListener('dragstart', dragStart);
+                div.addEventListener('touchstart', touchStart, {passive: false});
+                shapesContainer.appendChild(div);
+            });
+        }
+
+        function dragStart(e) {
+            const index = parseInt(e.target.dataset.index);
+            draggedShape = shapes[index];
+            const rect = e.target.getBoundingClientRect();
+            dragOffset.x = e.clientX - rect.left;
+            dragOffset.y = e.clientY - rect.top;
+        }
+
+        function touchStart(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const index = parseInt(e.target.dataset.index);
+            draggedShape = shapes[index];
+            const rect = e.target.getBoundingClientRect();
+            dragOffset.x = touch.clientX - rect.left;
+            dragOffset.y = touch.clientY - rect.top;
+        }
+
+        function dragOver(e) {
+            e.preventDefault();
+        }
+
+        function drop(e) {
+            e.preventDefault();
+            if (!draggedShape) return;
+            const rect = canvas.getBoundingClientRect();
+            let clientX, clientY;
+            if (e.type === 'touchend') {
+                clientX = e.changedTouches[0].clientX;
+                clientY = e.changedTouches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+            const x = Math.floor((clientX - rect.left - dragOffset.x) / CELL_SIZE);
+            const y = Math.floor((clientY - rect.top - dragOffset.y) / CELL_SIZE);
+            if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE && canDrop(draggedShape, x, y)) {
+                dropShape(draggedShape, x, y);
+                drawBoard();
+                if (isSolved()) {
+                    status.textContent = 'Solved! 🎉';
+                }
+            }
+            draggedShape = null;
+        }
+
+        function canDrop(shapeObj, x, y) {
+            const shapeData = shapeObj.shape;
+            const cells = shapeData.cells;
+            const h = cells.length;
+            const w = cells[0] ? cells[0].length : 0;
+            if (x + w > GRID_SIZE || y + h > GRID_SIZE || x < 0 || y < 0) return false;
+            for (let dy = 0; dy < h; dy++) {
+                for (let dx = 0; dx < w; dx++) {
+                    if (cells[dy] && cells[dy][dx]) {
+                        const nx = x + dx;
+                        const ny = y + dy;
+                        if (nx < 0 || ny < 0 || board[ny][nx] !== 1) return false; // Must match target exactly
+                    }
+                }
+            }
+            return true;
+        }
+
+        function dropShape(shapeObj, x, y) {
+            const shapeData = shapeObj.shape;
+            const cells = shapeData.cells;
+            const h = cells.length;
+            const w = cells[0] ? cells[0].length : 0;
+            for (let dy = 0; dy < h; dy++) {
+                for (let dx = 0; dx < w; dx++) {
+                    if (cells[dy] && cells[dy][dx]) {
+                        board[y + dy][x + dx] = 2; // Mark as placed
+                    }
+                }
+            }
+            // Remove from shapes list
+            const index = shapes.indexOf(shapeObj);
+            shapes.splice(index, 1);
+            renderShapes();
+        }
+
+        function isSolved() {
+            return shapes.length === 0;
+        }
+
+        function newGame() {
+            showLoader();
+            setTimeout(() => {
+                generatePuzzle();
+                hideLoader();
+            }, 100);
+        }
+
+        function autoSolve() {
+            showLoader();
+            setTimeout(() => {
+                // Iterate in reverse to avoid index issues when splicing
+                for (let i = shapes.length - 1; i >= 0; i--) {
+                    const shapeObj = shapes[i];
+                    const x = shapeObj.targetX;
+                    const y = shapeObj.targetY;
+                    if (canDrop(shapeObj, x, y)) {
+                        dropShape(shapeObj, x, y);
+                    }
+                }
+                drawBoard();
+                if (isSolved()) {
+                    status.textContent = 'Auto-solved!';
+                } else {
+                    status.textContent = 'Auto-solve completed. Check manually if needed.';
+                }
+                hideLoader();
+            }, 100);
+        }
+
+        function checkSolution() {
+            if (isSolved()) {
+                status.textContent = 'Perfect!';
+            } else {
+                status.textContent = 'Not yet solved. Keep fitting the shapes into the gray areas!';
+            }
+        }
+
+        function getHint() {
+            if (shapes.length === 0) return;
+            const shapeObj = shapes[0]; // Hint for first unplaced
+            const x = shapeObj.targetX;
+            const y = shapeObj.targetY;
+            status.textContent = `Hint: Place ${shapeObj.shape.name} at row ${y+1}, column ${x+1}`;
+            // Visual hint: highlight the target area
+            ctx.fillStyle = 'rgba(231, 76, 60, 0.5)'; // Slightly darker red overlay
+            const cells = shapeObj.shape.cells;
+            const h = cells.length;
+            const w = cells[0] ? cells[0].length : 0;
+            for (let dy = 0; dy < h; dy++) {
+                for (let dx = 0; dx < w; dx++) {
+                    if (cells[dy] && cells[dy][dx]) {
+                        const hx = (x + dx) * CELL_SIZE;
+                        const hy = (y + dy) * CELL_SIZE;
+                        ctx.fillRect(hx, hy, CELL_SIZE, CELL_SIZE);
+                    }
+                }
+            }
+            setTimeout(drawBoard, 3000);
+        }
+
+        function showInstructions() {
+            document.getElementById('instructionsModal').style.display = 'flex';
+        }
+
+        function hideInstructions() {
+            document.getElementById('instructionsModal').style.display = 'none';
+        }
+
+        function showLoader() {
+            document.getElementById('loader').style.display = 'flex';
+        }
+
+        function hideLoader() {
+            document.getElementById('loader').style.display = 'none';
+        }
+
+        // Event listeners
+        canvas.addEventListener('dragover', dragOver);
+        canvas.addEventListener('drop', drop);
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (draggedShape) {
+                const touch = e.touches[0];
+                const rect = canvas.getBoundingClientRect();
+                draggedShape.x = touch.clientX - rect.left - dragOffset.x;
+                draggedShape.y = touch.clientY - rect.top - dragOffset.y;
+                // Could add visual drag preview here if needed
+            }
+        }, {passive: false});
+        canvas.addEventListener('touchend', drop, {passive: false});
+
+        // Init
+        generatePuzzle();
+    </script>
+</body>
+</html>
