@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Nonogram — Improved Layout (Fixed Alignment)</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --cell-size: 50px;   /* change cell size here */
+      --clue-size: 40px;   /* size for each clue cell */
+      --gap: 2px;          /* gap used in game board and clues */
+      --max-row-clues: 3;  /* overridden by JS */
+      --max-col-clues: 3;  /* overridden by JS */
+      --board-size: 5;     /* overridden by JS */
+      --primary-color: #6a11cb;
+      --secondary-color: #3498db;
+      --accent-color: #2ecc71;
+      --danger-color: #e74c3c;
+      --warning-color: #f39c12;
+    }
+
+    * { box-sizing: border-box; margin:0; padding:0; font-family: Inter, Roboto, Arial, sans-serif; }
+    html,body { height:100%; }
+
+    body {
+      background: linear-gradient(135deg,#6a11cb 0%, #fff 100%);
+      display:flex; align-items:center; justify-content:center;
+      min-height:100vh; padding:20px; color:#222;
+    }
+
+    .container {
+      width:95vw; max-width:1200px; max-height:95vh;
+      background:#fff; border-radius:14px; padding:20px;
+      box-shadow:0 8px 24px rgba(0,0,0,0.15); display:flex; flex-direction:column;
+      overflow:hidden;
+    }
+
+    .header { display:flex; align-items:center; gap:12px; margin-bottom:12px; border-bottom:1px solid #eee; padding-bottom:8px; }
+    h1 { flex:1; color:var(--primary-color); font-size:1.4rem; font-weight:700; }
+
+    .game-info { display:flex; gap:12px; align-items:center; margin-bottom:12px; flex-wrap:wrap; }
+    .info-item { background:#f8f9fa; padding:8px 12px; border-radius:8px; display:flex; flex-direction:column; align-items:center; font-size:.85rem; min-width:80px; }
+    .info-value { font-weight:700; color:var(--primary-color); font-size:1.05rem; }
+
+    .controls { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px; justify-content:center; }
+    button { border:none; padding:10px 14px; border-radius:8px; cursor:pointer; font-weight:700; display:inline-flex; align-items:center; gap:8px; font-size:.9rem; transition:all .15s ease; }
+    button:hover { transform:translateY(-2px) }
+    .btn-primary { background:var(--secondary-color); color:#fff; }
+    .btn-secondary { background:var(--primary-color); color:#fff; }
+    .btn-clear { background:var(--danger-color); color:#fff; }
+    .btn-new { background:var(--accent-color); color:#fff; }
+    .btn-solution { background:var(--warning-color); color:#fff; }
+
+    /* Board area grid: top-left corner, column-clues (top-right), row-clues (bottom-left), game (bottom-right) */
+    .board-container { display:flex; flex:1; overflow:auto; justify-content:center; align-items:flex-start; padding:10px; }
+    .game-area { display:flex; gap:10px; align-items:flex-start; }
+
+    .board-wrapper {
+      display: grid;
+      grid-template-columns: auto 1fr;    /* left = clue column, right = grid+col-clues */
+      grid-template-rows: auto 1fr;       /* top = col-clues, bottom = grid+row-clues */
+      grid-template-areas:
+        "corner col"
+        "row grid";
+      gap: var(--gap);
+      align-items: start;
+      position: relative;
+    }
+
+    .corner { grid-area: corner; /* blank corner to match clue-area size */ }
+
+    /* Column clues are a grid: columns == board size, rows == maxColClues */
+    .col-clues { grid-area: col; display: grid; gap: var(--gap); }
+
+    /* Row clues are a grid: rows == board size, cols == maxRowClues */
+    .row-clues { grid-area: row; display: grid; gap: var(--gap); }
+
+    /* Game board: explicit rows/columns to match --cell-size */
+    .game-board {
+      grid-area: grid;
+      display: grid;
+      gap: var(--gap);
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      padding: 4px;
+      background: #eee;
+      position: relative; /* for overlay */
+    }
+
+    .clue-cell {
+      width: var(--clue-size);
+      height: var(--clue-size);
+      display:flex; align-items:center; justify-content:center;
+      background:#e9ecef; color:var(--primary-color);
+      border-radius:4px; font-weight:700; font-size:.9rem;
+    }
+    .clue-cell.empty { background:transparent; visibility:hidden; }
+
+    .cell {
+      width: var(--cell-size);
+      height: var(--cell-size);
+      background:#fff;
+      border:1px solid #d1d5db;
+      display:flex; align-items:center; justify-content:center;
+      border-radius:4px; user-select:none; cursor:pointer;
+    }
+    .cell:hover { background:#f0f5ff; }
+    .cell.filled { background:#2c3e50; border-color:#2c3e50; }
+    .cell.marked { background:#fff; color:var(--danger-color); position:relative; }
+    .cell.marked::after { content:"✕"; font-size:1.5rem; color:var(--danger-color); }
+
+    .solution-overlay {
+      position:absolute;
+      top:0; left:0; width:100%; height:100%;
+      display:flex; align-items:center; justify-content:center;
+      background: rgba(0,0,0,0.7);
+      border-radius:6px; opacity:0; pointer-events:none; transition:opacity .2s;
+      z-index:20;
+    }
+    .solution-overlay.active { opacity:1; pointer-events:all; }
+
+    .victory { margin-top:14px; padding:12px; background:#f8f9fa; border-radius:8px; text-align:center; font-weight:700; color:var(--primary-color); font-size:1rem; width:100%; }
+    #hide-solution {
+      background: transparent !important;
+      border: none !important;
+      color: #fff; /* or white if on dark background */
+      cursor: pointer;
+      box-shadow: none;
+    }
+
+    #hide-solution:hover {
+      opacity: 0.7; /* subtle hover effect */
+    }
+
+
+    @media (max-width:768px) {
+      :root { --cell-size:40px; --clue-size:32px; }
+      .container { padding:12px; }
+      .controls { gap:8px; }
+    }
+    @media (max-width:520px) {
+      :root { --cell-size:32px; --clue-size:26px; }
+      h1 { font-size:1.1rem; }
+      .info-item { padding:6px 8px; font-size:.75rem; min-width:70px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header"><h1><i class="fas fa-puzzle-piece"></i> Nonogram Puzzles</h1></div>
+
+    <div class="game-info">
+      <div class="info-item"><div>Time</div><div class="info-value" id="time">00:00</div></div>
+      <div class="info-item"><div>Moves</div><div class="info-value" id="moves">0</div></div>
+      <div class="info-item"><div>Grid Size</div><div class="info-value" id="grid-size">5×5</div></div>
+    </div>
+
+    <div class="controls">
+      <button class="btn-primary" id="check-btn"><i class="fas fa-check"></i> Check</button>
+      <button class="btn-secondary" id="hint-btn"><i class="fas fa-lightbulb"></i> Hint</button>
+      <button class="btn-clear" id="clear-btn"><i class="fas fa-eraser"></i> Clear</button>
+      <button class="btn-new" id="newgame-btn"><i class="fas fa-plus"></i> New Game</button>
+      <button class="btn-solution" id="solution-btn"><i class="fas fa-eye"></i> Show Solution</button>
+    </div>
+
+    <div class="board-container">
+      <div class="game-area">
+        <div class="board-wrapper" id="board-wrapper">
+          <div class="corner" id="corner"></div>
+
+          <div class="col-clues" id="col-clues"></div>
+
+          <div class="row-clues" id="row-clues"></div>
+
+          <div id="game-board" class="game-board"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="victory" class="victory" style="display:none"></div>
+  </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const state = {
+    boardSize: 5,
+    board: [],
+    solution: [],
+    moves: 0,
+    timer: 0,
+    timerInterval: null,
+    gameCompleted: false
+  };
+
+  const el = {
+    gameBoard: document.getElementById('game-board'),
+    colClues: document.getElementById('col-clues'),
+    rowClues: document.getElementById('row-clues'),
+    movesDisplay: document.getElementById('moves'),
+    timeDisplay: document.getElementById('time'),
+    gridSizeDisplay: document.getElementById('grid-size'),
+    victory: document.getElementById('victory'),
+    newGameBtn: document.getElementById('newgame-btn'),
+    checkBtn: document.getElementById('check-btn'),
+    hintBtn: document.getElementById('hint-btn'),
+    clearBtn: document.getElementById('clear-btn'),
+    solutionBtn: document.getElementById('solution-btn'),
+    boardWrapper: document.getElementById('board-wrapper'),
+  };
+
+  function createRandomSolution(n) {
+    return Array.from({length: n}, () =>
+      Array.from({length: n}, () => Math.random() < 0.4 ? 1 : 0)
+    );
+  }
+
+  function calculateClueForRow(r) {
+    const out = []; let cnt = 0;
+    for (let c=0;c<state.boardSize;c++){
+      if (state.solution[r][c] === 1) cnt++; else if (cnt){ out.push(cnt); cnt=0; }
+    }
+    if (cnt) out.push(cnt);
+    return out.length ? out : [0];
+  }
+  function calculateClueForColumn(c) {
+    const out = []; let cnt = 0;
+    for (let r=0;r<state.boardSize;r++){
+      if (state.solution[r][c] === 1) cnt++; else if (cnt){ out.push(cnt); cnt=0; }
+    }
+    if (cnt) out.push(cnt);
+    return out.length ? out : [0];
+  }
+
+  function updateCssVars(maxRowClues, maxColClues){
+    document.documentElement.style.setProperty('--board-size', state.boardSize);
+    document.documentElement.style.setProperty('--max-row-clues', maxRowClues);
+    document.documentElement.style.setProperty('--max-col-clues', maxColClues);
+    // set sizes for corner (so the blank corner visually matches)
+    const corner = document.getElementById('corner');
+    const cornerW = `calc(var(--max-row-clues) * var(--clue-size) + (var(--max-row-clues) - 1) * var(--gap))`;
+    const cornerH = `calc(var(--max-col-clues) * var(--clue-size) + (var(--max-col-clues) - 1) * var(--gap))`;
+    corner.style.width = cornerW;
+    corner.style.height = cornerH;
+  }
+
+  function renderClues(){
+    el.rowClues.innerHTML = '';
+    el.colClues.innerHTML = '';
+
+    // find maxima
+    let maxRowClues = 0, maxColClues = 0;
+    for (let r=0;r<state.boardSize;r++) maxRowClues = Math.max(maxRowClues, calculateClueForRow(r).length);
+    for (let c=0;c<state.boardSize;c++) maxColClues = Math.max(maxColClues, calculateClueForColumn(c).length);
+
+    if (maxRowClues < 1) maxRowClues = 1;
+    if (maxColClues < 1) maxColClues = 1;
+
+    updateCssVars(maxRowClues, maxColClues);
+
+    // configure row-clues grid: rows == boardSize, cols == maxRowClues
+    el.rowClues.style.gridTemplateRows = `repeat(${state.boardSize}, var(--cell-size))`;
+    el.rowClues.style.gridTemplateColumns = `repeat(${maxRowClues}, var(--clue-size))`;
+    el.rowClues.style.gap = 'var(--gap)';
+
+    // fill row-clues: each row is right-aligned (empty placeholders left)
+    for (let r=0;r<state.boardSize;r++){
+      const clues = calculateClueForRow(r);
+      const emptySlots = maxRowClues - clues.length;
+      for (let col = 0; col < maxRowClues; col++){
+        const div = document.createElement('div');
+        div.className = 'clue-cell';
+        div.style.gridRowStart = r + 1;
+        div.style.gridColumnStart = col + 1;
+        const clueIndex = col - emptySlots;
+        if (clueIndex >= 0) div.textContent = clues[clueIndex]; else { div.classList.add('empty'); }
+        el.rowClues.appendChild(div);
+      }
+    }
+
+    // configure col-clues grid: rows == maxColClues, cols == boardSize
+    el.colClues.style.gridTemplateRows = `repeat(${maxColClues}, var(--clue-size))`;
+    el.colClues.style.gridTemplateColumns = `repeat(${state.boardSize}, var(--cell-size))`;
+    el.colClues.style.gap = 'var(--gap)';
+
+    // fill col-clues: numbers bottom-aligned (so place empty placeholders on top)
+    for (let c=0;c<state.boardSize;c++){
+      const clues = calculateClueForColumn(c);
+      const emptyTop = maxColClues - clues.length;
+      for (let row = 0; row < maxColClues; row++){
+        const div = document.createElement('div');
+        div.className = 'clue-cell';
+        div.style.gridRowStart = row + 1;
+        div.style.gridColumnStart = c + 1;
+        const clueIndex = row - emptyTop;
+        if (clueIndex >= 0) div.textContent = clues[clueIndex]; else { div.classList.add('empty'); }
+        el.colClues.appendChild(div);
+      }
+    }
+  }
+
+  function renderBoard(){
+    el.gameBoard.innerHTML = '';
+    // ensure game board has explicit rows & columns that match row-clues/col-clues track sizes
+    el.gameBoard.style.gridTemplateColumns = `repeat(${state.boardSize}, var(--cell-size))`;
+    el.gameBoard.style.gridTemplateRows = `repeat(${state.boardSize}, var(--cell-size))`;
+    el.gameBoard.style.gap = 'var(--gap)';
+
+    for (let r=0;r<state.boardSize;r++){
+      for (let c=0;c<state.boardSize;c++){
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.dataset.r = r;
+        cell.dataset.c = c;
+
+        if (state.board[r][c] === 1) cell.classList.add('filled');
+        else if (state.board[r][c] === -1) cell.classList.add('marked');
+
+        cell.addEventListener('click', () => toggleCell(r,c,'left'));
+        cell.addEventListener('contextmenu', (e) => { e.preventDefault(); toggleCell(r,c,'right'); });
+
+        el.gameBoard.appendChild(cell);
+      }
+    }
+
+    // place solution overlay (create if missing)
+    let overlay = document.getElementById('solution-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'solution-overlay';
+      overlay.className = 'solution-overlay';
+      overlay.innerHTML = '<button id="hide-solution" class="btn-primary"><i class="fas fa-eye-slash"></i> Hide Solution</button>';
+      el.gameBoard.appendChild(overlay);
+      document.getElementById('hide-solution').addEventListener('click', hideSolutionView);
+    }
+  }
+
+  function render() {
+    renderClues();
+    renderBoard();
+  }
+
+  function toggleCell(r,c,type){
+    if (state.gameCompleted) return;
+    const before = state.board[r][c];
+    let after = before;
+    if (type === 'left') after = before === 1 ? 0 : 1;
+    else after = before === -1 ? 0 : -1;
+    state.board[r][c] = after;
+
+    const cell = document.querySelector(`.cell[data-r='${r}'][data-c='${c}']`);
+    if (!cell) return;
+    cell.classList.toggle('filled', after === 1);
+    cell.classList.toggle('marked', after === -1);
+
+    state.moves++;
+    el.movesDisplay.textContent = state.moves;
+  }
+
+  function checkSolution(){
+    let ok = true;
+    for (let r=0;r<state.boardSize;r++){
+      for (let c=0;c<state.boardSize;c++){
+        if (state.solution[r][c] === 1 && state.board[r][c] !== 1) ok = false;
+        if (state.solution[r][c] !== 1 && state.board[r][c] === 1) ok = false;
+      }
+    }
+    el.victory.style.display = 'block';
+    el.victory.textContent = ok ? `🎉 Solved in ${formatTime(state.timer)} with ${state.moves} moves!` : 'Not quite right! Keep trying!';
+    el.victory.style.background = ok ? '#e8f5e9' : '#ffebee';
+    if (ok) state.gameCompleted = true;
+  }
+
+  function giveHint(){
+    const empties = [];
+    for (let r=0;r<state.boardSize;r++){
+      for (let c=0;c<state.boardSize;c++){
+        if (state.solution[r][c] === 1 && state.board[r][c] !== 1) empties.push({r,c});
+      }
+    }
+    if (!empties.length) return;
+    const pick = empties[Math.floor(Math.random()*empties.length)];
+    state.board[pick.r][pick.c] = 1;
+    const cell = document.querySelector(`.cell[data-r='${pick.r}'][data-c='${pick.c}']`);
+    if (cell){ cell.classList.add('filled'); cell.classList.remove('marked'); }
+    state.moves++;
+    el.movesDisplay.textContent = state.moves;
+  }
+
+  function clearBoard(){
+    state.board = Array(state.boardSize).fill().map(()=>Array(state.boardSize).fill(0));
+    state.moves = 0; state.gameCompleted = false;
+    el.movesDisplay.textContent = '0'; el.victory.style.display = 'none';
+    render();
+  }
+
+  function showSolution(){
+    const overlay = document.getElementById('solution-overlay');
+    overlay.classList.add('active');
+    for (let r=0;r<state.boardSize;r++){
+      for (let c=0;c<state.boardSize;c++){
+        const cell = document.querySelector(`.cell[data-r='${r}'][data-c='${c}']`);
+        if (!cell) continue;
+        if (state.solution[r][c] === 1) { cell.classList.add('filled'); cell.classList.remove('marked'); }
+        else { cell.classList.remove('filled','marked'); }
+      }
+    }
+  }
+
+  function hideSolutionView(){
+    const overlay = document.getElementById('solution-overlay');
+    overlay.classList.remove('active');
+    renderBoard(); // re-render board states from state.board
+  }
+
+  function startTimer(){
+    if (state.timerInterval) clearInterval(state.timerInterval);
+    state.timer = 0; el.timeDisplay.textContent = '00:00';
+    state.timerInterval = setInterval(()=>{ state.timer++; el.timeDisplay.textContent = formatTime(state.timer); }, 1000);
+  }
+  function formatTime(s){ const m = Math.floor(s/60); const sec = s%60; return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`; }
+
+  function init(){
+    state.solution = createRandomSolution(state.boardSize);
+    state.board = Array(state.boardSize).fill().map(()=>Array(state.boardSize).fill(0));
+    state.moves = 0; state.gameCompleted = false;
+    el.movesDisplay.textContent = '0'; el.victory.style.display = 'none';
+    el.gridSizeDisplay.textContent = `${state.boardSize}×${state.boardSize}`;
+    render();
+    startTimer();
+  }
+
+  // events
+  el.newGameBtn.addEventListener('click', init);
+  el.checkBtn.addEventListener('click', checkSolution);
+  el.hintBtn.addEventListener('click', giveHint);
+  el.clearBtn.addEventListener('click', clearBoard);
+  el.solutionBtn.addEventListener('click', showSolution);
+
+  // kick off
+  init();
+  window.addEventListener('resize', render);
+});
+</script>
+</body>
+</html>
