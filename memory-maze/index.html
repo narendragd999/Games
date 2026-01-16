@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Memory Maze</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: fixed;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+
+        .container {
+            width: 100vw;
+            height: 100vh;
+            max-width: 500px;
+            padding: min(3vw, 12px);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: min(2vh, 10px);
+        }
+
+        h1 {
+            font-size: clamp(18px, 5vw, 24px);
+            margin-bottom: min(1vh, 8px);
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            background: rgba(255,255,255,0.2);
+            padding: min(2vh, 10px);
+            border-radius: 10px;
+            margin-bottom: min(2vh, 10px);
+            font-size: clamp(11px, 3vw, 14px);
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: clamp(16px, 4vw, 20px);
+            font-weight: bold;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: min(1.5vw, 8px);
+            background: rgba(255,255,255,0.1);
+            padding: min(2vw, 12px);
+            border-radius: 12px;
+            margin-bottom: min(2vh, 10px);
+            flex-shrink: 0;
+        }
+
+        .cell {
+            aspect-ratio: 1;
+            background: rgba(255,255,255,0.3);
+            border: 2px solid rgba(255,255,255,0.5);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(14px, 4vw, 18px);
+            font-weight: bold;
+            touch-action: manipulation;
+        }
+
+        .cell:hover {
+            background: rgba(255,255,255,0.4);
+            transform: scale(1.05);
+        }
+
+        .cell.path {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border-color: #fff;
+        }
+
+        .cell.correct {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            border-color: #fff;
+        }
+
+        .cell.wrong {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            border-color: #ff0000;
+            animation: shake 0.3s;
+        }
+
+        .cell.hint {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            border-color: #fff;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: min(2vw, 10px);
+            margin-bottom: min(1.5vh, 8px);
+        }
+
+        button {
+            padding: min(2vh, 12px);
+            border: none;
+            border-radius: 8px;
+            font-size: clamp(11px, 3vw, 14px);
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            touch-action: manipulation;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .message {
+            text-align: center;
+            padding: min(2vh, 10px);
+            background: rgba(255,255,255,0.2);
+            border-radius: 8px;
+            margin-bottom: min(2vh, 10px);
+            font-size: clamp(12px, 3vw, 14px);
+            min-height: min(5vh, 40px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: min(5vw, 20px);
+            overflow-y: auto;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: min(5vw, 25px);
+            border-radius: 15px;
+            max-width: 450px;
+            width: 100%;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+
+        .modal-content h2 {
+            margin-bottom: min(3vh, 15px);
+            font-size: clamp(18px, 5vw, 22px);
+        }
+
+        .modal-content p {
+            margin-bottom: min(2vh, 10px);
+            line-height: 1.6;
+            font-size: clamp(12px, 3.5vw, 14px);
+        }
+
+        .modal-content ul {
+            margin-left: 20px;
+            margin-bottom: min(3vh, 15px);
+        }
+
+        .modal-content li {
+            margin-bottom: min(1.5vh, 8px);
+            line-height: 1.5;
+            font-size: clamp(12px, 3.5vw, 14px);
+        }
+
+        .close-btn {
+            width: 100%;
+            margin-top: min(3vh, 15px);
+        }
+
+        @media (max-height: 600px) {
+            .header {
+                margin-bottom: 5px;
+            }
+            h1 {
+                margin-bottom: 3px;
+            }
+            .stats, .grid, .message, .controls {
+                margin-bottom: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧠 Memory Maze</h1>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <div>Level</div>
+                <div class="stat-value" id="level">1</div>
+            </div>
+            <div class="stat-item">
+                <div>Score</div>
+                <div class="stat-value" id="score">0</div>
+            </div>
+            <div class="stat-item">
+                <div>Hints</div>
+                <div class="stat-value" id="hints">3</div>
+            </div>
+        </div>
+
+        <div class="message" id="message">Watch the path, then recreate it!</div>
+
+        <div class="grid" id="grid"></div>
+
+        <div class="controls">
+            <button class="btn-primary" onclick="game.newPuzzle()">New Puzzle</button>
+            <button class="btn-secondary" onclick="game.checkSolution()" id="checkBtn" disabled>Check Solution</button>
+            <button class="btn-success" onclick="game.useHint()" id="hintBtn">Use Hint (3)</button>
+            <button class="btn-warning" onclick="game.autoSolve()">Auto Solve</button>
+        </div>
+
+        <button class="btn-secondary" onclick="game.showInstructions()" style="width: 100%; margin-top: 10px;">
+            📖 Instructions
+        </button>
+    </div>
+
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <h2>📖 How to Play</h2>
+            <p><strong>Objective:</strong> Memorize and recreate the path shown to you!</p>
+            
+            <p><strong>Instructions:</strong></p>
+            <ul>
+                <li>Watch carefully as the path lights up on the grid</li>
+                <li>After the path disappears, click the cells in the same order</li>
+                <li>Complete the path correctly to advance to the next level</li>
+                <li>Each level adds more cells to remember</li>
+            </ul>
+
+            <p><strong>Controls:</strong></p>
+            <ul>
+                <li><strong>New Puzzle:</strong> Start a fresh puzzle at current level</li>
+                <li><strong>Check Solution:</strong> Verify your path (available after selecting cells)</li>
+                <li><strong>Use Hint:</strong> Reveal the next correct cell (3 hints per game)</li>
+                <li><strong>Auto Solve:</strong> Show the complete solution</li>
+            </ul>
+
+            <p><strong>Scoring:</strong></p>
+            <ul>
+                <li>+100 points per level completed</li>
+                <li>Bonus points for longer paths</li>
+                <li>Try to beat your high score!</li>
+            </ul>
+
+            <button class="btn-primary close-btn" onclick="game.hideInstructions()">Got it!</button>
+        </div>
+    </div>
+
+    <script>
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+
+        const sounds = {
+            play(freq, duration, type = 'sine') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                osc.frequency.value = freq;
+                osc.type = type;
+                
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+                
+                osc.start(audioCtx.currentTime);
+                osc.stop(audioCtx.currentTime + duration);
+            },
+            
+            show() { this.play(523, 0.15); },
+            correct() { this.play(659, 0.2); },
+            wrong() { this.play(196, 0.3); },
+            win() {
+                this.play(523, 0.15);
+                setTimeout(() => this.play(659, 0.15), 150);
+                setTimeout(() => this.play(784, 0.3), 300);
+            },
+            hint() { this.play(440, 0.2); }
+        };
+
+        const game = {
+            gridSize: 5,
+            level: 1,
+            score: 0,
+            hints: 3,
+            path: [],
+            userPath: [],
+            isShowing: false,
+            
+            init() {
+                this.createGrid();
+                this.newPuzzle();
+            },
+            
+            createGrid() {
+                const grid = document.getElementById('grid');
+                grid.innerHTML = '';
+                
+                for (let i = 0; i < this.gridSize * this.gridSize; i++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.index = i;
+                    cell.onclick = () => this.selectCell(i);
+                    grid.appendChild(cell);
+                }
+            },
+            
+            generatePath() {
+                const pathLength = Math.min(3 + this.level, 15);
+                const used = new Set();
+                this.path = [];
+                
+                let current = Math.floor(Math.random() * (this.gridSize * this.gridSize));
+                this.path.push(current);
+                used.add(current);
+                
+                for (let i = 1; i < pathLength; i++) {
+                    const neighbors = this.getNeighbors(current).filter(n => !used.has(n));
+                    
+                    if (neighbors.length === 0) {
+                        const available = [];
+                        for (let j = 0; j < this.gridSize * this.gridSize; j++) {
+                            if (!used.has(j)) available.push(j);
+                        }
+                        if (available.length === 0) break;
+                        current = available[Math.floor(Math.random() * available.length)];
+                    } else {
+                        current = neighbors[Math.floor(Math.random() * neighbors.length)];
+                    }
+                    
+                    this.path.push(current);
+                    used.add(current);
+                }
+            },
+            
+            getNeighbors(index) {
+                const row = Math.floor(index / this.gridSize);
+                const col = index % this.gridSize;
+                const neighbors = [];
+                
+                if (row > 0) neighbors.push(index - this.gridSize);
+                if (row < this.gridSize - 1) neighbors.push(index + this.gridSize);
+                if (col > 0) neighbors.push(index - 1);
+                if (col < this.gridSize - 1) neighbors.push(index + 1);
+                
+                return neighbors;
+            },
+            
+            async showPath() {
+                this.isShowing = true;
+                this.updateMessage('Watch carefully...');
+                const cells = document.querySelectorAll('.cell');
+                
+                for (let i = 0; i < this.path.length; i++) {
+                    const cell = cells[this.path[i]];
+                    cell.classList.add('path');
+                    cell.textContent = i + 1;
+                    sounds.show();
+                    await this.sleep(600);
+                }
+                
+                await this.sleep(1000);
+                
+                cells.forEach(cell => {
+                    cell.classList.remove('path');
+                    cell.textContent = '';
+                });
+                
+                this.isShowing = false;
+                this.updateMessage('Now recreate the path!');
+            },
+            
+            selectCell(index) {
+                if (this.isShowing) return;
+                
+                const cell = document.querySelectorAll('.cell')[index];
+                
+                if (this.userPath.includes(index)) {
+                    this.userPath = this.userPath.filter(i => i !== index);
+                    cell.classList.remove('correct');
+                    cell.textContent = '';
+                } else {
+                    this.userPath.push(index);
+                    cell.classList.add('correct');
+                    cell.textContent = this.userPath.length;
+                    sounds.correct();
+                }
+                
+                document.getElementById('checkBtn').disabled = this.userPath.length === 0;
+                
+                if (this.userPath.length === this.path.length) {
+                    setTimeout(() => this.checkSolution(), 500);
+                }
+            },
+            
+            checkSolution() {
+                if (this.userPath.length === 0) return;
+                
+                const cells = document.querySelectorAll('.cell');
+                let correct = true;
+                
+                for (let i = 0; i < this.userPath.length; i++) {
+                    if (this.userPath[i] !== this.path[i]) {
+                        correct = false;
+                        cells[this.userPath[i]].classList.add('wrong');
+                    }
+                }
+                
+                if (correct && this.userPath.length === this.path.length) {
+                    sounds.win();
+                    this.score += 100 + (this.level * 50);
+                    this.updateScore();
+                    this.updateMessage(`🎉 Perfect! Level ${this.level} complete!`);
+                    this.level++;
+                    document.getElementById('level').textContent = this.level;
+                    
+                    setTimeout(() => this.newPuzzle(), 2000);
+                } else {
+                    sounds.wrong();
+                    this.updateMessage('❌ Not quite right. Try again!');
+                    
+                    setTimeout(() => {
+                        cells.forEach(cell => cell.classList.remove('wrong'));
+                    }, 1000);
+                }
+            },
+            
+            useHint() {
+                if (this.hints === 0 || this.isShowing) return;
+                
+                const nextIndex = this.userPath.length;
+                if (nextIndex >= this.path.length) {
+                    this.updateMessage('Path is complete!');
+                    return;
+                }
+                
+                this.hints--;
+                document.getElementById('hints').textContent = this.hints;
+                document.getElementById('hintBtn').textContent = `Use Hint (${this.hints})`;
+                
+                if (this.hints === 0) {
+                    document.getElementById('hintBtn').disabled = true;
+                }
+                
+                const cell = document.querySelectorAll('.cell')[this.path[nextIndex]];
+                cell.classList.add('hint');
+                sounds.hint();
+                
+                setTimeout(() => {
+                    cell.classList.remove('hint');
+                }, 1500);
+            },
+            
+            async autoSolve() {
+                this.clearUserPath();
+                this.isShowing = true;
+                this.updateMessage('Showing solution...');
+                
+                const cells = document.querySelectorAll('.cell');
+                
+                for (let i = 0; i < this.path.length; i++) {
+                    const cell = cells[this.path[i]];
+                    cell.classList.add('correct');
+                    cell.textContent = i + 1;
+                    sounds.correct();
+                    await this.sleep(400);
+                }
+                
+                this.isShowing = false;
+                this.updateMessage('Solution shown. Starting new puzzle...');
+                setTimeout(() => this.newPuzzle(), 2000);
+            },
+            
+            clearUserPath() {
+                this.userPath = [];
+                const cells = document.querySelectorAll('.cell');
+                cells.forEach(cell => {
+                    cell.classList.remove('correct', 'wrong', 'hint');
+                    cell.textContent = '';
+                });
+                document.getElementById('checkBtn').disabled = true;
+            },
+            
+            newPuzzle() {
+                this.clearUserPath();
+                this.generatePath();
+                this.showPath();
+            },
+            
+            updateScore() {
+                document.getElementById('score').textContent = this.score;
+            },
+            
+            updateMessage(msg) {
+                document.getElementById('message').textContent = msg;
+            },
+            
+            showInstructions() {
+                document.getElementById('modal').classList.add('active');
+            },
+            
+            hideInstructions() {
+                document.getElementById('modal').classList.remove('active');
+            },
+            
+            sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        };
+
+        window.onload = () => {
+            game.init();
+            
+            if (audioCtx.state === 'suspended') {
+                document.body.addEventListener('click', () => {
+                    audioCtx.resume();
+                }, { once: true });
+            }
+        };
+    </script>
+</body>
+</html>
