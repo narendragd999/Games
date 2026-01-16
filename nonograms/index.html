@@ -1,0 +1,1920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nonogram - HTML5 Puzzle Game</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a2a3a 0%, #2c3e50 50%, #34495e 100%);
+            color: white;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+        }
+
+        .game-container {
+            width: 100%;
+            max-width: 700px;
+            height: 95vh;
+            display: flex;
+            flex-direction: column;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .header {
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .game-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #4fc3f7;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .stats {
+            display: flex;
+            gap: 15px;
+            font-size: 1rem;
+        }
+
+        .stat-box {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-weight: 700;
+            font-size: 1.3rem;
+            color: #ffeb3b;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+
+        .game-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            overflow: hidden;
+        }
+
+        .puzzle-container {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+            position: relative;
+        }
+
+        .clues-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .row-clues {
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            margin-right: 5px;
+            max-height: 100%;
+            /* Match grid border width */
+            border-right: 2px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .row-clue {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            height: 30px; /* Will be overridden by JS to match grid cell size */
+            min-height: 30px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 0 5px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .clue-number {
+            margin-left: 3px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .clue-number.completed {
+            background: rgba(76, 175, 80, 0.3);
+            color: #a5d6a7;
+        }
+
+        .grid-and-col-clues {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Column clues - positioned above the grid */
+        .col-clues {
+            display: flex;
+            overflow-x: auto;
+            margin-bottom: 5px;
+            padding: 0;
+            background: rgba(0, 0, 0, 0.2);
+            /* Match grid border width */
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+            height: 60px; /* Will be overridden by JS to match grid cell size */
+            min-height: 60px;
+        }
+
+        .col-clue {
+            display: flex;
+            flex-direction: column-reverse; /* Reverse to show from bottom to top */
+            justify-content: flex-start; /* Align to bottom */
+            align-items: center;
+            width: 30px; /* Will be overridden by JS to match grid cell size */
+            min-width: 30px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 2px 0;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .col-clue .clue-number {
+            margin-bottom: 2px;
+        }
+
+        /* Grid container - main play area */
+        .grid-container {
+            flex: 1;
+            overflow: auto;
+            position: relative;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0; /* Remove padding to align perfectly with clues */
+        }
+
+        .grid {
+            display: grid;
+            gap: 1px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            user-select: none;
+        }
+
+        .cell {
+            background: #2c3e50;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.1s;
+            position: relative;
+        }
+
+        .cell:hover {
+            background: #34495e;
+        }
+
+        .cell.filled {
+            background: #37474f;
+        }
+
+        .cell.marked {
+            background: #1a237e;
+        }
+
+        .cell.filled::after {
+            content: "";
+            position: absolute;
+            width: 70%;
+            height: 70%;
+            background: #4fc3f7;
+            border-radius: 2px;
+        }
+
+        .cell.marked::after {
+            content: "✕";
+            color: #f44336;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        .cell.crossed {
+            background: rgba(244, 67, 54, 0.1);
+        }
+
+        .cell.crossed::after {
+            content: "";
+            position: absolute;
+            width: 80%;
+            height: 2px;
+            background: #f44336;
+            transform: rotate(45deg);
+        }
+
+        .cell.crossed::before {
+            content: "";
+            position: absolute;
+            width: 80%;
+            height: 2px;
+            background: #f44336;
+            transform: rotate(-45deg);
+        }
+
+        .cell.hint {
+            animation: pulse-hint 1s ease;
+        }
+
+        @keyframes pulse-hint {
+            0% { background: #4fc3f7; }
+            100% { background: #2c3e50; }
+        }
+
+        .controls {
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            border-top: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .btn {
+            background: linear-gradient(to bottom, #2196f3, #0d47a1);
+            color: white;
+            border: none;
+            padding: 12px 18px;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            min-width: 120px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .btn-red {
+            background: linear-gradient(to bottom, #f44336, #b71c1c);
+        }
+
+        .btn-yellow {
+            background: linear-gradient(to bottom, #ffeb3b, #f57f17);
+            color: #333;
+        }
+
+        .btn-green {
+            background: linear-gradient(to bottom, #4caf50, #1b5e20);
+        }
+
+        .btn-purple {
+            background: linear-gradient(to bottom, #9c27b0, #4a148c);
+        }
+
+        .mode-selector {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .mode-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .mode-btn.active {
+            background: #2196f3;
+            box-shadow: 0 0 10px rgba(33, 150, 243, 0.5);
+        }
+
+        .mode-btn i {
+            margin-right: 5px;
+        }
+
+        /* Overlays */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .overlay-title {
+            font-size: 2.5rem;
+            color: #4fc3f7;
+            margin-bottom: 20px;
+            text-shadow: 0 3px 6px rgba(0, 0, 0, 0.7);
+        }
+
+        .overlay-message {
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            max-width: 400px;
+            line-height: 1.5;
+        }
+
+        .overlay-stats {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            width: 80%;
+            max-width: 300px;
+        }
+
+        .overlay-stat {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .instructions {
+            background: rgba(30, 40, 60, 0.95);
+            border-radius: 12px;
+            padding: 25px;
+            max-width: 90%;
+            max-height: 80%;
+            overflow-y: auto;
+        }
+
+        .instructions h2 {
+            color: #4fc3f7;
+            margin-bottom: 15px;
+        }
+
+        .instructions ul {
+            list-style-type: none;
+            margin-bottom: 20px;
+        }
+
+        .instructions li {
+            margin-bottom: 12px;
+            padding-left: 10px;
+            border-left: 3px solid #4fc3f7;
+            padding-left: 15px;
+        }
+
+        .instructions .key {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin: 0 3px;
+            font-family: monospace;
+        }
+
+        .instructions .example {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            margin: 0 5px;
+            vertical-align: middle;
+        }
+
+        .hint-box {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 193, 7, 0.9);
+            color: #333;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-weight: 600;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            z-index: 10;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: translateX(-50%) scale(1); }
+            50% { transform: translateX(-50%) scale(1.05); }
+            100% { transform: translateX(-50%) scale(1); }
+        }
+
+        .sound-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            z-index: 50;
+        }
+
+        .game-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px 30px;
+            border-radius: 12px;
+            font-size: 1.8rem;
+            font-weight: 700;
+            z-index: 20;
+            animation: fadeInOut 2s forwards;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; }
+            20% { opacity: 1; }
+            80% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        .puzzle-complete {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2rem;
+            font-weight: 700;
+            color: #4fc3f7;
+            text-shadow: 0 0 10px rgba(79, 195, 247, 0.7);
+            z-index: 5;
+            animation: completePulse 2s infinite;
+        }
+
+        @keyframes completePulse {
+            0% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+            100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
+        }
+
+        /* Progress bar */
+        .progress-container {
+            margin: 10px 0;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(to right, #4caf50, #8bc34a);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* Media queries for mobile */
+        @media (max-width: 768px) {
+            .game-container {
+                height: 98vh;
+                max-height: none;
+            }
+            
+            .controls {
+                justify-content: center;
+            }
+            
+            .btn {
+                min-width: 100px;
+                padding: 10px 15px;
+                font-size: 0.8rem;
+            }
+            
+            .overlay-title {
+                font-size: 2rem;
+            }
+            
+            .instructions {
+                padding: 15px;
+            }
+            
+            .stat-value {
+                font-size: 1.1rem;
+            }
+            
+            .game-title {
+                font-size: 1.2rem;
+            }
+            
+            .row-clue, .col-clue {
+                font-size: 0.7rem;
+            }
+            
+            .col-clues {
+                height: 50px;
+                min-height: 50px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats {
+                gap: 10px;
+            }
+            
+            .stat-value {
+                font-size: 1rem;
+            }
+            
+            .stat-label {
+                font-size: 0.7rem;
+            }
+            
+            .mode-btn {
+                padding: 6px 10px;
+                font-size: 0.8rem;
+            }
+            
+            .btn {
+                min-width: 90px;
+                padding: 8px 12px;
+                font-size: 0.7rem;
+            }
+            
+            .col-clues {
+                height: 40px;
+                min-height: 40px;
+            }
+            
+            .col-clue {
+                width: 25px;
+                min-width: 25px;
+                font-size: 0.65rem;
+            }
+        }
+
+        /* Difficulty selector */
+        .difficulty-selector {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .diff-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .diff-btn.active {
+            background: #4caf50;
+            box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+        }
+
+        /* Auto-solve animation */
+        .auto-solving .cell {
+            transition: background 0.3s ease;
+        }
+        
+        /* Corner piece - top-left empty space */
+        .corner-piece {
+            width: 30px;
+            height: 30px;
+            background: rgba(0, 0, 0, 0.2);
+            border-right: 2px solid rgba(255, 255, 255, 0.2);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <div class="game-title">
+                <i class="fas fa-th"></i> NONOGRAM
+            </div>
+            <div class="stats">
+                <div class="stat-box">
+                    <div class="stat-value" id="timer">00:00</div>
+                    <div class="stat-label">TIME</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="progress">0%</div>
+                    <div class="stat-label">PROGRESS</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="mistakes">0</div>
+                    <div class="stat-label">MISTAKES</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="game-area">
+            <div class="mode-selector">
+                <button class="mode-btn active" id="modeFill" data-mode="fill">
+                    <i class="fas fa-square"></i> FILL
+                </button>
+                <button class="mode-btn" id="modeMark" data-mode="mark">
+                    <i class="fas fa-times"></i> MARK
+                </button>
+                <button class="mode-btn" id="modeCross" data-mode="cross">
+                    <i class="fas fa-ban"></i> CROSS
+                </button>
+            </div>
+            
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            
+            <div class="puzzle-container">
+                <div class="clues-container">
+                    <div class="row-clues" id="rowClues">
+                        <!-- Row clues will be generated here -->
+                    </div>
+                </div>
+                
+                <div class="grid-and-col-clues">
+                    <div class="col-clues" id="colClues">
+                        <!-- Column clues will be generated here -->
+                    </div>
+                    
+                    <div class="grid-container">
+                        <div class="grid" id="grid">
+                            <!-- Grid cells will be generated here -->
+                        </div>
+                        <div class="puzzle-complete hidden" id="puzzleComplete">
+                            <i class="fas fa-check-circle"></i> PUZZLE SOLVED!
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="hint-box" id="hintBox">
+                    <i class="fas fa-lightbulb"></i> Tap cells to fill, mark, or cross them out
+                </div>
+                
+                <div class="sound-toggle" id="soundToggle">
+                    <i class="fas fa-volume-up"></i>
+                </div>
+                
+                <!-- Game message (for hints, errors, etc.) -->
+                <div class="game-message hidden" id="gameMessage"></div>
+                
+                <!-- Start Screen Overlay -->
+                <div class="overlay" id="startScreen">
+                    <h1 class="overlay-title">NONOGRAM</h1>
+                    <div class="overlay-message">
+                        Solve the puzzle by filling in the correct cells based on the row and column clues.
+                    </div>
+                    
+                    <div class="difficulty-selector">
+                        <button class="diff-btn active" data-diff="5">5×5 (Easy)</button>
+                        <button class="diff-btn" data-diff="8">8×8 (Medium)</button>
+                        <button class="diff-btn" data-diff="10">10×10 (Hard)</button>
+                    </div>
+                    
+                    <button class="btn btn-green" id="startBtn">
+                        <i class="fas fa-play"></i> START GAME
+                    </button>
+                    <button class="btn btn-yellow" id="instructionsBtn" style="margin-top: 15px;">
+                        <i class="fas fa-info-circle"></i> HOW TO PLAY
+                    </button>
+                </div>
+                
+                <!-- Game Over Overlay -->
+                <div class="overlay hidden" id="gameOverScreen">
+                    <h1 class="overlay-title">PUZZLE SOLVED!</h1>
+                    <div class="overlay-stats">
+                        <div class="overlay-stat">
+                            <span>Time:</span>
+                            <span id="finalTime">00:00</span>
+                        </div>
+                        <div class="overlay-stat">
+                            <span>Mistakes:</span>
+                            <span id="finalMistakes">0</span>
+                        </div>
+                        <div class="overlay-stat">
+                            <span>Hints Used:</span>
+                            <span id="finalHints">0</span>
+                        </div>
+                        <div class="overlay-stat">
+                            <span>Puzzle Size:</span>
+                            <span id="finalSize">5×5</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-green" id="newPuzzleBtn">
+                        <i class="fas fa-sync-alt"></i> NEW PUZZLE
+                    </button>
+                    <button class="btn" id="backToMenuBtn" style="margin-top: 15px;">
+                        <i class="fas fa-home"></i> MAIN MENU
+                    </button>
+                </div>
+                
+                <!-- Instructions Overlay -->
+                <div class="overlay hidden" id="instructionsScreen">
+                    <div class="instructions">
+                        <h2>HOW TO PLAY</h2>
+                        <p>Nonograms are picture logic puzzles where you fill in cells to reveal a hidden picture.</p>
+                        
+                        <h3>Rules:</h3>
+                        <ul>
+                            <li>Numbers on the sides indicate groups of consecutive filled cells</li>
+                            <li>"2 1" means there's a group of 2 filled cells, then at least one empty cell, then 1 filled cell</li>
+                            <li>Empty cells can be marked with an X or crossed out</li>
+                            <li>Use logic to determine which cells must be filled and which must be empty</li>
+                        </ul>
+                        
+                        <h3>Controls:</h3>
+                        <ul>
+                            <li><span class="mode-btn active"><i class="fas fa-square"></i> FILL</span>: Fill a cell (left click/tap)</li>
+                            <li><span class="mode-btn"><i class="fas fa-times"></i> MARK</span>: Mark with X (right click/long tap)</li>
+                            <li><span class="mode-btn"><i class="fas fa-ban"></i> CROSS</span>: Cross out empty cells</li>
+                            <li>Switch between modes using the buttons above the grid</li>
+                        </ul>
+                        
+                        <h3>Tips:</h3>
+                        <ul>
+                            <li>Start with rows/columns that have large numbers or many groups</li>
+                            <li>Use the "Check Solution" button to verify your progress</li>
+                            <li>Use hints when you're stuck (limited to 3 per puzzle)</li>
+                            <li>The "Auto-Solve" button will solve the puzzle step by step</li>
+                        </ul>
+                        
+                        <button class="btn" id="closeInstructionsBtn" style="margin-top: 10px;">
+                            <i class="fas fa-times"></i> CLOSE
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button class="btn btn-yellow" id="hintBtn">
+                <i class="fas fa-lightbulb"></i> HINT (3)
+            </button>
+            <button class="btn" id="checkBtn">
+                <i class="fas fa-check-circle"></i> CHECK
+            </button>
+            <button class="btn btn-purple" id="autoSolveBtn">
+                <i class="fas fa-robot"></i> AUTO-SOLVE
+            </button>
+            <button class="btn btn-red" id="resetBtn">
+                <i class="fas fa-undo"></i> RESET
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Game variables
+        const gridElement = document.getElementById('grid');
+        const rowCluesElement = document.getElementById('rowClues');
+        const colCluesElement = document.getElementById('colClues');
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const instructionsScreen = document.getElementById('instructionsScreen');
+        const startBtn = document.getElementById('startBtn');
+        const instructionsBtn = document.getElementById('instructionsBtn');
+        const closeInstructionsBtn = document.getElementById('closeInstructionsBtn');
+        const hintBtn = document.getElementById('hintBtn');
+        const checkBtn = document.getElementById('checkBtn');
+        const autoSolveBtn = document.getElementById('autoSolveBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const newPuzzleBtn = document.getElementById('newPuzzleBtn');
+        const backToMenuBtn = document.getElementById('backToMenuBtn');
+        const soundToggle = document.getElementById('soundToggle');
+        const gameMessage = document.getElementById('gameMessage');
+        const hintBox = document.getElementById('hintBox');
+        const modeFillBtn = document.getElementById('modeFill');
+        const modeMarkBtn = document.getElementById('modeMark');
+        const modeCrossBtn = document.getElementById('modeCross');
+        const puzzleCompleteElement = document.getElementById('puzzleComplete');
+        const progressBar = document.getElementById('progressBar');
+        
+        // Stats elements
+        const timerElement = document.getElementById('timer');
+        const progressElement = document.getElementById('progress');
+        const mistakesElement = document.getElementById('mistakes');
+        const finalTimeElement = document.getElementById('finalTime');
+        const finalMistakesElement = document.getElementById('finalMistakes');
+        const finalHintsElement = document.getElementById('finalHints');
+        const finalSizeElement = document.getElementById('finalSize');
+        
+        // Game state
+        let game = {
+            running: false,
+            paused: false,
+            gridSize: 5,
+            solution: [],
+            playerGrid: [],
+            rowClues: [],
+            colClues: [],
+            mode: 'fill', // 'fill', 'mark', 'cross'
+            hintsRemaining: 3,
+            mistakes: 0,
+            startTime: null,
+            timerInterval: null,
+            soundEnabled: true,
+            isAutoSolving: false,
+            autoSolveInterval: null,
+            difficulty: 5, // 5, 8, or 10
+            cellSize: 30 // Default cell size
+        };
+        
+        // Predefined puzzles (solution grids)
+        const puzzles = {
+            5: [
+                // 5x5 puzzles
+                [
+                    [1, 1, 0, 0, 1],
+                    [1, 0, 1, 0, 1],
+                    [1, 1, 1, 1, 1],
+                    [0, 1, 1, 1, 0],
+                    [0, 0, 1, 0, 0]
+                ],
+                [
+                    [0, 1, 1, 1, 0],
+                    [1, 1, 1, 1, 1],
+                    [1, 0, 1, 0, 1],
+                    [1, 1, 1, 1, 1],
+                    [0, 1, 1, 1, 0]
+                ],
+                [
+                    [1, 0, 0, 0, 1],
+                    [0, 1, 0, 1, 0],
+                    [0, 0, 1, 0, 0],
+                    [0, 1, 0, 1, 0],
+                    [1, 0, 0, 0, 1]
+                ]
+            ],
+            8: [
+                // 8x8 puzzles
+                [
+                    [0, 0, 1, 1, 1, 1, 0, 0],
+                    [0, 1, 0, 0, 0, 0, 1, 0],
+                    [1, 0, 1, 0, 0, 1, 0, 1],
+                    [1, 0, 0, 0, 0, 0, 0, 1],
+                    [1, 0, 1, 0, 0, 1, 0, 1],
+                    [1, 0, 0, 1, 1, 0, 0, 1],
+                    [0, 1, 0, 0, 0, 0, 1, 0],
+                    [0, 0, 1, 1, 1, 1, 0, 0]
+                ],
+                [
+                    [1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 0, 0, 0, 0, 0, 0, 1],
+                    [1, 0, 1, 1, 1, 1, 0, 1],
+                    [1, 0, 1, 0, 0, 1, 0, 1],
+                    [1, 0, 1, 0, 0, 1, 0, 1],
+                    [1, 0, 1, 1, 1, 1, 0, 1],
+                    [1, 0, 0, 0, 0, 0, 0, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1]
+                ]
+            ],
+            10: [
+                // 10x10 puzzles
+                [
+                    [0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+                    [0, 0, 0, 1, 1, 1, 1, 0, 0, 0],
+                    [0, 0, 1, 1, 1, 1, 1, 1, 0, 0],
+                    [0, 1, 1, 0, 1, 1, 0, 1, 1, 0],
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                    [0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+                    [0, 0, 1, 1, 1, 1, 1, 1, 0, 0],
+                    [0, 0, 0, 1, 1, 1, 1, 0, 0, 0],
+                    [0, 0, 0, 0, 1, 1, 0, 0, 0, 0]
+                ],
+                [
+                    [0, 0, 1, 1, 1, 1, 1, 1, 0, 0],
+                    [0, 1, 0, 0, 0, 0, 0, 0, 1, 0],
+                    [1, 0, 1, 0, 0, 0, 0, 1, 0, 1],
+                    [1, 0, 0, 1, 0, 0, 1, 0, 0, 1],
+                    [1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
+                    [1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
+                    [1, 0, 0, 1, 0, 0, 1, 0, 0, 1],
+                    [1, 0, 1, 0, 0, 0, 0, 1, 0, 1],
+                    [0, 1, 0, 0, 0, 0, 0, 0, 1, 0],
+                    [0, 0, 1, 1, 1, 1, 1, 1, 0, 0]
+                ]
+            ]
+        };
+        
+        // Initialize the game
+        function init() {
+            // Set up event listeners
+            setupEventListeners();
+            
+            // Set initial difficulty
+            setDifficulty(5);
+            
+            // Initialize audio
+            initAudio();
+            
+            // Hide hint box after 5 seconds
+            setTimeout(() => {
+                hintBox.style.opacity = '0';
+                setTimeout(() => {
+                    hintBox.style.display = 'none';
+                }, 500);
+            }, 5000);
+        }
+        
+        // Set up all event listeners
+        function setupEventListeners() {
+            // Button event listeners
+            startBtn.addEventListener('click', startGame);
+            instructionsBtn.addEventListener('click', showInstructions);
+            closeInstructionsBtn.addEventListener('click', hideInstructions);
+            hintBtn.addEventListener('click', useHint);
+            checkBtn.addEventListener('click', checkSolution);
+            autoSolveBtn.addEventListener('click', toggleAutoSolve);
+            resetBtn.addEventListener('click', resetPuzzle);
+            newPuzzleBtn.addEventListener('click', startGame);
+            backToMenuBtn.addEventListener('click', showStartScreen);
+            soundToggle.addEventListener('click', toggleSound);
+            
+            // Mode buttons
+            modeFillBtn.addEventListener('click', () => setMode('fill'));
+            modeMarkBtn.addEventListener('click', () => setMode('mark'));
+            modeCrossBtn.addEventListener('click', () => setMode('cross'));
+            
+            // Difficulty buttons
+            document.querySelectorAll('.diff-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const size = parseInt(this.getAttribute('data-diff'));
+                    setDifficulty(size);
+                    
+                    // Update UI
+                    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+            
+            // Handle window resize
+            window.addEventListener('resize', resizeGrid);
+        }
+        
+        // Initialize audio
+        function initAudio() {
+            // Simple sound effects using Web Audio API
+            try {
+                // We'll create audio functions
+                game.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            } catch (e) {
+                console.log("Web Audio API not supported");
+                game.soundEnabled = false;
+                soundToggle.innerHTML = '<i class="fas fa-volume-mute"></i>';
+            }
+        }
+        
+        // Play sound by type
+        function playSound(type) {
+            if (!game.soundEnabled || !game.audioContext) return;
+            
+            try {
+                const oscillator = game.audioContext.createOscillator();
+                const gainNode = game.audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(game.audioContext.destination);
+                
+                let frequency = 800;
+                let duration = 0.1;
+                
+                switch(type) {
+                    case 'fill':
+                        frequency = 600;
+                        break;
+                    case 'mark':
+                        frequency = 400;
+                        break;
+                    case 'cross':
+                        frequency = 300;
+                        break;
+                    case 'hint':
+                        frequency = 1000;
+                        duration = 0.3;
+                        break;
+                    case 'error':
+                        frequency = 200;
+                        duration = 0.2;
+                        break;
+                    case 'success':
+                        frequency = 523.25; // C5
+                        duration = 0.5;
+                        break;
+                }
+                
+                oscillator.frequency.value = frequency;
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0.3, game.audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, game.audioContext.currentTime + duration);
+                
+                oscillator.start(game.audioContext.currentTime);
+                oscillator.stop(game.audioContext.currentTime + duration);
+            } catch (e) {
+                // Audio error - ignore
+            }
+        }
+        
+        // Toggle sound on/off
+        function toggleSound() {
+            game.soundEnabled = !game.soundEnabled;
+            const icon = soundToggle.querySelector('i');
+            icon.className = game.soundEnabled ? 'fas fa-volume-up' : 'fas fa-volume-mute';
+        }
+        
+        // Set difficulty
+        function setDifficulty(size) {
+            game.difficulty = size;
+        }
+        
+        // Start the game
+        function startGame() {
+            game.gridSize = game.difficulty;
+            resetGame();
+            generatePuzzle();
+            renderGrid();
+            renderClues();
+            
+            game.running = true;
+            startScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            instructionsScreen.classList.add('hidden');
+            
+            // Start timer
+            game.startTime = Date.now();
+            game.timerInterval = setInterval(updateTimer, 1000);
+            
+            // Update hint button
+            updateHintButton();
+            
+            // Show start message
+            showGameMessage(`Starting ${game.gridSize}×${game.gridSize} puzzle!`);
+        }
+        
+        // Reset game state
+        function resetGame() {
+            // Clear any existing interval
+            if (game.timerInterval) {
+                clearInterval(game.timerInterval);
+            }
+            
+            if (game.autoSolveInterval) {
+                clearInterval(game.autoSolveInterval);
+                game.isAutoSolving = false;
+                autoSolveBtn.innerHTML = '<i class="fas fa-robot"></i> AUTO-SOLVE';
+            }
+            
+            // Reset game state
+            game.playerGrid = [];
+            game.solution = [];
+            game.rowClues = [];
+            game.colClues = [];
+            game.hintsRemaining = 3;
+            game.mistakes = 0;
+            game.startTime = null;
+            game.isAutoSolving = false;
+            
+            // Initialize player grid
+            for (let i = 0; i < game.gridSize; i++) {
+                game.playerGrid[i] = [];
+                for (let j = 0; j < game.gridSize; j++) {
+                    game.playerGrid[i][j] = 0; // 0 = empty, 1 = filled, 2 = marked, 3 = crossed
+                }
+            }
+            
+            // Update UI
+            updateStats();
+        }
+        
+        // Generate a random puzzle
+        function generatePuzzle() {
+            // Get random puzzle of current size
+            const puzzleList = puzzles[game.gridSize];
+            const randomIndex = Math.floor(Math.random() * puzzleList.length);
+            game.solution = puzzleList[randomIndex];
+            
+            // Generate clues from solution
+            generateClues();
+        }
+        
+        // Generate row and column clues from solution
+        function generateClues() {
+            // Row clues
+            game.rowClues = [];
+            for (let i = 0; i < game.gridSize; i++) {
+                const clues = [];
+                let count = 0;
+                
+                for (let j = 0; j < game.gridSize; j++) {
+                    if (game.solution[i][j] === 1) {
+                        count++;
+                    } else if (count > 0) {
+                        clues.push(count);
+                        count = 0;
+                    }
+                }
+                
+                if (count > 0) {
+                    clues.push(count);
+                }
+                
+                game.rowClues.push(clues.length > 0 ? clues : [0]);
+            }
+            
+            // Column clues
+            game.colClues = [];
+            for (let j = 0; j < game.gridSize; j++) {
+                const clues = [];
+                let count = 0;
+                
+                for (let i = 0; i < game.gridSize; i++) {
+                    if (game.solution[i][j] === 1) {
+                        count++;
+                    } else if (count > 0) {
+                        clues.push(count);
+                        count = 0;
+                    }
+                }
+                
+                if (count > 0) {
+                    clues.push(count);
+                }
+                
+                game.colClues.push(clues.length > 0 ? clues : [0]);
+            }
+        }
+        
+        // Render the grid and align clues
+        function renderGrid() {
+            gridElement.innerHTML = '';
+            
+            // Calculate optimal cell size based on container
+            const container = document.querySelector('.grid-container');
+            const availableWidth = container.clientWidth;
+            const availableHeight = container.clientHeight;
+            
+            // Calculate cell size to fit the grid in the container
+            const maxCellSize = Math.min(
+                Math.floor(availableWidth / game.gridSize),
+                Math.floor(availableHeight / game.gridSize),
+                40 // Maximum cell size
+            );
+            
+            game.cellSize = Math.max(25, maxCellSize);
+            const gridTotalSize = game.cellSize * game.gridSize;
+            
+            // Set grid dimensions
+            gridElement.style.gridTemplateColumns = `repeat(${game.gridSize}, ${game.cellSize}px)`;
+            gridElement.style.gridTemplateRows = `repeat(${game.gridSize}, ${game.cellSize}px)`;
+            gridElement.style.width = `${gridTotalSize}px`;
+            gridElement.style.height = `${gridTotalSize}px`;
+            
+            // Create cells
+            for (let i = 0; i < game.gridSize; i++) {
+                for (let j = 0; j < game.gridSize; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = i;
+                    cell.dataset.col = j;
+                    
+                    // Update cell state
+                    updateCellAppearance(cell, i, j);
+                    
+                    // Add event listeners
+                    cell.addEventListener('click', () => handleCellClick(i, j));
+                    cell.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                        handleCellRightClick(i, j);
+                    });
+                    
+                    // Touch events for mobile
+                    cell.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        handleCellTouch(i, j);
+                    });
+                    
+                    gridElement.appendChild(cell);
+                }
+            }
+            
+            // Update clue dimensions to match grid cells
+            updateClueDimensions();
+            
+            // Update grid container size
+            resizeGrid();
+        }
+        
+        // Update clue dimensions to match grid cells
+        function updateClueDimensions() {
+            // Update row clue dimensions
+            const rowClues = document.querySelectorAll('.row-clue');
+            rowClues.forEach(clue => {
+                clue.style.height = `${game.cellSize}px`;
+                clue.style.minHeight = `${game.cellSize}px`;
+                clue.style.fontSize = `${Math.max(10, game.cellSize * 0.5)}px`;
+            });
+            
+            // Update column clue dimensions
+            const colClues = document.querySelectorAll('.col-clue');
+            colClues.forEach(clue => {
+                clue.style.width = `${game.cellSize}px`;
+                clue.style.minWidth = `${game.cellSize}px`;
+                clue.style.fontSize = `${Math.max(10, game.cellSize * 0.5)}px`;
+            });
+            
+            // Update column clues container height
+            colCluesElement.style.height = `${game.cellSize}px`;
+            colCluesElement.style.minHeight = `${game.cellSize}px`;
+        }
+        
+        // Handle cell click
+        function handleCellClick(row, col) {
+            if (!game.running || game.isAutoSolving) return;
+            
+            // Get current cell state
+            const currentState = game.playerGrid[row][col];
+            
+            // Apply action based on current mode
+            switch(game.mode) {
+                case 'fill':
+                    if (currentState === 1) {
+                        // If already filled, clear it
+                        game.playerGrid[row][col] = 0;
+                        playSound('cross');
+                    } else {
+                        game.playerGrid[row][col] = 1;
+                        playSound('fill');
+                        
+                        // Check if this is a mistake
+                        if (game.solution[row][col] !== 1) {
+                            game.mistakes++;
+                            updateStats();
+                            playSound('error');
+                            showGameMessage('Mistake! That cell should not be filled.');
+                        }
+                    }
+                    break;
+                    
+                case 'mark':
+                    if (currentState === 2) {
+                        // If already marked, clear it
+                        game.playerGrid[row][col] = 0;
+                        playSound('cross');
+                    } else {
+                        game.playerGrid[row][col] = 2;
+                        playSound('mark');
+                        
+                        // Check if this is a mistake (marking a cell that should be filled)
+                        if (game.solution[row][col] === 1) {
+                            game.mistakes++;
+                            updateStats();
+                            playSound('error');
+                            showGameMessage('Mistake! That cell should be filled.');
+                        }
+                    }
+                    break;
+                    
+                case 'cross':
+                    if (currentState === 3) {
+                        // If already crossed, clear it
+                        game.playerGrid[row][col] = 0;
+                        playSound('cross');
+                    } else {
+                        game.playerGrid[row][col] = 3;
+                        playSound('cross');
+                        
+                        // Check if this is a mistake (crossing a cell that should be filled)
+                        if (game.solution[row][col] === 1) {
+                            game.mistakes++;
+                            updateStats();
+                            playSound('error');
+                            showGameMessage('Mistake! That cell should be filled.');
+                        }
+                    }
+                    break;
+            }
+            
+            // Update cell appearance
+            const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+            updateCellAppearance(cell, row, col);
+            
+            // Update progress
+            updateProgress();
+            
+            // Check if puzzle is complete
+            if (isPuzzleComplete()) {
+                completePuzzle();
+            }
+        }
+        
+        // Handle cell right click
+        function handleCellRightClick(row, col) {
+            if (!game.running || game.isAutoSolving) return;
+            
+            // Right click toggles mark mode on this cell
+            const currentState = game.playerGrid[row][col];
+            
+            if (currentState === 2) {
+                // If already marked, clear it
+                game.playerGrid[row][col] = 0;
+                playSound('cross');
+            } else {
+                game.playerGrid[row][col] = 2;
+                playSound('mark');
+                
+                // Check if this is a mistake
+                if (game.solution[row][col] === 1) {
+                    game.mistakes++;
+                    updateStats();
+                    playSound('error');
+                    showGameMessage('Mistake! That cell should be filled.');
+                }
+            }
+            
+            // Update cell appearance
+            const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+            updateCellAppearance(cell, row, col);
+            
+            // Update progress
+            updateProgress();
+            
+            // Check if puzzle is complete
+            if (isPuzzleComplete()) {
+                completePuzzle();
+            }
+        }
+        
+        // Handle cell touch (for mobile)
+        function handleCellTouch(row, col) {
+            // On mobile, we'll use a simple tap for left click
+            // Long press could be used for right click, but we'll keep it simple
+            handleCellClick(row, col);
+        }
+        
+        // Update cell appearance based on state
+        function updateCellAppearance(cell, row, col) {
+            if (!cell) return;
+            
+            const state = game.playerGrid[row][col];
+            
+            // Remove all state classes
+            cell.classList.remove('filled', 'marked', 'crossed', 'hint');
+            
+            // Add appropriate class
+            switch(state) {
+                case 1:
+                    cell.classList.add('filled');
+                    break;
+                case 2:
+                    cell.classList.add('marked');
+                    break;
+                case 3:
+                    cell.classList.add('crossed');
+                    break;
+            }
+        }
+        
+        // Render row and column clues with proper alignment
+        function renderClues() {
+            // Row clues
+            rowCluesElement.innerHTML = '';
+            for (let i = 0; i < game.gridSize; i++) {
+                const rowClue = document.createElement('div');
+                rowClue.className = 'row-clue';
+                
+                game.rowClues[i].forEach((clue, index) => {
+                    const clueNumber = document.createElement('span');
+                    clueNumber.className = 'clue-number';
+                    clueNumber.textContent = clue;
+                    rowClue.appendChild(clueNumber);
+                });
+                
+                rowCluesElement.appendChild(rowClue);
+            }
+            
+            // Column clues
+            colCluesElement.innerHTML = '';
+            for (let j = 0; j < game.gridSize; j++) {
+                const colClue = document.createElement('div');
+                colClue.className = 'col-clue';
+                
+                // Column clues are displayed from bottom to top
+                // Create a copy and reverse it to show from bottom up
+                const reversedClues = [...game.colClues[j]].reverse();
+                
+                reversedClues.forEach((clue, index) => {
+                    const clueNumber = document.createElement('span');
+                    clueNumber.className = 'clue-number';
+                    clueNumber.textContent = clue;
+                    colClue.appendChild(clueNumber);
+                });
+                
+                colCluesElement.appendChild(colClue);
+            }
+            
+            // Update clue dimensions to match grid cells
+            updateClueDimensions();
+            
+            // Update clue completion
+            updateClueCompletion();
+        }
+        
+        // Update clue completion status
+        function updateClueCompletion() {
+            // Check row completion
+            for (let i = 0; i < game.gridSize; i++) {
+                const rowClueElements = rowCluesElement.children[i].querySelectorAll('.clue-number');
+                
+                // For now, we'll just update based on whether the row is completely correct
+                // In a more advanced version, we could check each clue segment
+                let rowCorrect = true;
+                for (let j = 0; j < game.gridSize; j++) {
+                    const playerState = game.playerGrid[i][j];
+                    const solutionState = game.solution[i][j];
+                    
+                    if (solutionState === 1 && playerState !== 1) {
+                        rowCorrect = false;
+                        break;
+                    }
+                }
+                
+                // Update clue numbers appearance
+                if (rowCorrect) {
+                    rowClueElements.forEach(el => el.classList.add('completed'));
+                } else {
+                    rowClueElements.forEach(el => el.classList.remove('completed'));
+                }
+            }
+            
+            // Check column completion
+            for (let j = 0; j < game.gridSize; j++) {
+                const colClueElements = colCluesElement.children[j].querySelectorAll('.clue-number');
+                
+                let colCorrect = true;
+                for (let i = 0; i < game.gridSize; i++) {
+                    const playerState = game.playerGrid[i][j];
+                    const solutionState = game.solution[i][j];
+                    
+                    if (solutionState === 1 && playerState !== 1) {
+                        colCorrect = false;
+                        break;
+                    }
+                }
+                
+                // Update clue numbers appearance
+                if (colCorrect) {
+                    colClueElements.forEach(el => el.classList.add('completed'));
+                } else {
+                    colClueElements.forEach(el => el.classList.remove('completed'));
+                }
+            }
+        }
+        
+        // Set current mode
+        function setMode(mode) {
+            game.mode = mode;
+            
+            // Update UI
+            modeFillBtn.classList.remove('active');
+            modeMarkBtn.classList.remove('active');
+            modeCrossBtn.classList.remove('active');
+            
+            switch(mode) {
+                case 'fill':
+                    modeFillBtn.classList.add('active');
+                    break;
+                case 'mark':
+                    modeMarkBtn.classList.add('active');
+                    break;
+                case 'cross':
+                    modeCrossBtn.classList.add('active');
+                    break;
+            }
+            
+            // Show brief message
+            showGameMessage(`Mode: ${mode.toUpperCase()}`);
+        }
+        
+        // Use a hint
+        function useHint() {
+            if (!game.running || game.isAutoSolving || game.hintsRemaining <= 0) return;
+            
+            // Find a cell that should be filled but isn't
+            let hintCells = [];
+            for (let i = 0; i < game.gridSize; i++) {
+                for (let j = 0; j < game.gridSize; j++) {
+                    if (game.solution[i][j] === 1 && game.playerGrid[i][j] !== 1) {
+                        hintCells.push({row: i, col: j});
+                    }
+                }
+            }
+            
+            if (hintCells.length === 0) {
+                showGameMessage('No hints needed!');
+                return;
+            }
+            
+            // Pick a random hint cell
+            const hint = hintCells[Math.floor(Math.random() * hintCells.length)];
+            
+            // Fill the cell
+            game.playerGrid[hint.row][hint.col] = 1;
+            
+            // Update cell appearance with animation
+            const cell = document.querySelector(`.cell[data-row="${hint.row}"][data-col="${hint.col}"]`);
+            updateCellAppearance(cell, hint.row, hint.col);
+            cell.classList.add('hint');
+            
+            // Update stats
+            game.hintsRemaining--;
+            updateHintButton();
+            updateProgress();
+            
+            // Play sound
+            playSound('hint');
+            
+            // Show message
+            showGameMessage(`Hint used! ${game.hintsRemaining} remaining.`);
+            
+            // Check if puzzle is complete
+            if (isPuzzleComplete()) {
+                completePuzzle();
+            }
+        }
+        
+        // Update hint button text
+        function updateHintButton() {
+            hintBtn.innerHTML = `<i class="fas fa-lightbulb"></i> HINT (${game.hintsRemaining})`;
+        }
+        
+        // Check solution
+        function checkSolution() {
+            if (!game.running) return;
+            
+            let correct = true;
+            let errors = [];
+            
+            // Check all cells
+            for (let i = 0; i < game.gridSize; i++) {
+                for (let j = 0; j < game.gridSize; j++) {
+                    const playerState = game.playerGrid[i][j];
+                    const solutionState = game.solution[i][j];
+                    
+                    // Cell should be filled but isn't
+                    if (solutionState === 1 && playerState !== 1) {
+                        correct = false;
+                        errors.push({row: i, col: j, type: 'missing'});
+                    }
+                    // Cell shouldn't be filled but is
+                    else if (solutionState === 0 && playerState === 1) {
+                        correct = false;
+                        errors.push({row: i, col: j, type: 'wrong'});
+                    }
+                }
+            }
+            
+            // Update clue completion
+            updateClueCompletion();
+            
+            if (correct) {
+                showGameMessage('Puzzle solved correctly!');
+                playSound('success');
+                completePuzzle();
+            } else {
+                showGameMessage(`Found ${errors.length} errors. Keep trying!`);
+                playSound('error');
+                
+                // Highlight errors (briefly)
+                errors.forEach(error => {
+                    const cell = document.querySelector(`.cell[data-row="${error.row}"][data-col="${error.col}"]`);
+                    if (cell) {
+                        const originalBg = cell.style.backgroundColor;
+                        cell.style.backgroundColor = '#f44336';
+                        
+                        setTimeout(() => {
+                            cell.style.backgroundColor = originalBg;
+                        }, 1000);
+                    }
+                });
+            }
+        }
+        
+        // Toggle auto-solve
+        function toggleAutoSolve() {
+            if (!game.running) return;
+            
+            if (game.isAutoSolving) {
+                // Stop auto-solving
+                clearInterval(game.autoSolveInterval);
+                game.isAutoSolving = false;
+                autoSolveBtn.innerHTML = '<i class="fas fa-robot"></i> AUTO-SOLVE';
+                showGameMessage('Auto-solve stopped');
+            } else {
+                // Start auto-solving
+                game.isAutoSolving = true;
+                autoSolveBtn.innerHTML = '<i class="fas fa-stop"></i> STOP';
+                gridElement.classList.add('auto-solving');
+                
+                // Start solving step by step
+                let step = 0;
+                const totalSteps = game.gridSize * game.gridSize;
+                
+                game.autoSolveInterval = setInterval(() => {
+                    if (step >= totalSteps) {
+                        // Finished
+                        clearInterval(game.autoSolveInterval);
+                        game.isAutoSolving = false;
+                        autoSolveBtn.innerHTML = '<i class="fas fa-robot"></i> AUTO-SOLVE';
+                        gridElement.classList.remove('auto-solving');
+                        showGameMessage('Puzzle solved automatically!');
+                        completePuzzle();
+                        return;
+                    }
+                    
+                    const row = Math.floor(step / game.gridSize);
+                    const col = step % game.gridSize;
+                    
+                    // Fill cell according to solution
+                    if (game.solution[row][col] === 1) {
+                        game.playerGrid[row][col] = 1;
+                    } else {
+                        game.playerGrid[row][col] = 3; // Cross out empty cells
+                    }
+                    
+                    // Update cell appearance
+                    const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+                    updateCellAppearance(cell, row, col);
+                    
+                    step++;
+                    updateProgress();
+                    
+                }, 100); // 100ms per step
+            }
+        }
+        
+        // Reset the puzzle
+        function resetPuzzle() {
+            if (!game.running || game.isAutoSolving) return;
+            
+            // Clear player grid
+            for (let i = 0; i < game.gridSize; i++) {
+                for (let j = 0; j < game.gridSize; j++) {
+                    game.playerGrid[i][j] = 0;
+                    
+                    // Update cell appearance
+                    const cell = document.querySelector(`.cell[data-row="${i}"][data-col="${j}"]`);
+                    updateCellAppearance(cell, i, j);
+                }
+            }
+            
+            // Reset mistakes and hints
+            game.mistakes = 0;
+            game.hintsRemaining = 3;
+            
+            // Update UI
+            updateStats();
+            updateHintButton();
+            updateProgress();
+            updateClueCompletion();
+            
+            // Show message
+            showGameMessage('Puzzle reset');
+            playSound('cross');
+        }
+        
+        // Update progress
+        function updateProgress() {
+            if (!game.running) return;
+            
+            let filledCorrectly = 0;
+            let totalToFill = 0;
+            
+            // Count correctly filled cells
+            for (let i = 0; i < game.gridSize; i++) {
+                for (let j = 0; j < game.gridSize; j++) {
+                    if (game.solution[i][j] === 1) {
+                        totalToFill++;
+                        if (game.playerGrid[i][j] === 1) {
+                            filledCorrectly++;
+                        }
+                    }
+                }
+            }
+            
+            // Calculate percentage
+            const percentage = totalToFill > 0 ? Math.round((filledCorrectly / totalToFill) * 100) : 0;
+            
+            // Update UI
+            progressElement.textContent = `${percentage}%`;
+            progressBar.style.width = `${percentage}%`;
+            
+            // Update clue completion
+            updateClueCompletion();
+            
+            return percentage;
+        }
+        
+        // Check if puzzle is complete
+        function isPuzzleComplete() {
+            for (let i = 0; i < game.gridSize; i++) {
+                for (let j = 0; j < game.gridSize; j++) {
+                    const playerState = game.playerGrid[i][j];
+                    const solutionState = game.solution[i][j];
+                    
+                    // If a cell should be filled but isn't, puzzle is not complete
+                    if (solutionState === 1 && playerState !== 1) {
+                        return false;
+                    }
+                    
+                    // If a cell shouldn't be filled but is, puzzle is not complete
+                    if (solutionState === 0 && playerState === 1) {
+                        return false;
+                    }
+                }
+            }
+            
+            return true;
+        }
+        
+        // Complete the puzzle
+        function completePuzzle() {
+            if (!game.running) return;
+            
+            // Stop timer
+            if (game.timerInterval) {
+                clearInterval(game.timerInterval);
+            }
+            
+            // Stop auto-solve if running
+            if (game.autoSolveInterval) {
+                clearInterval(game.autoSolveInterval);
+                game.isAutoSolving = false;
+                autoSolveBtn.innerHTML = '<i class="fas fa-robot"></i> AUTO-SOLVE';
+            }
+            
+            // Show completion message
+            puzzleCompleteElement.classList.remove('hidden');
+            
+            // Play success sound
+            playSound('success');
+            
+            // Update final stats
+            finalTimeElement.textContent = timerElement.textContent;
+            finalMistakesElement.textContent = game.mistakes;
+            finalHintsElement.textContent = 3 - game.hintsRemaining;
+            finalSizeElement.textContent = `${game.gridSize}×${game.gridSize}`;
+            
+            // Show game over screen after a delay
+            setTimeout(() => {
+                gameOverScreen.classList.remove('hidden');
+            }, 2000);
+        }
+        
+        // Update timer
+        function updateTimer() {
+            if (!game.startTime) return;
+            
+            const elapsed = Date.now() - game.startTime;
+            const minutes = Math.floor(elapsed / 60000);
+            const seconds = Math.floor((elapsed % 60000) / 1000);
+            
+            timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        // Update stats display
+        function updateStats() {
+            mistakesElement.textContent = game.mistakes;
+        }
+        
+        // Show game message
+        function showGameMessage(text) {
+            gameMessage.textContent = text;
+            gameMessage.classList.remove('hidden');
+            
+            setTimeout(() => {
+                gameMessage.classList.add('hidden');
+            }, 2000);
+        }
+        
+        // Show instructions
+        function showInstructions() {
+            instructionsScreen.classList.remove('hidden');
+        }
+        
+        // Hide instructions
+        function hideInstructions() {
+            instructionsScreen.classList.add('hidden');
+        }
+        
+        // Show start screen
+        function showStartScreen() {
+            game.running = false;
+            
+            // Clear any intervals
+            if (game.timerInterval) {
+                clearInterval(game.timerInterval);
+            }
+            
+            if (game.autoSolveInterval) {
+                clearInterval(game.autoSolveInterval);
+                game.isAutoSolving = false;
+                autoSolveBtn.innerHTML = '<i class="fas fa-robot"></i> AUTO-SOLVE';
+            }
+            
+            // Hide overlays
+            startScreen.classList.remove('hidden');
+            gameOverScreen.classList.add('hidden');
+            instructionsScreen.classList.add('hidden');
+            puzzleCompleteElement.classList.add('hidden');
+        }
+        
+        // Resize grid to fit container and maintain alignment
+        function resizeGrid() {
+            const container = document.querySelector('.grid-container');
+            const grid = document.getElementById('grid');
+            
+            if (!container || !grid || !game.running) return;
+            
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
+            
+            // Calculate optimal cell size
+            const maxCellSize = Math.min(
+                Math.floor(containerWidth / game.gridSize),
+                Math.floor(containerHeight / game.gridSize),
+                40
+            );
+            
+            game.cellSize = Math.max(25, maxCellSize);
+            const gridTotalSize = game.cellSize * game.gridSize;
+            
+            // Update grid dimensions
+            grid.style.gridTemplateColumns = `repeat(${game.gridSize}, ${game.cellSize}px)`;
+            grid.style.gridTemplateRows = `repeat(${game.gridSize}, ${game.cellSize}px)`;
+            grid.style.width = `${gridTotalSize}px`;
+            grid.style.height = `${gridTotalSize}px`;
+            
+            // Update clue dimensions to match
+            updateClueDimensions();
+        }
+        
+        // Start everything
+        window.onload = init;
+    </script>
+</body>
+</html>
