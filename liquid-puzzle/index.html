@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Liquid Physics Puzzle</title>
+<style>
+:root {
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #181818;
+  --bg-card: #202020;
+  --accent-primary: #4d9fff;
+  --accent-secondary: #a855f7;
+  --accent-success: #10b981;
+  --accent-warning: #fbbf24;
+  --accent-danger: #ef4444;
+  --text-primary: #f5f5f5;
+  --text-secondary: #a1a1aa;
+  --shadow: rgba(0, 0, 0, 0.6);
+  --tube-width: 60px;
+  --tube-height: 200px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(to bottom, var(--bg-primary), var(--bg-secondary));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  overflow: hidden;
+  user-select: none;
+  color: var(--text-primary);
+  touch-action: manipulation;
+}
+
+header {
+  text-align: center;
+  padding: 12px 0;
+  width: 100%;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  box-shadow: 0 4px 15px var(--shadow);
+  z-index: 100;
+  position: relative;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-shadow: 0 2px 4px rgba(0,0,0,0.4);
+}
+
+header p {
+  margin: 6px 0 0;
+  font-size: 0.9rem;
+  color: rgba(255,255,255,0.95);
+  font-weight: 400;
+}
+
+#ui {
+  width: 95%;
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  margin: 12px 0;
+  background-color: var(--bg-card);
+  border-radius: 20px;
+  box-shadow: 0 6px 15px var(--shadow);
+  z-index: 10;
+}
+
+.level-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+#moves-counter {
+  background-color: var(--bg-secondary);
+  padding: 10px 18px;
+  border-radius: 25px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+#level-counter {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  padding: 10px 18px;
+  border-radius: 25px;
+  font-weight: 600;
+  color: white;
+  font-size: 1rem;
+}
+
+.button-group {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+button {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: white;
+  border: none;
+  border-radius: 15px;
+  padding: 14px 0;
+  font-size: 1rem;
+  font-weight: 600;
+  box-shadow: 0 4px 10px var(--shadow);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 48px;
+}
+
+button:hover, button:active {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 15px var(--shadow);
+}
+
+button:active {
+  transform: translateY(0);
+}
+
+#hintBtn {
+  background: linear-gradient(135deg, var(--accent-warning), #f59e0b);
+}
+
+#autoSolveBtn {
+  background: linear-gradient(135deg, var(--accent-success), #059669);
+}
+
+#newGameBtn {
+  background: linear-gradient(135deg, var(--accent-primary), #3b82f6);
+}
+
+#levelSelectBtn {
+  background: linear-gradient(135deg, var(--accent-secondary), #9333ea);
+}
+
+#gameContainer {
+  position: relative;
+  width: 100%;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  min-height: 60vh;
+  padding: 0;
+}
+
+canvas {
+  border-radius: 20px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+  background-color: var(--bg-card);
+  width: 100% !important;
+  max-height: 90vh;
+}
+
+.loader {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  color: white;
+  font-size: 1.1rem;
+  border-radius: 20px;
+}
+
+.loader::after {
+  content: "";
+  width: 45px;
+  height: 45px;
+  border: 5px solid #fff;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-top: 18px;
+}
+
+@keyframes spin { 
+  to { transform: rotate(360deg); } 
+}
+
+.instructions {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--bg-card);
+  padding: 12px 18px;
+  border-radius: 15px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  box-shadow: 0 3px 10px var(--shadow);
+  max-width: 90%;
+  width: auto;
+}
+
+.win-message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(135deg, var(--accent-success), #059669);
+  color: white;
+  padding: 25px 35px;
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+  z-index: 100;
+  animation: popIn 0.6s ease-out;
+  max-width: 85%;
+}
+
+@keyframes popIn {
+  0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+.win-message h2 {
+  margin: 0 0 10px;
+  font-size: 1.6rem;
+}
+
+.win-message p {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.level-selector {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--bg-card);
+  padding: 25px;
+  border-radius: 20px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+  z-index: 100;
+  max-width: 90%;
+  width: 320px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.level-selector h2 {
+  margin-top: 0;
+  text-align: center;
+}
+
+.level-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.level-btn {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+
+.level-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 5px 10px rgba(0,0,0,0.4);
+}
+
+.level-btn.completed {
+  background: linear-gradient(135deg, var(--accent-success), #059669);
+}
+
+.level-btn.current {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+}
+
+.level-btn.locked {
+  background: #2a2a2a;
+  color: #4a4a4a;
+  cursor: not-allowed;
+}
+
+.close-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 1.4rem;
+  cursor: pointer;
+  width: 35px;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.close-btn:hover {
+  background: rgba(255,255,255,0.15);
+}
+
+.tube-highlight {
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.8); }
+  70% { box-shadow: 0 0 0 12px rgba(255, 255, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+}
+
+.dragging {
+  opacity: 0.85;
+  transform: scale(1.08);
+  z-index: 100;
+}
+
+/* Mobile-specific adjustments */
+@media (max-width: 480px) {
+  :root {
+    --tube-width: 70px;
+    --tube-height: 220px;
+  }
+  
+  header h1 {
+    font-size: 1.4rem;
+  }
+  
+  header p {
+    font-size: 0.85rem;
+  }
+  
+  #ui {
+    padding: 14px;
+    gap: 10px;
+  }
+  
+  button {
+    padding: 12px 0;
+    font-size: 0.9rem;
+  }
+  
+  .instructions {
+    font-size: 0.8rem;
+    padding: 10px 15px;
+  }
+  
+  .win-message {
+    padding: 20px 25px;
+  }
+  
+  .win-message h2 {
+    font-size: 1.4rem;
+  }
+  
+  .win-message p {
+    font-size: 1rem;
+  }
+  
+  .level-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  #gameContainer {
+    min-height: 65vh;
+  }
+}
+
+@media (max-height: 700px) {
+  header {
+    padding: 10px 0;
+  }
+  
+  header h1 {
+    font-size: 1.4rem;
+  }
+  
+  #ui {
+    margin: 6px 0;
+  }
+  
+  .instructions {
+    bottom: 6px;
+  }
+  
+  #gameContainer {
+    min-height: 55vh;
+  }
+}
+
+/* Desktop-specific adjustments */
+@media (min-width: 768px) {
+  :root {
+    --tube-width: 80px;
+    --tube-height: 240px;
+  }
+  
+  header h1 {
+    font-size: 2.2rem;
+  }
+  
+  header p {
+    font-size: 1.1rem;
+  }
+  
+  #ui {
+    max-width: 600px;
+  }
+  
+  .level-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+  
+  #gameContainer {
+    min-height: 70vh;
+  }
+}
+
+/* Prevent zoom on mobile */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Ensure no horizontal scroll */
+body {
+  overflow-x: hidden;
+}
+</style>
+</head>
+<body>
+  <header>
+    <h1>Liquid Physics Puzzle</h1>
+    <p>Sort the colored liquids until each tube contains only one color</p>
+  </header>
+  
+  <div id="ui">
+    <div class="level-info">
+      <div id="moves-counter">Moves: 0</div>
+      <div id="level-counter">Level: 1</div>
+    </div>
+    <div class="button-group">
+      <button id="newGameBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" fill="white"/>
+        </svg>
+        New Game
+      </button>
+      <button id="levelSelectBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10 2h4v4h-4zM4 6h4v4H4zM16 6h4v4h-4zM4 12h4v4H4zM16 12h4v4h-4zM10 16h4v4h-4z" fill="white"/>
+        </svg>
+        Levels
+      </button>
+      <button id="hintBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="white"/>
+        </svg>
+        Hint
+      </button>
+      <button id="autoSolveBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="white"/>
+        </svg>
+        Auto Solve
+      </button>
+    </div>
+  </div>
+  
+  <div id="gameContainer"></div>
+  
+  <div class="instructions">
+    Click or drag to move liquids between tubes
+  </div>
+  
+  <div id="loader" class="loader" style="display:none;">
+    Solving puzzle...
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+  <script>
+    // Game configuration with levels
+    const LEVELS = [
+      { numTubes: 6, colors: 4, difficulty: "Easy" },
+      { numTubes: 7, colors: 5, difficulty: "Easy" },
+      { numTubes: 8, colors: 6, difficulty: "Medium" },
+      { numTubes: 9, colors: 7, difficulty: "Medium" },
+      { numTubes: 10, colors: 8, difficulty: "Hard" },
+      { numTubes: 11, colors: 9, difficulty: "Hard" },
+      { numTubes: 12, colors: 10, difficulty: "Expert" },
+      { numTubes: 13, colors: 11, difficulty: "Expert" },
+      { numTubes: 14, colors: 12, difficulty: "Master" },
+      { numTubes: 15, colors: 13, difficulty: "Master" }
+    ];
+    
+    const COLORS_PALETTE = [
+      '#3a86ff', '#ef476f', '#ffd166', '#06d6a0', '#8338ec', 
+      '#fb5607', '#ff006e', '#ffbe0b', '#38b000', '#7209b7',
+      '#f15bb5', '#00bbf9', '#00f5d4', '#9b5de5', '#fee440'
+    ];
+    
+    let tubes = [];
+    let selectedTube = null;
+    let gameScene;
+    let animating = false;
+    let moves = 0;
+    let currentLevel = 0;
+    let completedLevels = new Set([0]);
+    let dragStartTube = null;
+    let isDragging = false;
+    let dragSprite = null;
+    let dragHighlight = null;
+    let currentDropHighlight = null;
+    let dropHighlightGraphic = null;
+    let lastMove = null;
+
+    const config = {
+      type: Phaser.AUTO,
+      width: window.innerWidth,
+      height: window.innerHeight,
+      parent: 'gameContainer',
+      backgroundColor: 'rgba(0,0,0,0)',
+      scene: { create, resize },
+      scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH
+      }
+    };
+    const game = new Phaser.Game(config);
+
+    function create() {
+      gameScene = this;
+      loadLevel(currentLevel);
+
+      document.getElementById('newGameBtn').onclick = () => { 
+        playSound('click'); 
+        moves = 0;
+        updateMovesCounter();
+        loadLevel(currentLevel); 
+      };
+      document.getElementById('hintBtn').onclick = () => { playSound('click'); showHint(); };
+      document.getElementById('autoSolveBtn').onclick = () => { playSound('click'); autoSolve(); };
+      document.getElementById('levelSelectBtn').onclick = () => { playSound('click'); showLevelSelector(); };
+      
+      updateMovesCounter();
+      updateLevelCounter();
+    }
+
+    function resize() {
+      this.scale.resize(window.innerWidth, window.innerHeight);
+      drawTubes();
+    }
+
+    function loadLevel(levelIndex) {
+      currentLevel = levelIndex;
+      const level = LEVELS[levelIndex];
+      generateTubes(level.numTubes, level.colors);
+      drawTubes();
+      updateLevelCounter();
+    }
+
+    function generateTubes(numTubes, numColors) {
+      tubes = [];
+      const colors = COLORS_PALETTE.slice(0, numColors);
+      const segments = [];
+      
+      for (let c of colors) {
+        for (let i = 0; i < 4; i++) {
+          segments.push(c);
+        }
+      }
+      
+      Phaser.Utils.Array.Shuffle(segments);
+      
+      for (let i = 0; i < numTubes; i++) {
+        tubes.push({segments: segments.splice(0, 4)});
+      }
+      
+      const emptyTubes = numTubes - colors.length;
+      for (let i = 0; i < emptyTubes; i++) {
+        tubes[numTubes - 1 - i].segments = [];
+      }
+    }
+
+    function getMaxPerRow() {
+      const width = window.innerWidth;
+      if (width < 480) return 4;
+      if (width < 768) return 5;
+      return 7;
+    }
+
+    function getTubePosition(index) {
+      const width = game.scale.width;
+      const height = game.scale.height;
+      const numTubes = tubes.length;
+      const tubeWidth = getTubeWidth();
+      const tubeHeight = getTubeHeight();
+      const maxPerRow = getMaxPerRow();
+      const rows = Math.ceil(numTubes / maxPerRow);
+      const rowSpacing = tubeHeight + 30;
+      const totalHeight = rows * rowSpacing - 20;
+      const baseY = (height - totalHeight) / 2 + tubeHeight / 2;
+
+      const row = Math.floor(index / maxPerRow);
+      const col = index % maxPerRow;
+      const tubesInRow = (row < rows - 1) ? maxPerRow : (numTubes % maxPerRow || maxPerRow);
+      const colSpacing = Math.max(10, (width - tubesInRow * tubeWidth) / (tubesInRow + 1));
+      const startX = colSpacing + tubeWidth / 2;
+      const x = startX + col * (tubeWidth + colSpacing);
+      const y = baseY + row * rowSpacing;
+
+      return { x, y };
+    }
+
+    function drawTubes() {
+      gameScene.children.removeAll();
+      tubes.forEach((tube, i) => {
+        const { x, y } = getTubePosition(i);
+        drawTube(x, y, tube.segments, i, selectedTube === i);
+      });
+    }
+
+    function drawTube(x, y, segments, index, highlight = false) {
+      const tubeWidth = getTubeWidth();
+      const tubeHeight = getTubeHeight();
+      
+      const g = gameScene.add.graphics();
+      g.lineStyle(4, 0xFFFFFF, 0.85);
+      g.strokeRoundedRect(x - tubeWidth/2, y - tubeHeight/2, tubeWidth, tubeHeight, 12);
+      
+      for (let j = 0; j < segments.length; j++) {
+        const color = Phaser.Display.Color.HexStringToColor(segments[j]).color;
+        g.fillStyle(color, 0.95);
+        const h = tubeHeight / 4;
+        const yPos = y + tubeHeight/2 - (j + 1) * h;
+        
+        if (j === segments.length - 1) {
+          g.fillRoundedRect(x - tubeWidth/2 + 3, yPos + 3, tubeWidth - 6, h - 6, 10);
+          
+          const highlightG = gameScene.add.graphics();
+          highlightG.fillStyle(0xFFFFFF, 0.25);
+          highlightG.fillRoundedRect(x - tubeWidth/2 + 5, yPos + 5, tubeWidth - 10, 10, 5);
+        } else {
+          g.fillRect(x - tubeWidth/2 + 3, yPos + 3, tubeWidth - 6, h - 6);
+        }
+      }
+      
+      if (highlight) {
+        const highlight = gameScene.add.graphics();
+        highlight.lineStyle(5, 0xFFD700, 0.95);
+        highlight.strokeRoundedRect(x - tubeWidth/2 - 5, y - tubeHeight/2 - 5, tubeWidth + 10, tubeHeight + 10, 15);
+      }
+      
+      const zone = gameScene.add.zone(x, y, tubeWidth + 20, tubeHeight + 20)
+        .setInteractive()
+        .setDepth(10)
+        .on('pointerdown', () => handleTubeClick(index));
+    }
+
+    function getTubeWidth() {
+      return window.innerWidth >= 768 ? 80 : 
+             window.innerWidth <= 480 ? 70 : 60;
+    }
+
+    function getTubeHeight() {
+      return window.innerWidth >= 768 ? 240 : 
+             window.innerWidth <= 480 ? 220 : 200;
+    }
+
+    function calculateDropTube(pointer) {
+      const tubeWidth = getTubeWidth();
+      const tubeHeight = getTubeHeight();
+      for (let i = 0; i < tubes.length; i++) {
+        const { x, y } = getTubePosition(i);
+        if (pointer.x >= x - tubeWidth / 2 && pointer.x <= x + tubeWidth / 2 &&
+            pointer.y >= y - tubeHeight / 2 && pointer.y <= y + tubeHeight / 2) {
+          return i;
+        }
+      }
+      return null;
+    }
+
+    function addHighlight(x, y, color = 0x00FF00, opacity = 0.7) {
+      const tubeWidth = getTubeWidth();
+      const tubeHeight = getTubeHeight();
+      const highlight = gameScene.add.graphics();
+      highlight.lineStyle(5, color, opacity);
+      highlight.strokeRoundedRect(x - tubeWidth/2 - 5, y - tubeHeight/2 - 5, tubeWidth + 10, tubeHeight + 10, 15);
+      return highlight;
+    }
+
+    async function handleTubeClick(i) {
+      if (animating) return;
+      playSound('click');
+      
+      if (tubes[i].segments.length > 0 && !isDragging) {
+        dragStartTube = i;
+        isDragging = true;
+        
+        const { x, y } = getTubePosition(i);
+        const color = tubes[i].segments[tubes[i].segments.length - 1];
+        const tubeWidth = getTubeWidth();
+        const tubeHeight = getTubeHeight(); // Added to fix undefined error
+        
+        dragSprite = gameScene.add.graphics();
+        dragSprite.fillStyle(Phaser.Display.Color.HexStringToColor(color).color, 0.95);
+        dragSprite.fillRoundedRect(x - tubeWidth/2, y - tubeHeight/2 - 30, tubeWidth, 30, 10);
+        
+        dragHighlight = gameScene.add.graphics();
+        dragHighlight.fillStyle(0xFFFFFF, 0.3);
+        dragHighlight.fillRoundedRect(x - tubeWidth/2 + 5, y - tubeHeight/2 - 25, tubeWidth - 10, 10, 5);
+        
+        gameScene.input.on('pointermove', handleDragMove);
+        gameScene.input.on('pointerup', handleDragEnd);
+        
+        return;
+      }
+      
+      if (selectedTube === null) {
+        selectedTube = i;
+      } else if (selectedTube === i) {
+        selectedTube = null;
+      } else {
+        const success = await pourLiquid(selectedTube, i, true);
+        if (success) {
+          moves++;
+          updateMovesCounter();
+        }
+        selectedTube = null;
+      }
+      drawTubes();
+    }
+
+    function handleDragMove(pointer) {
+      if (isDragging && dragSprite) {
+        const tubeWidth = getTubeWidth();
+        gameScene.tweens.add({
+          targets: dragSprite,
+          x: pointer.x - tubeWidth / 2,
+          y: pointer.y - 15,
+          duration: 50,
+          ease: 'Linear'
+        });
+        gameScene.tweens.add({
+          targets: dragHighlight,
+          x: pointer.x - tubeWidth / 2 + 5,
+          y: pointer.y - 10,
+          duration: 50,
+          ease: 'Linear'
+        });
+        
+        const newDrop = calculateDropTube(pointer);
+        if (newDrop !== currentDropHighlight) {
+          if (dropHighlightGraphic) {
+            dropHighlightGraphic.destroy();
+            dropHighlightGraphic = null;
+          }
+          currentDropHighlight = newDrop;
+          if (newDrop !== null && newDrop !== dragStartTube) {
+            const { x, y } = getTubePosition(newDrop);
+            dropHighlightGraphic = addHighlight(x, y);
+          }
+        }
+      }
+    }
+
+    async function handleDragEnd(pointer) {
+      if (!isDragging || dragStartTube === null) return;
+      
+      const dropTube = calculateDropTube(pointer);
+      
+      if (dragSprite) {
+        dragSprite.destroy();
+        dragSprite = null;
+      }
+      if (dragHighlight) {
+        dragHighlight.destroy();
+        dragHighlight = null;
+      }
+      if (dropHighlightGraphic) {
+        dropHighlightGraphic.destroy();
+        dropHighlightGraphic = null;
+      }
+      currentDropHighlight = null;
+      
+      gameScene.input.off('pointermove', handleDragMove);
+      gameScene.input.off('pointerup', handleDragEnd);
+      
+      if (dropTube !== null && dropTube !== dragStartTube) {
+        const success = await pourLiquid(dragStartTube, dropTube, true);
+        if (success) {
+          moves++;
+          updateMovesCounter();
+        }
+      }
+      
+      isDragging = false;
+      dragStartTube = null;
+      drawTubes();
+    }
+
+    async function pourLiquid(from, to, animate = false) {
+      const src = tubes[from], dest = tubes[to];
+      if (src.segments.length === 0 || dest.segments.length === 4) return false;
+      const color = src.segments[src.segments.length - 1];
+      if (dest.segments.length > 0 && dest.segments[dest.segments.length - 1] !== color) return false;
+      
+      let moved = [];
+      while (src.segments.length > 0 && src.segments[src.segments.length - 1] === color && dest.segments.length < 4) {
+        moved.push(src.segments.pop());
+      }
+      
+      animating = true;
+      playSound('pour');
+      if (animate) {
+        await animatePour(from, to, color, moved.length);
+      }
+      for (let c of moved) dest.segments.push(c);
+      animating = false;
+      drawTubes();
+      
+      lastMove = [from, to];
+      
+      if (checkWin()) {
+        setTimeout(() => {
+          playSound('success'); 
+          showWinMessage();
+          completedLevels.add(currentLevel);
+          
+          setTimeout(() => {
+            if (currentLevel < LEVELS.length - 1) {
+              currentLevel++;
+              loadLevel(currentLevel);
+              moves = 0;
+              updateMovesCounter();
+            }
+          }, 2000);
+        }, 300); 
+      }
+      return true;
+    }
+
+    function checkWin() {
+      return tubes.every(t => t.segments.length === 0 || t.segments.every(c => c === t.segments[0]));
+    }
+
+    function findValidMove() {
+      let possibleMoves = [];
+      for (let i = 0; i < tubes.length; i++) {
+        for (let j = 0; j < tubes.length; j++) {
+          if (i !== j && isValidMove(tubes, i, j)) {
+            possibleMoves.push([i, j]);
+          }
+        }
+      }
+      if (possibleMoves.length === 0) return null;
+      
+      const reverse = lastMove ? [lastMove[1], lastMove[0]] : null;
+      const nonReverse = possibleMoves.filter(m => !reverse || (m[0] !== reverse[0] || m[1] !== reverse[1]));
+      return nonReverse.length > 0 ? Phaser.Utils.Array.GetRandom(nonReverse) : Phaser.Utils.Array.GetRandom(possibleMoves);
+    }
+
+    function showHint() {
+      const move = findValidMove();
+      if (move) {
+        drawTubes();
+        const tube1Pos = getTubePosition(move[0]);
+        const tube2Pos = getTubePosition(move[1]);
+        
+        const tube1 = addHighlight(tube1Pos.x, tube1Pos.y, 0xFFD700, 1);
+        const tube2 = addHighlight(tube2Pos.x, tube2Pos.y, 0xFFD700, 1);
+        
+        setTimeout(() => {
+          tube1.destroy();
+          tube2.destroy();
+          drawTubes();
+        }, 1500);
+      }
+    }
+
+    async function autoSolve() {
+      document.getElementById('loader').style.display = 'flex';
+      
+      const originalTubes = JSON.parse(JSON.stringify(tubes));
+      
+      const solutionMoves = findSolution(originalTubes);
+      
+      if (solutionMoves && solutionMoves.length > 0) {
+        tubes = JSON.parse(JSON.stringify(originalTubes));
+        drawTubes();
+        
+        for (let move of solutionMoves) {
+          await pourLiquid(move[0], move[1], true);
+          moves++;
+          updateMovesCounter();
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      } else {
+        alert("Could not find a solution within reasonable time.");
+      }
+      
+      document.getElementById('loader').style.display = 'none';
+    }
+
+    function findSolution(initialTubes) {
+      const visited = new Set();
+      const queue = [{ tubes: JSON.parse(JSON.stringify(initialTubes)), moves: [] }];
+      const maxStates = 200000; // Increased limit for Level 2
+      
+      while (queue.length > 0 && visited.size < maxStates) {
+        const current = queue.shift();
+        const stateKey = JSON.stringify(current.tubes);
+        
+        if (visited.has(stateKey)) continue;
+        visited.add(stateKey);
+        
+        if (isSolved(current.tubes)) {
+          return current.moves;
+        }
+        
+        for (let i = 0; i < current.tubes.length; i++) {
+          for (let j = 0; j < current.tubes.length; j++) {
+            if (i !== j && isValidMove(current.tubes, i, j)) {
+              const newTubes = JSON.parse(JSON.stringify(current.tubes));
+              performMove(newTubes, i, j);
+              if (!visited.has(JSON.stringify(newTubes))) {
+                queue.push({
+                  tubes: newTubes,
+                  moves: [...current.moves, [i, j]]
+                });
+              }
+            }
+          }
+        }
+      }
+      
+      return null;
+    }
+
+    function isValidMove(tubeState, from, to) {
+      const src = tubeState[from], dest = tubeState[to];
+      if (src.segments.length === 0 || dest.segments.length === 4) return false;
+      const color = src.segments[src.segments.length - 1];
+      if (dest.segments.length > 0 && dest.segments[dest.segments.length - 1] !== color) return false;
+      return true;
+    }
+
+    function performMove(tubeState, from, to) {
+      const src = tubeState[from], dest = tubeState[to];
+      const color = src.segments[src.segments.length - 1];
+      
+      let moved = [];
+      while (src.segments.length > 0 && src.segments[src.segments.length - 1] === color && dest.segments.length < 4) {
+        moved.push(src.segments.pop());
+      }
+      for (let c of moved.reverse()) dest.segments.push(c);
+    }
+
+    function isSolved(tubeState) {
+      return tubeState.every(t => t.segments.length === 0 || t.segments.every(c => c === t.segments[0]));
+    }
+
+    async function animatePour(from, to, color, count) {
+      const fromPos = getTubePosition(from);
+      const toPos = getTubePosition(to);
+      const x1 = fromPos.x;
+      const x2 = toPos.x;
+      const y1 = fromPos.y - getTubeHeight() / 2 + 30;
+      const y2 = toPos.y - getTubeHeight() / 2 + 30;
+      
+      const drops = [];
+      const dropCount = Math.min(4, count);
+      
+      for (let i = 0; i < dropCount; i++) {
+        const liquid = gameScene.add.graphics();
+        liquid.fillStyle(Phaser.Display.Color.HexStringToColor(color).color, 0.95);
+        
+        const dropWidth = getTubeWidth() - 10;
+        const dropHeight = 25;
+        liquid.fillRoundedRect(x1 - dropWidth/2, y1 - dropHeight/2 + i * 10, dropWidth, dropHeight, 12);
+        
+        const highlight = gameScene.add.graphics();
+        highlight.fillStyle(0xFFFFFF, 0.3);
+        highlight.fillEllipse(x1 - dropWidth/4, y1 - dropHeight/4 + i * 10, dropWidth/2, dropHeight/4);
+        
+        drops.push({liquid, highlight, delay: i * 80});
+      }
+      
+      for (let i = 0; i < drops.length; i++) {
+        const drop = drops[i];
+        await new Promise(resolve => {
+          setTimeout(() => {
+            gameScene.tweens.add({
+              targets: [drop.liquid, drop.highlight],
+              x: x2,
+              y: y2 + Math.abs(x2 - x1) * 0.2,
+              duration: 700,
+              ease: 'Cubic.easeInOut',
+              onComplete: () => {
+                drop.liquid.destroy();
+                drop.highlight.destroy();
+                resolve();
+              }
+            });
+          }, drop.delay);
+        });
+      }
+    }
+
+    function updateMovesCounter() {
+      document.getElementById('moves-counter').textContent = `Moves: ${moves}`;
+    }
+
+    function updateLevelCounter() {
+      document.getElementById('level-counter').textContent = `Level: ${currentLevel + 1}`;
+    }
+
+    function showWinMessage() {
+      const winMessage = document.createElement('div');
+      winMessage.className = 'win-message';
+      winMessage.innerHTML = `
+        <h2>🎉 Level ${currentLevel + 1} Complete!</h2>
+        <p>Completed in ${moves} moves</p>
+        ${currentLevel < LEVELS.length - 1 ? '<p>Advancing to next level...</p>' : '<p>You completed all levels!</p>'}
+      `;
+      document.body.appendChild(winMessage);
+      
+      setTimeout(() => {
+        winMessage.remove();
+      }, 3000);
+    }
+
+    function showLevelSelector() {
+      const levelSelector = document.createElement('div');
+      levelSelector.className = 'level-selector';
+      levelSelector.innerHTML = `
+        <h2>Select Level</h2>
+        <button class="close-btn">×</button>
+        <div class="level-grid"></div>
+      `;
+      
+      const grid = levelSelector.querySelector('.level-grid');
+      
+      for (let i = 0; i < LEVELS.length; i++) {
+        const levelBtn = document.createElement('div');
+        levelBtn.className = 'level-btn';
+        
+        if (completedLevels.has(i)) {
+          levelBtn.classList.add('completed');
+        } else if (i === currentLevel) {
+          levelBtn.classList.add('current');
+        } else if (i > Math.max(...Array.from(completedLevels)) + 1) {
+          levelBtn.classList.add('locked');
+        }
+        
+        levelBtn.textContent = i + 1;
+        levelBtn.onclick = () => {
+          if (!levelBtn.classList.contains('locked')) {
+            playSound('click');
+            moves = 0;
+            updateMovesCounter();
+            loadLevel(i);
+            document.body.removeChild(levelSelector);
+          }
+        };
+        
+        grid.appendChild(levelBtn);
+      }
+      
+      levelSelector.querySelector('.close-btn').onclick = () => {
+        playSound('click');
+        document.body.removeChild(levelSelector);
+      };
+      
+      document.body.appendChild(levelSelector);
+    }
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playSound(type) {
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.connect(g).connect(audioCtx.destination);
+      g.gain.setValueAtTime(0.12, audioCtx.currentTime);
+      
+      if (type === 'click') {
+        o.frequency.value = 880;
+        o.type = 'sine';
+      }
+      if (type === 'pour') {
+        o.frequency.value = 660;
+        o.type = 'sine';
+      }
+      if (type === 'success') {
+        o.frequency.value = 523.25;
+        const g2 = audioCtx.createGain();
+        o.connect(g2);
+        g2.connect(audioCtx.destination);
+        g2.gain.setValueAtTime(0, audioCtx.currentTime);
+        g2.gain.linearRampToValueAtTime(0.12, audioCtx.currentTime + 0.12);
+        g2.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.6);
+        
+        o.start();
+        o.stop(audioCtx.currentTime + 0.6);
+        return;
+      }
+      
+      o.start();
+      o.stop(audioCtx.currentTime + 0.12);
+    }
+  </script>
+</body>
+</html>
