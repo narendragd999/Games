@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Space Runner Game - Responsive</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        
+        /* Ensure body and html take up the full, exact viewport size */
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden; /* Prevent ALL scrolling */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        
+        #game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100vw; 
+            height: 100vh; 
+            padding: 0; 
+        }
+        
+        #top-header-ui {
+            width: 100%;
+            background-color: #0d1117;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between; 
+            align-items: center;
+            border-bottom: 1px solid #30363d;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+        }
+        
+        #gameCanvas {
+            background-color: #010409;
+            box-shadow: 0 0 20px rgba(88, 166, 255, 0.5), inset 0 0 10px rgba(88, 166, 255, 0.2);
+            width: 100%;
+            flex-grow: 1; /* Allows canvas to take up all remaining vertical space */
+            border: none;
+            border-radius: 0; 
+            touch-action: none; 
+        }
+        
+        .ui-card {
+            background: #161b22;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+            border: 1px solid #30363d;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            font-weight: 700;
+            border-radius: 6px;
+            transition: all 0.2s;
+            background-image: linear-gradient(to right, #30363d, #161b22);
+            border: 2px solid #58a6ff;
+            color: #c9d1d9;
+            box-shadow: 0 2px 8px rgba(88, 166, 255, 0.3);
+            cursor: pointer;
+            font-size: 0.875rem; 
+        }
+        .btn:hover {
+            background-image: linear-gradient(to right, #30363d, #2c3138);
+            transform: translateY(-1px);
+        }
+        .btn:active {
+            box-shadow: 0 1px 4px rgba(88, 166, 255, 0.3);
+            transform: translateY(1px);
+        }
+        .text-neon-blue { color: #58a6ff; }
+        .text-neon-green { color: #4ade80; } 
+        
+        /* Message Box Styling */
+        #message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+
+        /* Desktop Layout (For larger screens, apply max-width and border) */
+        @media (min-width: 768px) {
+            #game-container {
+                max-width: 900px; 
+                height: 100vh;
+                padding: 10px;
+            }
+            #gameCanvas {
+                aspect-ratio: 16 / 9; 
+                flex-grow: 0;
+                height: auto;
+                border-radius: 12px;
+                border: 4px solid #4a4e52;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- Top Header UI: Title, Score, and Start Button -->
+        <div id="top-header-ui">
+            <h1 class="text-xl font-extrabold text-neon-blue">Space Runner 🚀</h1>
+            <span class="text-xl font-bold">स्कोर: <span id="current-score" class="text-neon-green">0</span></span>
+            <button id="start-button" class="btn">START</button>
+        </div>
+        
+        <canvas id="gameCanvas"></canvas>
+        
+        <!-- Message Box for game over/start state -->
+        <div id="message-box" class="hidden ui-card p-6">
+            <h3 id="message-title" class="text-2xl font-bold text-neon-blue mb-3">आपका स्वागत है!</h3>
+            <p id="message-text" class="mb-4">दौड़ शुरू करने के लिए START दबाएँ।</p>
+            <button id="message-button" class="btn">बंद करें (Close)</button>
+        </div>
+    </div>
+    
+    <script>
+        // --- UTILITIES & GRAPHICS CLASSES ---
+
+        /**
+         * Draws a rounded rectangle path.
+         * @param {CanvasRenderingContext2D} ctx 
+         * @param {number} x 
+         * @param {number} y 
+         * @param {number} w 
+         * @param {number} h 
+         * @param {number} r radius
+         */
+        function roundRect(ctx, x, y, w, h, r) {
+            if (w < 2 * r) r = w / 2;
+            if (h < 2 * r) r = h / 2;
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.arcTo(x + w, y, x + w, y + h, r);
+            ctx.arcTo(x + w, y + h, x, y + h, r);
+            ctx.arcTo(x, y + h, x, y, r);
+            ctx.arcTo(x, y, x + w, y, r);
+            ctx.closePath();
+        }
+
+        class Star {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.reset();
+                this.x = Math.random() * canvas.width; 
+            }
+            
+            reset() {
+                this.x = this.canvas.width; 
+                // Adjusted star field Y boundary (needs to respect new ground)
+                const groundClearance = 100; // Match new ground height
+                this.y = Math.random() * (this.canvas.height - groundClearance); 
+                this.size = Math.random() * 1.5 + 0.5;
+                this.opacity = Math.random() * 0.8 + 0.2;
+                this.speed = Math.random() * 0.8 + 0.5;
+            }
+
+            update(gameSpeed) {
+                this.x -= this.speed * gameSpeed / 5; 
+                if (this.x < 0) {
+                    this.reset();
+                }
+            }
+
+            draw(ctx) {
+                ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+
+        // --- CANVAS AND GAME SETUP ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const startButton = document.getElementById('start-button');
+        
+        const GROUND_CLEARANCE = 100; // New constant for 100px lift
+
+        // Dynamic resizing for responsiveness
+        function resizeCanvas() {
+            // This reads the size calculated by CSS (100% of container)
+            canvas.width = canvas.clientWidth; 
+            canvas.height = canvas.clientHeight;
+
+            // Crucial: Recalculate player ground position after resize
+            if (window.gameInstance && window.gameInstance.player) {
+                 const player = window.gameInstance.player;
+                 // *** UPDATED: Ground clearance set to 100px ***
+                 const groundLevel = canvas.height - player.height - GROUND_CLEARANCE; 
+                 // Only adjust Y position if the player is currently on the ground (or near it)
+                 if (!player.isJumping) {
+                     player.y = groundLevel;
+                 }
+                 // Reset star positions for new dimensions
+                 window.gameInstance.initStars(50);
+            }
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('load', resizeCanvas);
+
+
+        class Player {
+            constructor(ctx, canvas) {
+                this.ctx = ctx;
+                this.canvas = canvas;
+                // Increased minimum size for better visibility on small screens
+                this.width = 35; 
+                this.height = 70; 
+                this.x = 50;
+                
+                // *** UPDATED: Ground clearance set to 100px ***
+                this.groundLevel = () => this.canvas.height - this.height - GROUND_CLEARANCE;
+                this.y = this.groundLevel(); 
+                this.velocityY = 0;
+                this.gravity = 1.5;
+                this.jumpStrength = -25;
+                this.isJumping = false;
+                
+                this.color = '#4ADE80'; // Neon Green Base
+            }
+
+            jump() {
+                if (!this.isJumping) {
+                    this.velocityY = this.jumpStrength;
+                    this.isJumping = true;
+                }
+            }
+
+            update() {
+                this.velocityY += this.gravity;
+                this.y += this.velocityY;
+
+                const ground = this.groundLevel();
+
+                if (this.y >= ground) {
+                    this.y = ground;
+                    this.velocityY = 0;
+                    this.isJumping = false;
+                }
+            }
+
+            draw() {
+                this.ctx.save();
+                
+                const bodyColor = this.isJumping ? '#58A6FF' : this.color; 
+                const glowColor = this.isJumping ? 'rgba(88, 166, 255, 1)' : 'rgba(74, 214, 131, 1)';
+                
+                // 1. Neon Glow Effect
+                this.ctx.shadowBlur = 15;
+                this.ctx.shadowColor = glowColor;
+
+                // 2. Body (Rounded Rectangle/Pod)
+                const radius = 5;
+                
+                const gradient = this.ctx.createLinearGradient(0, this.y, 0, this.y + this.height);
+                gradient.addColorStop(0, bodyColor);
+                gradient.addColorStop(1, '#15803D');
+                this.ctx.fillStyle = gradient;
+
+                roundRect(this.ctx, this.x, this.y, this.width, this.height, radius);
+                this.ctx.fill();
+
+                // 3. Thruster Effect 
+                if (this.velocityY >= 0 || this.isJumping === false) {
+                    const exhaustLength = 10;
+                    
+                    this.ctx.shadowBlur = 8;
+                    this.ctx.shadowColor = '#FFC0CB'; 
+
+                    this.ctx.fillStyle = '#FFC0CB';
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(this.x, this.y + this.height / 2 - 5);
+                    this.ctx.lineTo(this.x - exhaustLength, this.y + this.height / 2);
+                    this.ctx.lineTo(this.x, this.y + this.height / 2 + 5);
+                    this.ctx.closePath();
+                    this.ctx.fill();
+                }
+
+                this.ctx.restore();
+            }
+        }
+
+        class Obstacle {
+            constructor(ctx, canvas, speed) {
+                this.ctx = ctx;
+                this.canvas = canvas;
+                // Adjusted obstacle size for better visibility
+                this.width = Math.random() * 25 + 25; // Min 25 to max 50
+                this.height = Math.random() * 40 + 40; // Min 40 to max 80
+                this.x = this.canvas.width;
+                // *** UPDATED: Ground clearance set to 100px ***
+                this.y = this.canvas.height - this.height - GROUND_CLEARANCE; 
+                this.color = '#EF4444'; 
+                this.speed = speed; 
+            }
+
+            update() {
+                this.x -= this.speed;
+            }
+
+            draw() {
+                const radius = 5; 
+                this.ctx.save();
+                
+                this.ctx.shadowBlur = 12;
+                this.ctx.shadowColor = this.color; 
+
+                this.ctx.fillStyle = '#C53030'; 
+                roundRect(this.ctx, this.x, this.y, this.width, this.height, radius);
+                this.ctx.fill();
+                
+                this.ctx.restore();
+            }
+
+            isOffScreen() {
+                return this.x + this.width < 0;
+            }
+        }
+
+        class Game {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.player = null; 
+                this.obstacles = [];
+                this.score = 0; 
+                this.gameSpeed = 8;
+                this.isGameOver = true;
+                this.animationFrameId = null;
+                
+                this.lastObstacleTime = 0;
+                this.baseObstacleInterval = 3000; 
+                this.nextObstacleInterval = 3000; 
+                
+                this.obstaclesToSpawn = 0;
+                this.consecutiveSpawnInterval = 1500; 
+                
+                this.stars = [];
+                this.initStars(50);
+                this.groundScrollOffset = 0; 
+
+                // Attach handlers
+                this.canvas.addEventListener('click', this.handleInput.bind(this));
+                this.canvas.addEventListener('touchstart', this.handleInput.bind(this));
+                document.addEventListener('keydown', this.handleInput.bind(this));
+                
+                startButton.addEventListener('click', () => this.start());
+
+                window.gameInstance = this; 
+            }
+
+            initStars(count) {
+                // Regenerate stars completely to fit new dimensions
+                this.stars = [];
+                for (let i = 0; i < count; i++) {
+                    this.stars.push(new Star(this.canvas));
+                }
+            }
+
+            handleInput(e) {
+                if (e.code === 'Space' || e.type === 'touchstart' || e.type === 'click') {
+                    e.preventDefault(); 
+                }
+
+                if (this.isGameOver) {
+                    if (e.code === 'Space' || e.type === 'click' || e.type === 'touchstart') {
+                         this.start();
+                    }
+                } else {
+                    if (e.code === 'Space' || e.type === 'click' || e.type === 'touchstart') {
+                        this.player.jump();
+                    }
+                }
+            }
+
+            reset() {
+                this.score = 0;
+                this.gameSpeed = 8;
+                this.obstacles = [];
+                resizeCanvas(); 
+                // Initialize player *after* resizing to ensure correct ground position
+                this.player = new Player(this.ctx, this.canvas);
+                this.baseObstacleInterval = 1500;
+                this.nextObstacleInterval = 1500;
+                this.obstaclesToSpawn = 0; 
+                document.getElementById('current-score').textContent = '0';
+                this.groundScrollOffset = 0;
+            }
+
+            start() {
+                if (!this.isGameOver) return;
+                
+                this.isGameOver = false;
+                this.reset();
+                this.lastObstacleTime = performance.now();
+                this.hideMessage();
+                this.loop();
+            }
+
+            drawGround() {
+                // *** UPDATED: Ground height set to 100px ***
+                const groundHeight = GROUND_CLEARANCE; 
+                const groundY = this.canvas.height - groundHeight;
+                const segmentWidth = 50;
+                const segmentGap = 10;
+                const totalSegmentLength = segmentWidth + segmentGap;
+                const lineThickness = 2;
+                
+                this.groundScrollOffset = (this.groundScrollOffset + this.gameSpeed) % totalSegmentLength;
+
+                this.ctx.save();
+                this.ctx.shadowBlur = 10;
+                this.ctx.shadowColor = '#FF9900'; 
+
+                this.ctx.strokeStyle = '#FF9900';
+                this.ctx.lineWidth = lineThickness;
+                
+                for (let i = 0; i < this.canvas.width / totalSegmentLength + 2; i++) {
+                    const startX = (i * totalSegmentLength) - this.groundScrollOffset;
+                    
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(startX, groundY);
+                    this.ctx.lineTo(startX + segmentWidth, groundY);
+                    this.ctx.stroke();
+                }
+
+                this.ctx.fillStyle = '#4a4e52';
+                this.ctx.fillRect(0, groundY, this.canvas.width, groundHeight);
+                
+                this.ctx.restore();
+            }
+
+
+            loop(timestamp) {
+                if (this.isGameOver) {
+                    cancelAnimationFrame(this.animationFrameId);
+                    return;
+                }
+
+                this.animationFrameId = requestAnimationFrame(this.loop.bind(this));
+
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // 1. Draw Star field
+                this.stars.forEach(star => {
+                    star.update(this.gameSpeed);
+                    star.draw(this.ctx);
+                });
+                
+                // 2. Draw Ground
+                this.drawGround();
+
+                // 3. Update and Draw Player
+                this.player.update();
+                this.player.draw();
+
+                // 4. Obstacle Generation Logic 
+                if (timestamp - this.lastObstacleTime > this.nextObstacleInterval) {
+                    
+                    const minSpeed = this.gameSpeed;
+                    const maxSpeed = this.gameSpeed + 2; 
+                    const obstacleSpeed = Math.random() * (maxSpeed - minSpeed) + minSpeed;
+
+                    this.obstacles.push(new Obstacle(this.ctx, this.canvas, obstacleSpeed));
+                    this.lastObstacleTime = timestamp;
+
+                    const scoreFactor = Math.floor(this.score / 100);
+                    this.baseObstacleInterval = Math.max(700, 1500 - scoreFactor * 5); 
+
+                    if (this.obstaclesToSpawn > 0) {
+                        this.obstaclesToSpawn--;
+                        this.nextObstacleInterval = this.consecutiveSpawnInterval; 
+                        
+                        if (this.obstaclesToSpawn === 0) {
+                            this.nextObstacleInterval = this.baseObstacleInterval * 2.5; 
+                        }
+                        
+                    } else {
+                        if (Math.random() < 0.10 && Math.floor(this.score / 10) > 20) { 
+                            this.obstaclesToSpawn = Math.random() < 0.5 ? 2 : 3;
+                            this.nextObstacleInterval = this.consecutiveSpawnInterval; 
+
+                        } else {
+                            const minInterval = this.baseObstacleInterval;
+                            const maxInterval = this.baseObstacleInterval * 1.8; 
+                            this.nextObstacleInterval = Math.random() * (maxInterval - minInterval) + minInterval;
+                        }
+                    }
+                }
+
+                // 5. Update and Draw Obstacles
+                for (let i = 0; i < this.obstacles.length; i++) {
+                    const obstacle = this.obstacles[i];
+                    obstacle.update();
+                    obstacle.draw();
+
+                    // Collision detection
+                    if (this.checkCollision(this.player, obstacle)) {
+                        this.gameOver();
+                        return;
+                    }
+                }
+
+                // Remove off-screen obstacles
+                this.obstacles = this.obstacles.filter(o => !o.isOffScreen());
+
+                // 6. Update Internal Score and Speed
+                this.score++;
+                const displayedScore = Math.floor(this.score / 10);
+                document.getElementById('current-score').textContent = displayedScore.toString(); 
+                this.gameSpeed = 8 + Math.floor(this.score / 500) * 0.5;
+            }
+
+            checkCollision(player, obstacle) {
+                return (
+                    player.x < obstacle.x + obstacle.width &&
+                    player.x + player.width > obstacle.x &&
+                    player.y < obstacle.y + obstacle.height &&
+                    player.y + player.height > obstacle.y
+                );
+            }
+
+            gameOver() {
+                this.isGameOver = true;
+                cancelAnimationFrame(this.animationFrameId);
+                
+                const finalScore = Math.floor(this.score / 10); 
+                
+                this.showMessage(`खेल खत्म! (Game Over!)`, `आपका अंतिम स्कोर: ${finalScore} pts`, 'फिर से खेलें (PLAY AGAIN)', () => this.start());
+            }
+
+            showMessage(title, text, buttonText, buttonAction) {
+                const msgBox = document.getElementById('message-box');
+                document.getElementById('message-title').textContent = title;
+                document.getElementById('message-text').textContent = text;
+                const msgButton = document.getElementById('message-button');
+                msgButton.textContent = buttonText;
+                
+                const newButton = msgButton.cloneNode(true);
+                msgButton.parentNode.replaceChild(newButton, msgButton);
+                
+                newButton.addEventListener('click', () => {
+                    msgBox.classList.add('hidden');
+                    if (buttonAction) buttonAction();
+                });
+                
+                msgBox.classList.remove('hidden');
+            }
+
+            hideMessage() {
+                document.getElementById('message-box').classList.add('hidden');
+            }
+        }
+
+        // --- INITIALIZATION ---
+        window.onload = function() {
+            // Initial call to set the canvas dimensions correctly
+            resizeCanvas(); 
+            const game = new Game(canvas);
+            
+            game.showMessage(
+                "Space Runner में आपका स्वागत है!", 
+                "कूदने के लिए स्क्रीन पर टैप करें। अब प्लेयर और बाधाएँ बड़ी दिखेंगी!", 
+                "गेम शुरू करें (START GAME)", 
+                () => game.start()
+            );
+        };
+    </script>
+</body>
+</html>
