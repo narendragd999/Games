@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Sokoban Game</title>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+}
+
+.container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
+  overflow: hidden;
+}
+
+.header {
+  text-align: center;
+  color: white;
+  margin-bottom: 10px;
+}
+
+.header h1 {
+  font-size: 24px;
+  margin-bottom: 5px;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.stats {
+  display: flex;
+  justify-content: space-around;
+  background: rgba(255,255,255,0.2);
+  padding: 8px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  backdrop-filter: blur(10px);
+}
+
+.stat {
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.game-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+#gameCanvas {
+  background: rgba(255,255,255,0.9);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  max-width: 100%;
+  max-height: 100%;
+  touch-action: none;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+  max-width: 300px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.control-btn {
+  background: rgba(255,255,255,0.9);
+  border: none;
+  padding: 15px;
+  border-radius: 10px;
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  transition: all 0.1s;
+  touch-action: manipulation;
+}
+
+.control-btn:active {
+  transform: scale(0.95);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.control-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.action-btn {
+  background: rgba(255,255,255,0.9);
+  border: none;
+  padding: 10px 15px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  transition: all 0.1s;
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+
+.action-btn:active {
+  transform: scale(0.95);
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.7);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal.active {
+  display: flex;
+}
+
+.modal-content {
+  background: white;
+  padding: 20px;
+  border-radius: 15px;
+  max-width: 400px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+.modal-content h2 {
+  margin-bottom: 15px;
+  color: #667eea;
+}
+
+.modal-content p {
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+
+.close-btn {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 15px;
+  width: 100%;
+  font-weight: bold;
+}
+
+.message {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  padding: 20px 30px;
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  z-index: 999;
+  display: none;
+  text-align: center;
+  font-weight: bold;
+  color: #667eea;
+}
+
+.empty-space {
+  grid-column: 1;
+  grid-row: 1;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>🎮 Sokoban</h1>
+  </div>
+
+  <div class="stats">
+    <div class="stat">Level: <span id="level">1</span></div>
+    <div class="stat">Moves: <span id="moves">0</span></div>
+    <div class="stat">Best: <span id="best">-</span></div>
+  </div>
+
+  <div class="game-area">
+    <canvas id="gameCanvas"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="empty-space"></div>
+    <button class="control-btn" id="upBtn">⬆️</button>
+    <div></div>
+    <button class="control-btn" id="leftBtn">⬅️</button>
+    <button class="control-btn" id="downBtn">⬇️</button>
+    <button class="control-btn" id="rightBtn">➡️</button>
+  </div>
+
+  <div class="action-buttons">
+    <button class="action-btn" id="undoBtn">↩️ Undo</button>
+    <button class="action-btn" id="restartBtn">🔄 Restart</button>
+    <button class="action-btn" id="hintBtn">💡 Hint</button>
+    <button class="action-btn" id="checkBtn">✓ Check</button>
+    <button class="action-btn" id="solveBtn">🤖 Solve</button>
+    <button class="action-btn" id="nextBtn">➡️ Next</button>
+    <button class="action-btn" id="helpBtn">❓ Help</button>
+  </div>
+</div>
+
+<div class="modal" id="helpModal">
+  <div class="modal-content">
+    <h2>How to Play Sokoban</h2>
+    <p><strong>Goal:</strong> Push all boxes 📦 onto target locations ⭐</p>
+    <p><strong>Rules:</strong></p>
+    <p>• Move the player 🚶 with arrow buttons or swipe</p>
+    <p>• Push boxes onto targets (one at a time)</p>
+    <p>• You can't pull boxes, only push them</p>
+    <p>• You can't push more than one box at once</p>
+    <p>• Don't push boxes into corners or against walls!</p>
+    <p><strong>Buttons:</strong></p>
+    <p>• <strong>Undo:</strong> Take back your last move</p>
+    <p>• <strong>Restart:</strong> Start the level over</p>
+    <p>• <strong>Hint:</strong> Show one correct move</p>
+    <p>• <strong>Check:</strong> Verify if current state is solvable</p>
+    <p>• <strong>Solve:</strong> Watch the solution (3s delay)</p>
+    <p>• <strong>Next:</strong> Load a new random puzzle</p>
+    <button class="close-btn" id="closeHelp">Got it!</button>
+  </div>
+</div>
+
+<div class="message" id="message"></div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Game state
+let level = 1;
+let moves = 0;
+let bestMoves = {};
+let currentLevel = null;
+let history = [];
+let solving = false;
+
+// Levels
+const levels = [
+  {
+    grid: [
+      ['#','#','#','#','#','#','#'],
+      ['#',' ',' ',' ',' ',' ','#'],
+      ['#',' ','B',' ','T',' ','#'],
+      ['#',' ',' ','P',' ',' ','#'],
+      ['#',' ','T',' ','B',' ','#'],
+      ['#',' ',' ',' ',' ',' ','#'],
+      ['#','#','#','#','#','#','#']
+    ]
+  },
+  {
+    grid: [
+      ['#','#','#','#','#','#','#','#'],
+      ['#',' ',' ',' ',' ',' ',' ','#'],
+      ['#',' ','B','B',' ',' ',' ','#'],
+      ['#',' ',' ','P',' ','T','T','#'],
+      ['#',' ',' ',' ',' ',' ',' ','#'],
+      ['#','#','#','#','#','#','#','#']
+    ]
+  },
+  {
+    grid: [
+      ['#','#','#','#','#','#','#','#'],
+      ['#','T',' ',' ',' ',' ','T','#'],
+      ['#',' ','#','#','#','#',' ','#'],
+      ['#',' ','#','P',' ',' ',' ','#'],
+      ['#',' ',' ',' ','B','B',' ','#'],
+      ['#',' ','#',' ',' ','#',' ','#'],
+      ['#','T',' ',' ',' ',' ','T','#'],
+      ['#','#','#','#','#','#','#','#']
+    ]
+  }
+];
+
+// Initialize
+function init() {
+  loadLevel(0);
+  setupControls();
+  setupTouch();
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+}
+
+function loadLevel(idx) {
+  currentLevel = JSON.parse(JSON.stringify(levels[idx % levels.length]));
+  moves = 0;
+  history = [];
+  solving = false;
+  updateStats();
+  draw();
+}
+
+function resizeCanvas() {
+  const container = document.querySelector('.game-area');
+  const rect = container.getBoundingClientRect();
+  const maxSize = Math.min(rect.width - 20, rect.height - 20, 500);
+  canvas.width = maxSize;
+  canvas.height = maxSize;
+  draw();
+}
+
+function draw() {
+  const grid = currentLevel.grid;
+  const rows = grid.length;
+  const cols = grid[0].length;
+  const cellSize = Math.min(canvas.width / cols, canvas.height / rows);
+  
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x = c * cellSize;
+      const y = r * cellSize;
+      const cell = grid[r][c];
+      
+      // Background
+      if (cell === '#') {
+        ctx.fillStyle = '#444';
+        ctx.fillRect(x, y, cellSize, cellSize);
+      } else {
+        ctx.fillStyle = '#f0f0f0';
+        ctx.fillRect(x, y, cellSize, cellSize);
+      }
+      
+      // Target
+      if (cell === 'T' || cell === 'X' || cell === 'O') {
+        ctx.fillStyle = '#ffd700';
+        ctx.beginPath();
+        ctx.arc(x + cellSize/2, y + cellSize/2, cellSize/3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      // Box
+      if (cell === 'B' || cell === 'X') {
+        ctx.fillStyle = cell === 'X' ? '#4CAF50' : '#8B4513';
+        ctx.fillRect(x + cellSize*0.2, y + cellSize*0.2, cellSize*0.6, cellSize*0.6);
+        ctx.strokeStyle = '#654321';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x + cellSize*0.2, y + cellSize*0.2, cellSize*0.6, cellSize*0.6);
+      }
+      
+      // Player
+      if (cell === 'P' || cell === 'O') {
+        ctx.fillStyle = '#2196F3';
+        ctx.beginPath();
+        ctx.arc(x + cellSize/2, y + cellSize/2, cellSize/3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(x + cellSize/2 - cellSize/10, y + cellSize/2 - cellSize/10, cellSize/10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x + cellSize/2 + cellSize/10, y + cellSize/2 - cellSize/10, cellSize/10, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+}
+
+function findPlayer() {
+  for (let r = 0; r < currentLevel.grid.length; r++) {
+    for (let c = 0; c < currentLevel.grid[0].length; c++) {
+      if (currentLevel.grid[r][c] === 'P' || currentLevel.grid[r][c] === 'O') {
+        return {r, c};
+      }
+    }
+  }
+  return null;
+}
+
+function move(dr, dc) {
+  if (solving) return;
+  
+  const player = findPlayer();
+  if (!player) return;
+  
+  const newR = player.r + dr;
+  const newC = player.c + dc;
+  const grid = currentLevel.grid;
+  
+  if (newR < 0 || newR >= grid.length || newC < 0 || newC >= grid[0].length) return;
+  
+  const target = grid[newR][newC];
+  
+  // Wall
+  if (target === '#') {
+    playSound('error');
+    return;
+  }
+  
+  // Empty or target
+  if (target === ' ' || target === 'T') {
+    history.push(JSON.parse(JSON.stringify(grid)));
+    grid[player.r][player.c] = grid[player.r][player.c] === 'O' ? 'T' : ' ';
+    grid[newR][newC] = target === 'T' ? 'O' : 'P';
+    moves++;
+    playSound('move');
+  }
+  // Box
+  else if (target === 'B' || target === 'X') {
+    const boxNewR = newR + dr;
+    const boxNewC = newC + dc;
+    
+    if (boxNewR < 0 || boxNewR >= grid.length || boxNewC < 0 || boxNewC >= grid[0].length) return;
+    
+    const boxTarget = grid[boxNewR][boxNewC];
+    
+    if (boxTarget === ' ' || boxTarget === 'T') {
+      history.push(JSON.parse(JSON.stringify(grid)));
+      grid[player.r][player.c] = grid[player.r][player.c] === 'O' ? 'T' : ' ';
+      grid[newR][newC] = target === 'X' ? 'O' : 'P';
+      grid[boxNewR][boxNewC] = boxTarget === 'T' ? 'X' : 'B';
+      moves++;
+      playSound('push');
+    } else {
+      playSound('error');
+      return;
+    }
+  }
+  
+  updateStats();
+  draw();
+  
+  if (checkWin()) {
+    setTimeout(() => {
+      showMessage('🎉 Level Complete! 🎉');
+      playSound('win');
+      if (!bestMoves[level] || moves < bestMoves[level]) {
+        bestMoves[level] = moves;
+      }
+      setTimeout(() => {
+        level++;
+        loadLevel(level - 1);
+      }, 2000);
+    }, 100);
+  }
+}
+
+function checkWin() {
+  const grid = currentLevel.grid;
+  for (let r = 0; r < grid.length; r++) {
+    for (let c = 0; c < grid[0].length; c++) {
+      if (grid[r][c] === 'B' || grid[r][c] === 'T') return false;
+    }
+  }
+  return true;
+}
+
+function updateStats() {
+  document.getElementById('level').textContent = level;
+  document.getElementById('moves').textContent = moves;
+  document.getElementById('best').textContent = bestMoves[level] || '-';
+}
+
+function undo() {
+  if (history.length === 0) {
+    playSound('error');
+    return;
+  }
+  currentLevel.grid = history.pop();
+  moves = Math.max(0, moves - 1);
+  updateStats();
+  draw();
+  playSound('move');
+}
+
+function restart() {
+  loadLevel(level - 1);
+  playSound('move');
+}
+
+function setupControls() {
+  document.getElementById('upBtn').addEventListener('click', () => move(-1, 0));
+  document.getElementById('downBtn').addEventListener('click', () => move(1, 0));
+  document.getElementById('leftBtn').addEventListener('click', () => move(0, -1));
+  document.getElementById('rightBtn').addEventListener('click', () => move(0, 1));
+  document.getElementById('undoBtn').addEventListener('click', undo);
+  document.getElementById('restartBtn').addEventListener('click', restart);
+  document.getElementById('hintBtn').addEventListener('click', showHint);
+  document.getElementById('checkBtn').addEventListener('click', checkSolvable);
+  document.getElementById('solveBtn').addEventListener('click', autoSolve);
+  document.getElementById('nextBtn').addEventListener('click', nextLevel);
+  document.getElementById('helpBtn').addEventListener('click', showHelp);
+  document.getElementById('closeHelp').addEventListener('click', hideHelp);
+  
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowUp') move(-1, 0);
+    if (e.key === 'ArrowDown') move(1, 0);
+    if (e.key === 'ArrowLeft') move(0, -1);
+    if (e.key === 'ArrowRight') move(0, 1);
+    if (e.key === 'u' || e.key === 'U') undo();
+    if (e.key === 'r' || e.key === 'R') restart();
+  });
+}
+
+function setupTouch() {
+  let startX, startY;
+  canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+  });
+  
+  canvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    const endX = e.changedTouches[0].clientX;
+    const endY = e.changedTouches[0].clientY;
+    const dx = endX - startX;
+    const dy = endY - startY;
+    const threshold = 30;
+    
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > threshold) {
+      move(0, dx > 0 ? 1 : -1);
+    } else if (Math.abs(dy) > threshold) {
+      move(dy > 0 ? 1 : -1, 0);
+    }
+  });
+}
+
+function showHint() {
+  const solution = solvePuzzle();
+  if (solution && solution.length > 0) {
+    const [dr, dc] = solution[0];
+    showMessage(`💡 Try moving ${dr === -1 ? 'UP' : dr === 1 ? 'DOWN' : dc === -1 ? 'LEFT' : 'RIGHT'}`);
+    playSound('hint');
+  } else {
+    showMessage('❌ No solution found!');
+    playSound('error');
+  }
+}
+
+function checkSolvable() {
+  const solution = solvePuzzle();
+  if (solution) {
+    showMessage(`✓ Solvable in ${solution.length} moves!`);
+    playSound('hint');
+  } else {
+    showMessage('❌ Current state not solvable!');
+    playSound('error');
+  }
+}
+
+async function autoSolve() {
+  const solution = solvePuzzle();
+  if (!solution) {
+    showMessage('❌ Cannot solve this puzzle!');
+    playSound('error');
+    return;
+  }
+  
+  solving = true;
+  showMessage('🤖 Solving...');
+  
+  for (const [dr, dc] of solution) {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    move(dr, dc);
+  }
+  
+  solving = false;
+}
+
+function solvePuzzle() {
+  // Simple BFS solver
+  const start = JSON.stringify(currentLevel.grid);
+  const queue = [[currentLevel.grid, []]];
+  const visited = new Set([start]);
+  const moves = [[-1,0], [1,0], [0,-1], [0,1]];
+  
+  let iterations = 0;
+  const maxIterations = 5000;
+  
+  while (queue.length > 0 && iterations < maxIterations) {
+    iterations++;
+    const [grid, path] = queue.shift();
+    
+    // Check win
+    let won = true;
+    for (let r = 0; r < grid.length; r++) {
+      for (let c = 0; c < grid[0].length; c++) {
+        if (grid[r][c] === 'B' || grid[r][c] === 'T') {
+          won = false;
+          break;
+        }
+      }
+      if (!won) break;
+    }
+    
+    if (won) return path;
+    
+    // Find player
+    let pr, pc;
+    for (let r = 0; r < grid.length; r++) {
+      for (let c = 0; c < grid[0].length; c++) {
+        if (grid[r][c] === 'P' || grid[r][c] === 'O') {
+          pr = r; pc = c;
+        }
+      }
+    }
+    
+    // Try moves
+    for (const [dr, dc] of moves) {
+      const newGrid = JSON.parse(JSON.stringify(grid));
+      const nr = pr + dr;
+      const nc = pc + dc;
+      
+      if (nr < 0 || nr >= grid.length || nc < 0 || nc >= grid[0].length) continue;
+      
+      const target = newGrid[nr][nc];
+      if (target === '#') continue;
+      
+      if (target === ' ' || target === 'T') {
+        newGrid[pr][pc] = newGrid[pr][pc] === 'O' ? 'T' : ' ';
+        newGrid[nr][nc] = target === 'T' ? 'O' : 'P';
+      } else if (target === 'B' || target === 'X') {
+        const br = nr + dr;
+        const bc = nc + dc;
+        if (br < 0 || br >= grid.length || bc < 0 || bc >= grid[0].length) continue;
+        const boxTarget = newGrid[br][bc];
+        if (boxTarget !== ' ' && boxTarget !== 'T') continue;
+        
+        newGrid[pr][pc] = newGrid[pr][pc] === 'O' ? 'T' : ' ';
+        newGrid[nr][nc] = target === 'X' ? 'O' : 'P';
+        newGrid[br][bc] = boxTarget === 'T' ? 'X' : 'B';
+      }
+      
+      const state = JSON.stringify(newGrid);
+      if (!visited.has(state)) {
+        visited.add(state);
+        queue.push([newGrid, [...path, [dr, dc]]]);
+      }
+    }
+  }
+  
+  return null;
+}
+
+function nextLevel() {
+  level++;
+  loadLevel(level - 1);
+  playSound('move');
+}
+
+function showHelp() {
+  document.getElementById('helpModal').classList.add('active');
+}
+
+function hideHelp() {
+  document.getElementById('helpModal').classList.remove('active');
+}
+
+function showMessage(text) {
+  const msg = document.getElementById('message');
+  msg.textContent = text;
+  msg.style.display = 'block';
+  setTimeout(() => {
+    msg.style.display = 'none';
+  }, 2000);
+}
+
+function playSound(type) {
+  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  const oscillator = audioContext.createOscillator();
+  const gainNode = audioContext.createGain();
+  
+  oscillator.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+  
+  if (type === 'move') {
+    oscillator.frequency.value = 400;
+    gainNode.gain.value = 0.1;
+    oscillator.start();
+    oscillator.stop(audioContext.currentTime + 0.1);
+  } else if (type === 'push') {
+    oscillator.frequency.value = 300;
+    gainNode.gain.value = 0.15;
+    oscillator.start();
+    oscillator.stop(audioContext.currentTime + 0.15);
+  } else if (type === 'win') {
+    oscillator.frequency.value = 600;
+    gainNode.gain.value = 0.2;
+    oscillator.start();
+    oscillator.stop(audioContext.currentTime + 0.3);
+  } else if (type === 'error') {
+    oscillator.frequency.value = 200;
+    gainNode.gain.value = 0.1;
+    oscillator.start();
+    oscillator.stop(audioContext.currentTime + 0.1);
+  } else if (type === 'hint') {
+    oscillator.frequency.value = 500;
+    gainNode.gain.value = 0.15;
+    oscillator.start();
+    oscillator.stop(audioContext.currentTime + 0.2);
+  }
+}
+
+init();
+</script>
+</body>
+</html>
