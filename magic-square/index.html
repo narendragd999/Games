@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Magic Square Puzzle</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(to bottom, #6a11cb, #fff);
+            font-family: Arial, sans-serif;
+            color: #333;
+            overflow: hidden;
+        }
+        #game-container {
+            width: 90%;
+            max-width: none;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        #header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+        #title {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 0;
+        }
+        .icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            color: #3498db;
+        }
+        select {
+            padding: 5px;
+            border-radius: 5px;
+            background: #fff;
+            border: 1px solid #ddd;
+        }
+        #grid {
+            display: grid;
+            gap: 5px;
+            background: #fff;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .cell {
+            text-align: center;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #fff;
+            box-sizing: border-box;
+        }
+        .cell[readonly] {
+            background: #f0f0f0;
+            color: #333;
+        }
+        #buttons {
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            color: #fff;
+            font-size: 14px;
+        }
+        #new-game {
+            background: #3498db; /* Blue primary */
+        }
+        #check, #solve {
+            background: #6a11cb; /* Purple secondary */
+        }
+        #message {
+            font-size: 14px;
+            text-align: center;
+            min-height: 20px;
+        }
+        #modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+        #modal-content {
+            background: #fff;
+            padding: 15px;
+            border-radius: 10px;
+            max-width: 80%;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        #close-modal {
+            background: #3498db;
+            color: #fff;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="header">
+            <h1 id="title">Magic Square Puzzle</h1>
+            <select id="grid-size">
+                <option value="3">3x3</option>
+                <option value="4">4x4</option>
+                <option value="5">5x5</option>
+            </select>
+            <button class="icon-btn" id="instructions"><i class="fas fa-question-circle"></i></button>
+        </div>
+        <div id="grid"></div>
+        <div id="buttons">
+            <button id="new-game"><i class="fas fa-sync-alt"></i> New Game</button>
+            <button id="solve"><i class="fas fa-magic"></i> Solve</button>
+            <button id="check">Check</button>
+        </div>
+        <div id="message"></div>
+    </div>
+
+    <div id="modal">
+        <div id="modal-content">
+            <p id="instructions-text">A Magic Square is an n x n grid filled with distinct numbers from 1 to n² such that each row, column, and both main diagonals sum to the same constant: n(n² + 1)/2.</p>
+            <p>Fill in the blanks with unique numbers and click "Check" to verify. Use "Solve" to see the solution.</p>
+            <button id="close-modal">Close</button>
+        </div>
+    </div>
+
+    <script>
+        const gridElement = document.getElementById('grid');
+        const messageElement = document.getElementById('message');
+        const newGameButton = document.getElementById('new-game');
+        const checkButton = document.getElementById('check');
+        const solveButton = document.getElementById('solve');
+        const instructionsButton = document.getElementById('instructions');
+        const gridSizeSelect = document.getElementById('grid-size');
+        const modal = document.getElementById('modal');
+        const closeModal = document.getElementById('close-modal');
+        const instructionsText = document.getElementById('instructions-text');
+        const header = document.getElementById('header');
+        const buttons = document.getElementById('buttons');
+
+        let grid = [];
+        let solution = [];
+        let currentN = 3;
+        let magicSum;
+
+        function generateMagicSquare(n) {
+            if (n % 2 === 1) {
+                // Odd order - Siamese method
+                let mat = Array.from({length: n}, () => Array(n).fill(0));
+                let i = Math.floor(n / 2);
+                let j = n - 1;
+                for (let num = 1; num <= n * n; num++) {
+                    mat[i][j] = num;
+                    if (num % n === 0) {
+                        j--;
+                    } else {
+                        i--;
+                        j++;
+                    }
+                    i = (i + n) % n;
+                    j = (j + n) % n;
+                }
+                return mat;
+            } else {
+                // Even order (doubly even for n=4)
+                let square = [];
+                for (let i = 0; i < n * n; i++) {
+                    if (i % n === 0) {
+                        square.push(Array(n).fill(0));
+                    }
+                    let row = square.length - 1;
+                    let col = i % n;
+                    let cond_col = (col < n / 4) || (col >= n - n/4);
+                    let cond_row = (row + 1 <= n / 4) || (row + 1 > n - n/4);
+                    if (cond_col && cond_row) {
+                        square[row][col] = i + 1;
+                    } else if (!cond_col && !cond_row) {
+                        square[row][col] = i + 1;
+                    } else {
+                        square[row][col] = (n * n) - i;
+                    }
+                }
+                return square;
+            }
+        }
+
+        function rotate(matrix) {
+            const n = matrix.length;
+            let newMat = Array.from({length: n}, () => Array(n).fill(0));
+            for (let i = 0; i < n; i++) {
+                for (let j = 0; j < n; j++) {
+                    newMat[j][n - 1 - i] = matrix[i][j];
+                }
+            }
+            return newMat;
+        }
+
+        function reflectHorizontal(matrix) {
+            return matrix.map(row => row.reverse());
+        }
+
+        function reflectVertical(matrix) {
+            return matrix.reverse();
+        }
+
+        function generatePuzzle(n) {
+            let matrix = generateMagicSquare(n);
+            const rotations = Math.floor(Math.random() * 4);
+            for (let k = 0; k < rotations; k++) {
+                matrix = rotate(matrix);
+            }
+            if (Math.random() > 0.5) matrix = reflectHorizontal(matrix);
+            if (Math.random() > 0.5) matrix = reflectVertical(matrix);
+
+            solution = matrix.flat();
+            magicSum = n * (n * n + 1) / 2;
+            instructionsText.innerHTML = `A Magic Square is an ${n} x ${n} grid filled with distinct numbers from 1 to ${n*n} such that each row, column, and both main diagonals sum to ${magicSum}.`;
+
+            const blanks = Math.floor(n * n * 0.6) + Math.floor(Math.random() * (n * n * 0.2));
+            const indices = Array.from({length: n * n}, (_, i) => i).sort(() => Math.random() - 0.5).slice(0, blanks);
+            grid = solution.slice();
+            indices.forEach(i => grid[i] = '');
+
+            renderGrid();
+            messageElement.textContent = '';
+        }
+
+        function renderGrid() {
+            gridElement.innerHTML = '';
+            grid.forEach((val, i) => {
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.classList.add('cell');
+                input.value = val;
+                input.min = 1;
+                input.max = currentN * currentN;
+                if (val !== '') input.setAttribute('readonly', true);
+                input.addEventListener('input', (e) => {
+                    grid[i] = e.target.value ? parseInt(e.target.value) : '';
+                });
+                gridElement.appendChild(input);
+            });
+            resizeGrid();
+        }
+
+        function resizeGrid() {
+            const gap = 5;
+            const availWidth = window.innerWidth - 40; // padding
+            const availHeight = window.innerHeight - (header.offsetHeight + buttons.offsetHeight + messageElement.offsetHeight + 60); // approx margins
+            const cellSize = Math.min(
+                (availWidth - (currentN - 1) * gap) / currentN,
+                (availHeight - (currentN - 1) * gap) / currentN
+            );
+            gridElement.style.gridTemplateColumns = `repeat(${currentN}, ${cellSize}px)`;
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach(cell => {
+                cell.style.width = `${cellSize}px`;
+                cell.style.height = `${cellSize}px`;
+                cell.style.fontSize = `${cellSize * 0.5}px`;
+            });
+        }
+
+        function checkSolution() {
+            const nums = grid.map(v => Number(v));
+            if (nums.some(isNaN) || new Set(nums).size !== currentN * currentN || nums.some(v => v < 1 || v > currentN * currentN)) {
+                messageElement.textContent = 'Incomplete, duplicates, or invalid numbers!';
+                return;
+            }
+            const matrix = [];
+            for (let r = 0; r < currentN; r++) {
+                matrix.push(nums.slice(r * currentN, (r + 1) * currentN));
+            }
+            const rows = matrix.map(row => row.reduce((a, b) => a + b, 0));
+            const cols = Array.from({length: currentN}, (_, c) => matrix.reduce((sum, row) => sum + row[c], 0));
+            let diag1 = 0, diag2 = 0;
+            for (let i = 0; i < currentN; i++) {
+                diag1 += matrix[i][i];
+                diag2 += matrix[i][currentN - 1 - i];
+            }
+            const allSums = [...rows, ...cols, diag1, diag2];
+            if (allSums.every(sum => sum === magicSum)) {
+                messageElement.textContent = 'Congratulations! It\'s a magic square.';
+            } else {
+                messageElement.textContent = `Not quite—sums don\'t all match ${magicSum}.`;
+            }
+        }
+
+        function solvePuzzle() {
+            grid = solution.slice();
+            renderGrid();
+            messageElement.textContent = 'Puzzle Solved!';
+        }
+
+        newGameButton.addEventListener('click', () => generatePuzzle(currentN));
+        checkButton.addEventListener('click', checkSolution);
+        solveButton.addEventListener('click', solvePuzzle);
+        instructionsButton.addEventListener('click', () => modal.style.display = 'flex');
+        closeModal.addEventListener('click', () => modal.style.display = 'none');
+        modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
+        gridSizeSelect.addEventListener('change', (e) => {
+            currentN = parseInt(e.target.value);
+            generatePuzzle(currentN);
+        });
+        window.addEventListener('resize', resizeGrid);
+
+        // Start first game
+        generatePuzzle(currentN);
+    </script>
+</body>
+</html>
