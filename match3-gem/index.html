@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Gem Match 3 - Mobile Puzzle Game</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+        
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+            color: white;
+        }
+        
+        #game-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        .mobile-ui {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+        }
+        
+        .header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(10, 25, 48, 0.85);
+            backdrop-filter: blur(5px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 10;
+        }
+        
+        .game-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            background: linear-gradient(45deg, #ffcc00, #ff6b6b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .menu-icon {
+            width: 30px;
+            height: 30px;
+            pointer-events: auto;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .menu-line {
+            width: 20px;
+            height: 3px;
+            background: #ffcc00;
+            border-radius: 2px;
+            transition: all 0.3s ease;
+        }
+        
+        .stats-container {
+            position: absolute;
+            top: 50px;
+            left: 0;
+            width: 100%;
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            background: rgba(10, 25, 48, 0.8);
+            backdrop-filter: blur(5px);
+            z-index: 9;
+        }
+        
+        .stat {
+            text-align: center;
+            flex: 1;
+        }
+        
+        .stat-label {
+            font-size: 0.65rem;
+            color: #a0a0a0;
+            margin-bottom: 2px;
+        }
+        
+        .stat-value {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #ffcc00;
+        }
+        
+        .controls {
+            position: absolute;
+            bottom: 15px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 0 15px;
+            pointer-events: auto;
+            z-index: 10;
+        }
+        
+        .btn {
+            padding: 10px 15px;
+            background: linear-gradient(45deg, #ff6b6b, #ffcc00);
+            border: none;
+            border-radius: 50px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+            pointer-events: auto;
+            font-size: 0.85rem;
+            flex: 1;
+            max-width: 120px;
+        }
+        
+        .instructions-popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .instructions-popup.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .instructions-content {
+            background: linear-gradient(135deg, #1a1a2e, #0f3460);
+            border-radius: 20px;
+            padding: 25px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 30px;
+            height: 30px;
+            background: #ff6b6b;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        
+        .instructions-content h2 {
+            color: #ffcc00;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.5rem;
+        }
+        
+        .instructions-list {
+            margin-bottom: 20px;
+        }
+        
+        .instruction-item {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        .instruction-icon {
+            width: 24px;
+            height: 24px;
+            background: #4ecdc4;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-shrink: 0;
+            font-size: 0.8rem;
+            margin-top: 2px;
+        }
+        
+        .instruction-text {
+            flex: 1;
+            line-height: 1.4;
+            font-size: 0.95rem;
+        }
+        
+        .highlight {
+            color: #ffcc00;
+            font-weight: bold;
+        }
+        
+        .game-over-popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .game-over-popup.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .game-over-content {
+            background: linear-gradient(135deg, #1a1a2e, #0f3460);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .game-over-title {
+            font-size: 2rem;
+            color: #ff6b6b;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        
+        .game-over-score {
+            font-size: 1.5rem;
+            color: #ffcc00;
+            margin-bottom: 25px;
+        }
+        
+        @media (max-width: 480px) {
+            .game-title {
+                font-size: 1.1rem;
+            }
+            
+            .stat-label {
+                font-size: 0.6rem;
+            }
+            
+            .stat-value {
+                font-size: 1rem;
+            }
+            
+            .btn {
+                padding: 8px 12px;
+                font-size: 0.8rem;
+                max-width: 110px;
+            }
+            
+            .instructions-content {
+                padding: 20px;
+            }
+            
+            .instructions-content h2 {
+                font-size: 1.3rem;
+            }
+            
+            .instruction-text {
+                font-size: 0.9rem;
+            }
+        }
+        
+        @media (max-height: 700px) {
+            .header {
+                padding: 5px 10px;
+            }
+            
+            .stats-container {
+                top: 40px;
+                padding: 5px 10px;
+            }
+            
+            .controls {
+                bottom: 10px;
+            }
+        }
+        
+        /* Adjust for landscape orientation */
+        @media (max-aspect-ratio: 1/1) {
+            .header {
+                padding: 5px 10px;
+            }
+            
+            .stats-container {
+                top: 40px;
+                padding: 5px 10px;
+            }
+            
+            .controls {
+                bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+    
+    <div class="mobile-ui">
+        <div class="header">
+            <div class="game-title">Gem Match 3</div>
+            <div class="menu-icon" id="menu-btn">
+                <div class="menu-line"></div>
+                <div class="menu-line"></div>
+                <div class="menu-line"></div>
+            </div>
+        </div>
+        
+        <div class="stats-container">
+            <div class="stat">
+                <div class="stat-label">SCORE</div>
+                <div id="score" class="stat-value">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">LEVEL</div>
+                <div id="level" class="stat-value">1</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">MOVES</div>
+                <div id="moves" class="stat-value">30</div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button class="btn" id="restart-btn">New Game</button>
+            <button class="btn" id="hint-btn">Hint</button>
+        </div>
+    </div>
+    
+    <div class="instructions-popup" id="instructions-popup">
+        <div class="instructions-content">
+            <div class="close-btn" id="close-instructions">×</div>
+            <h2>How to Play</h2>
+            <div class="instructions-list">
+                <div class="instruction-item">
+                    <div class="instruction-icon">1</div>
+                    <div class="instruction-text"><span class="highlight">Swap adjacent gems</span> by dragging one gem to an adjacent position</div>
+                </div>
+                <div class="instruction-item">
+                    <div class="instruction-icon">2</div>
+                    <div class="instruction-text">Create rows or columns of <span class="highlight">3 or more matching gems</span> to clear them</div>
+                </div>
+                <div class="instruction-item">
+                    <div class="instruction-icon">3</div>
+                    <div class="instruction-text">Match <span class="highlight">4 gems</span> to create a special gem that clears an entire row</div>
+                </div>
+                <div class="instruction-item">
+                    <div class="instruction-icon">4</div>
+                    <div class="instruction-text">Match <span class="highlight">5 gems</span> to create a special gem that clears an entire column</div>
+                </div>
+                <div class="instruction-item">
+                    <div class="instruction-icon">5</div>
+                    <div class="instruction-text">Complete the level by reaching the target score before running out of moves</div>
+                </div>
+                <div class="instruction-item">
+                    <div class="instruction-icon">!</div>
+                    <div class="instruction-text"><span class="highlight">Tip:</span> Plan your moves to create chain reactions for higher scores!</div>
+                </div>
+            </div>
+            <button class="btn" id="start-playing" style="width: 100%;">Start Playing</button>
+        </div>
+    </div>
+    
+    <div class="game-over-popup" id="game-over-popup">
+        <div class="game-over-content">
+            <div class="game-over-title">Game Over</div>
+            <div class="game-over-score">Score: <span id="final-score">0</span></div>
+            <button class="btn" id="play-again" style="width: 100%;">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        // Game configuration
+        const config = {
+            type: Phaser.AUTO,
+            parent: 'game-container',
+            backgroundColor: '#0a1930',
+            scale: {
+                mode: Phaser.Scale.RESIZE,
+                width: '100%',
+                height: '100%',
+                autoCenter: Phaser.Scale.CENTER_BOTH
+            },
+            scene: {
+                preload: preload,
+                create: create,
+                update: update
+            }
+        };
+
+        // Game variables
+        let game;
+        let board;
+        let score = 0;
+        let level = 1;
+        let movesLeft = 30;
+        let selectedGem = null;
+        let canMove = true;
+        let targetScore = 1000;
+        let boardSize = 8;
+        let gemSize;
+        let offsetX, offsetY;
+        let dragStartGem = null;
+        let dragStartPosition = { x: 0, y: 0 };
+        let audioContext;
+        let sounds = {};
+        
+        // Gem types with colors and icons
+        const gemTypes = [
+            { 
+                key: 'red', 
+                color: 0xff6b6b, 
+                value: 50,
+                icon: '♦',
+                soundColor: '#FF5252'
+            },
+            { 
+                key: 'blue', 
+                color: 0x4ecdc4, 
+                value: 60,
+                icon: '♠',
+                soundColor: '#4FC3F7'
+            },
+            // { 
+            //     key: 'green', 
+            //     color: 0x1dd1a1, 
+            //     value: 70,
+            //     icon: '♣',
+            //     soundColor: '#69F0AE'
+            // },
+            { 
+                key: 'yellow', 
+                color: 0xffcc00, 
+                value: 80,
+                icon: '★',
+                soundColor: '#FFD740'
+            },
+            { 
+                key: 'purple', 
+                color: 0x9b59b6, 
+                value: 90,
+                icon: '♥',
+                soundColor: '#E040FB'
+            },
+            { 
+                key: 'orange', 
+                color: 0xff9f43, 
+                value: 100,
+                icon: '●',
+                soundColor: '#FFAB40'
+            }
+        ];
+        
+        // Initialize the game
+        game = new Phaser.Game(config);
+
+        function preload() {
+            // Initialize audio context
+            initAudio();
+            
+            // Calculate dynamic gem size based on screen dimensions
+            // In portrait mode, use more of the screen for larger gems
+            const isPortrait = window.innerHeight > window.innerWidth;
+            
+            if (isPortrait) {
+                // Portrait mode - use more space for gems
+                const headerHeight = 50; // Approximate height of header
+                const controlsHeight = 80; // Approximate height of controls
+                const availableHeight = game.scale.height - headerHeight - controlsHeight;
+                const availableWidth = game.scale.width;
+                
+                gemSize = Math.min(
+                    Math.floor(availableWidth / (boardSize + 0.5)), // Less padding in portrait
+                    Math.floor(availableHeight / (boardSize + 0.5))
+                );
+                
+                // Calculate board offset to use more space
+                offsetX = (game.scale.width - boardSize * gemSize) / 2;
+                offsetY = (game.scale.height - boardSize * gemSize) / 2 + 10; // Less offset in portrait
+            } else {
+                // Landscape mode - standard calculation
+                const uiHeight = 120;
+                const availableHeight = game.scale.height - uiHeight;
+                const availableWidth = game.scale.width;
+                
+                gemSize = Math.min(
+                    Math.floor(availableWidth / (boardSize + 1)),
+                    Math.floor(availableHeight / (boardSize + 1))
+                );
+                
+                offsetX = (game.scale.width - boardSize * gemSize) / 2;
+                offsetY = (game.scale.height - boardSize * gemSize) / 2 + 20;
+            }
+            
+            // Create gem graphics programmatically
+            gemTypes.forEach(gem => {
+                const graphics = this.make.graphics({ x: 0, y: 0, add: false });
+                
+                // Draw gem base with vibrant color
+                graphics.fillStyle(gem.color, 1);
+                graphics.fillRoundedRect(2, 2, gemSize - 4, gemSize - 4, 10);
+                
+                // Add highlight
+                graphics.fillStyle(0xffffff, 0.3);
+                graphics.fillRoundedRect(gemSize * 0.15, gemSize * 0.15, gemSize * 0.3, gemSize * 0.3, 3);
+                
+                // Add inner shine
+                graphics.fillStyle(0xffffff, 0.1);
+                graphics.fillRoundedRect(gemSize * 0.3, gemSize * 0.3, gemSize * 0.4, gemSize * 0.4, 5);
+                
+                // Generate texture from graphics
+                graphics.generateTexture(gem.key, gemSize, gemSize);
+                graphics.destroy();
+            });
+            
+            // Create background texture
+            const bgGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+            bgGraphics.fillStyle(0x0a1930, 1);
+            bgGraphics.fillRect(0, 0, game.scale.width, game.scale.height);
+            
+            // Add subtle grid pattern
+            bgGraphics.lineStyle(1, 0x16213e, 0.5);
+            for (let i = 0; i <= game.scale.width; i += gemSize) {
+                bgGraphics.moveTo(i, 0);
+                bgGraphics.lineTo(i, game.scale.height);
+            }
+            for (let i = 0; i <= game.scale.height; i += gemSize) {
+                bgGraphics.moveTo(0, i);
+                bgGraphics.lineTo(game.scale.width, i);
+            }
+            bgGraphics.strokePath();
+            
+            bgGraphics.generateTexture('background', game.scale.width, game.scale.height);
+            bgGraphics.destroy();
+        }
+
+        function create() {
+            // Add background
+            this.add.image(game.scale.width / 2, game.scale.height / 2, 'background');
+            
+            // Create the game board
+            board = [];
+            for (let row = 0; row < boardSize; row++) {
+                board[row] = [];
+                for (let col = 0; col < boardSize; col++) {
+                    createGem(this, row, col);
+                }
+            }
+            
+            // Ensure no matches on initial board
+            removeInitialMatches(this);
+            
+            // Set up UI elements
+            document.getElementById('score').textContent = score;
+            document.getElementById('level').textContent = level;
+            document.getElementById('moves').textContent = movesLeft;
+            
+            // Set up button events
+            document.getElementById('restart-btn').addEventListener('click', () => {
+                playSound('click');
+                this.scene.restart();
+                score = 0;
+                level = 1;
+                movesLeft = 30;
+                targetScore = 1000;
+                document.getElementById('score').textContent = score;
+                document.getElementById('level').textContent = level;
+                document.getElementById('moves').textContent = movesLeft;
+            });
+            
+            document.getElementById('hint-btn').addEventListener('click', () => {
+                playSound('click');
+                showHint(this);
+            });
+            
+            document.getElementById('menu-btn').addEventListener('click', () => {
+                playSound('click');
+                document.getElementById('instructions-popup').classList.add('active');
+            });
+            
+            document.getElementById('close-instructions').addEventListener('click', () => {
+                playSound('click');
+                document.getElementById('instructions-popup').classList.remove('active');
+            });
+            
+            document.getElementById('start-playing').addEventListener('click', () => {
+                playSound('click');
+                document.getElementById('instructions-popup').classList.remove('active');
+            });
+            
+            document.getElementById('play-again').addEventListener('click', () => {
+                playSound('click');
+                document.getElementById('game-over-popup').classList.remove('active');
+                this.scene.restart();
+                score = 0;
+                level = 1;
+                movesLeft = 30;
+                targetScore = 1000;
+                document.getElementById('score').textContent = score;
+                document.getElementById('level').textContent = level;
+                document.getElementById('moves').textContent = movesLeft;
+            });
+            
+            // Show instructions on first load
+            setTimeout(() => {
+                document.getElementById('instructions-popup').classList.add('active');
+            }, 500);
+        }
+
+        function update() {
+            // Game update logic would go here
+        }
+
+        function createGem(scene, row, col) {
+            const gemType = Phaser.Math.RND.pick(gemTypes);
+            const gem = scene.add.sprite(
+                offsetX + col * gemSize + gemSize / 2,
+                offsetY + row * gemSize + gemSize / 2,
+                gemType.key
+            ).setInteractive();
+            
+            // Add icon to gem
+            const icon = scene.add.text(
+                offsetX + col * gemSize + gemSize / 2,
+                offsetY + row * gemSize + gemSize / 2,
+                gemType.icon,
+                {
+                    fontSize: Math.floor(gemSize * 0.8) + 'px',
+                    color: '#FFFFFF',
+                    fontStyle: 'bold',
+                    stroke: '#000000',
+                    strokeThickness: 2
+                }
+            ).setOrigin(0.5);
+            
+            gem.setData('row', row);
+            gem.setData('col', col);
+            gem.setData('type', gemType.key);
+            gem.setData('value', gemType.value);
+            gem.setData('icon', icon);
+            gem.setData('soundColor', gemType.soundColor);
+            
+            // Add gem selection and movement
+            gem.on('pointerdown', function(pointer) {
+                if (!canMove) return;
+                
+                // Store drag start position
+                dragStartGem = gem;
+                dragStartPosition.x = pointer.x;
+                dragStartPosition.y = pointer.y;
+                
+                // Select the gem
+                if (!selectedGem) {
+                    selectedGem = gem;
+                    gem.setTint(0xaaaaaa);
+                    
+                    // Play selection sound
+                    playSound('select');
+                    
+                    // Add pulsing effect to selected gem
+                    scene.tweens.add({
+                        targets: gem,
+                        scaleX: 1.1,
+                        scaleY: 1.1,
+                        duration: 200,
+                        yoyo: true,
+                        repeat: -1
+                    });
+                }
+            });
+            
+            gem.on('pointerup', function(pointer) {
+                if (!canMove || !dragStartGem) return;
+                
+                // Calculate drag distance
+                const dragDistance = Phaser.Math.Distance.Between(
+                    dragStartPosition.x, dragStartPosition.y,
+                    pointer.x, pointer.y
+                );
+                
+                // If drag distance is small, treat it as a tap
+                if (dragDistance < 10) {
+                    // If we already have a selected gem, try to swap
+                    if (selectedGem && selectedGem !== gem) {
+                        const row1 = selectedGem.getData('row');
+                        const col1 = selectedGem.getData('col');
+                        const row2 = gem.getData('row');
+                        const col2 = gem.getData('col');
+                        
+                        // Check if gems are adjacent
+                        const isAdjacent = 
+                            (Math.abs(row1 - row2) === 1 && col1 === col2) ||
+                            (Math.abs(col1 - col2) === 1 && row1 === row2);
+                        
+                        if (isAdjacent) {
+                            canMove = false;
+                            
+                            // Play swap sound
+                            playSound('swap');
+                            
+                            // Remove selection effects
+                            scene.tweens.killTweensOf(selectedGem);
+                            selectedGem.clearTint();
+                            selectedGem.setScale(1);
+                            
+                            // Swap gems
+                            swapGems(selectedGem, gem, scene);
+                            
+                            // Check for matches after swap
+                            setTimeout(() => {
+                                const matches = findMatches();
+                                if (matches.length > 0) {
+                                    // Matches found
+                                    removeMatches(matches, scene);
+                                    movesLeft--;
+                                    document.getElementById('moves').textContent = movesLeft;
+                                    
+                                    // Check for level completion
+                                    if (score >= targetScore) {
+                                        levelUp(scene);
+                                    }
+                                    
+                                    // Check for game over
+                                    if (movesLeft <= 0 && score < targetScore) {
+                                        gameOver(scene);
+                                    }
+                                } else {
+                                    // No matches - swap back
+                                    swapGems(selectedGem, gem, scene);
+                                    canMove = true;
+                                }
+                            }, 500);
+                        } else {
+                            // Not adjacent - deselect first gem
+                            scene.tweens.killTweensOf(selectedGem);
+                            selectedGem.clearTint();
+                            selectedGem.setScale(1);
+                            
+                            // Select new gem
+                            selectedGem = gem;
+                            gem.setTint(0xaaaaaa);
+                            
+                            // Play selection sound
+                            playSound('select');
+                            
+                            // Add pulsing effect to selected gem
+                            scene.tweens.add({
+                                targets: gem,
+                                scaleX: 1.1,
+                                scaleY: 1.1,
+                                duration: 200,
+                                yoyo: true,
+                                repeat: -1
+                            });
+                        }
+                    }
+                } else {
+                    // Handle drag gesture
+                    handleDragGesture(scene, gem, pointer);
+                }
+                
+                dragStartGem = null;
+            });
+            
+            // Add a subtle glow effect
+            gem.setScale(0.9);
+            scene.tweens.add({
+                targets: gem,
+                scaleX: 1,
+                scaleY: 1,
+                duration: 300,
+                ease: 'Back.out'
+            });
+            
+            board[row][col] = gem;
+            return gem;
+        }
+
+        function handleDragGesture(scene, gem, pointer) {
+            if (!dragStartGem || !canMove) return;
+            
+            const dragX = pointer.x - dragStartPosition.x;
+            const dragY = pointer.y - dragStartPosition.y;
+            const absDragX = Math.abs(dragX);
+            const absDragY = Math.abs(dragY);
+            
+            // Determine drag direction (prioritize larger movement)
+            if (absDragX > absDragY && absDragX > gemSize * 0.3) {
+                // Horizontal drag
+                const targetCol = dragStartGem.getData('col') + (dragX > 0 ? 1 : -1);
+                const targetRow = dragStartGem.getData('row');
+                
+                if (targetCol >= 0 && targetCol < boardSize) {
+                    const targetGem = board[targetRow][targetCol];
+                    if (targetGem) {
+                        swapGemsWithDrag(dragStartGem, targetGem, scene);
+                    }
+                }
+            } else if (absDragY > gemSize * 0.3) {
+                // Vertical drag
+                const targetRow = dragStartGem.getData('row') + (dragY > 0 ? 1 : -1);
+                const targetCol = dragStartGem.getData('col');
+                
+                if (targetRow >= 0 && targetRow < boardSize) {
+                    const targetGem = board[targetRow][targetCol];
+                    if (targetGem) {
+                        swapGemsWithDrag(dragStartGem, targetGem, scene);
+                    }
+                }
+            }
+        }
+
+        function swapGemsWithDrag(gem1, gem2, scene) {
+            canMove = false;
+            
+            // Play swap sound
+            playSound('swap');
+            
+            // Remove selection effects if any
+            if (selectedGem) {
+                scene.tweens.killTweensOf(selectedGem);
+                selectedGem.clearTint();
+                selectedGem.setScale(1);
+                selectedGem = null;
+            }
+            
+            // Swap gems
+            swapGems(gem1, gem2, scene);
+            
+            // Check for matches after swap
+            setTimeout(() => {
+                const matches = findMatches();
+                if (matches.length > 0) {
+                    // Matches found
+                    removeMatches(matches, scene);
+                    movesLeft--;
+                    document.getElementById('moves').textContent = movesLeft;
+                    
+                    // Check for level completion
+                    if (score >= targetScore) {
+                        levelUp(scene);
+                    }
+                    
+                    // Check for game over
+                    if (movesLeft <= 0 && score < targetScore) {
+                        gameOver(scene);
+                    }
+                } else {
+                    // No matches - swap back
+                    swapGems(gem1, gem2, scene);
+                    canMove = true;
+                }
+            }, 500);
+        }
+
+        function removeInitialMatches(scene) {
+            let matches = findMatches();
+            while (matches.length > 0) {
+                matches.forEach(match => {
+                    match.forEach(gem => {
+                        const row = gem.getData('row');
+                        const col = gem.getData('col');
+                        const gemType = Phaser.Math.RND.pick(gemTypes.filter(g => g.key !== gem.getData('type')));
+                        
+                        gem.setTexture(gemType.key);
+                        gem.setData('type', gemType.key);
+                        gem.setData('value', gemType.value);
+                        
+                        // Update icon
+                        const icon = gem.getData('icon');
+                        icon.setText(gemType.icon);
+                    });
+                });
+                matches = findMatches();
+            }
+        }
+
+        function swapGems(gem1, gem2, scene) {
+            // Swap positions with animation
+            const tempX = gem1.x;
+            const tempY = gem1.y;
+            
+            scene.tweens.add({
+                targets: gem1,
+                x: gem2.x,
+                y: gem2.y,
+                duration: 300,
+                ease: 'Cubic.easeOut'
+            });
+            
+            scene.tweens.add({
+                targets: gem2,
+                x: tempX,
+                y: tempY,
+                duration: 300,
+                ease: 'Cubic.easeOut'
+            });
+            
+            // Swap icons positions
+            const icon1 = gem1.getData('icon');
+            const icon2 = gem2.getData('icon');
+            
+            scene.tweens.add({
+                targets: icon1,
+                x: gem2.x,
+                y: gem2.y,
+                duration: 300,
+                ease: 'Cubic.easeOut'
+            });
+            
+            scene.tweens.add({
+                targets: icon2,
+                x: tempX,
+                y: tempY,
+                duration: 300,
+                ease: 'Cubic.easeOut'
+            });
+            
+            // Swap board positions
+            const row1 = gem1.getData('row');
+            const col1 = gem1.getData('col');
+            const row2 = gem2.getData('row');
+            const col2 = gem2.getData('col');
+            
+            board[row1][col1] = gem2;
+            board[row2][col2] = gem1;
+            
+            gem1.setData('row', row2);
+            gem1.setData('col', col2);
+            gem2.setData('row', row1);
+            gem2.setData('col', col1);
+        }
+
+        function findMatches() {
+            const matches = [];
+            
+            // Check horizontal matches
+            for (let row = 0; row < boardSize; row++) {
+                for (let col = 0; col < boardSize - 2; col++) {
+                    const gem1 = board[row][col];
+                    const gem2 = board[row][col + 1];
+                    const gem3 = board[row][col + 2];
+                    
+                    if (gem1 && gem2 && gem3 &&
+                        gem1.getData('type') === gem2.getData('type') &&
+                        gem2.getData('type') === gem3.getData('type')) {
+                        
+                        // Found a match of 3
+                        const match = [gem1, gem2, gem3];
+                        
+                        // Check for longer matches
+                        for (let i = col + 3; i < boardSize; i++) {
+                            const nextGem = board[row][i];
+                            if (nextGem && nextGem.getData('type') === gem1.getData('type')) {
+                                match.push(nextGem);
+                            } else {
+                                break;
+                            }
+                        }
+                        
+                        // Avoid duplicate matches
+                        if (!matches.some(m => m.includes(gem1))) {
+                            matches.push(match);
+                        }
+                    }
+                }
+            }
+            
+            // Check vertical matches
+            for (let col = 0; col < boardSize; col++) {
+                for (let row = 0; row < boardSize - 2; row++) {
+                    const gem1 = board[row][col];
+                    const gem2 = board[row + 1][col];
+                    const gem3 = board[row + 2][col];
+                    
+                    if (gem1 && gem2 && gem3 &&
+                        gem1.getData('type') === gem2.getData('type') &&
+                        gem2.getData('type') === gem3.getData('type')) {
+                        
+                        // Found a match of 3
+                        const match = [gem1, gem2, gem3];
+                        
+                        // Check for longer matches
+                        for (let i = row + 3; i < boardSize; i++) {
+                            const nextGem = board[i][col];
+                            if (nextGem && nextGem.getData('type') === gem1.getData('type')) {
+                                match.push(nextGem);
+                            } else {
+                                break;
+                            }
+                        }
+                        
+                        // Avoid duplicate matches
+                        if (!matches.some(m => m.includes(gem1))) {
+                            matches.push(match);
+                        }
+                    }
+                }
+            }
+            
+            return matches;
+        }
+
+        function removeMatches(matches, scene) {
+            const gemsToRemove = new Set();
+            let totalScore = 0;
+            
+            // Collect all unique gems to remove and calculate score
+            matches.forEach(match => {
+                match.forEach(gem => {
+                    gemsToRemove.add(gem);
+                    totalScore += gem.getData('value');
+                    
+                    // Bonus for longer matches
+                    if (match.length >= 4) {
+                        totalScore += gem.getData('value') * (match.length - 3);
+                    }
+                });
+            });
+            
+            // Add score with animation
+            addScore(totalScore, scene);
+            
+            // Play match sound
+            playSound('match');
+            
+            // Remove gems with animation
+            gemsToRemove.forEach(gem => {
+                const icon = gem.getData('icon');
+                
+                scene.tweens.add({
+                    targets: [gem, icon],
+                    scaleX: 0,
+                    scaleY: 0,
+                    alpha: 0,
+                    duration: 300,
+                    ease: 'Back.easeIn',
+                    onComplete: () => {
+                        gem.destroy();
+                        icon.destroy();
+                    }
+                });
+                
+                // Remove from board
+                const row = gem.getData('row');
+                const col = gem.getData('col');
+                board[row][col] = null;
+            });
+            
+            // Drop gems and add new ones after a delay
+            setTimeout(() => {
+                dropGems(scene);
+                addNewGems(scene);
+                
+                // Check for chain reactions
+                setTimeout(() => {
+                    const newMatches = findMatches();
+                    if (newMatches.length > 0) {
+                        removeMatches(newMatches, scene);
+                    } else {
+                        canMove = true;
+                    }
+                }, 500);
+            }, 400);
+        }
+
+        function dropGems(scene) {
+            // Move gems down to fill empty spaces
+            for (let col = 0; col < boardSize; col++) {
+                let emptySpaces = 0;
+                
+                for (let row = boardSize - 1; row >= 0; row--) {
+                    if (board[row][col] === null) {
+                        emptySpaces++;
+                    } else if (emptySpaces > 0) {
+                        const gem = board[row][col];
+                        const icon = gem.getData('icon');
+                        const newRow = row + emptySpaces;
+                        
+                        // Update board position
+                        board[newRow][col] = gem;
+                        board[row][col] = null;
+                        
+                        // Update gem data
+                        gem.setData('row', newRow);
+                        
+                        // Animate movement
+                        scene.tweens.add({
+                            targets: [gem, icon],
+                            y: offsetY + newRow * gemSize + gemSize / 2,
+                            duration: 400,
+                            ease: 'Bounce.out'
+                        });
+                    }
+                }
+            }
+        }
+
+        function addNewGems(scene) {
+            // Play falling sound
+            playSound('fall');
+            
+            // Add new gems at the top
+            for (let col = 0; col < boardSize; col++) {
+                for (let row = 0; row < boardSize; row++) {
+                    if (board[row][col] === null) {
+                        const gemType = Phaser.Math.RND.pick(gemTypes);
+                        const gem = scene.add.sprite(
+                            offsetX + col * gemSize + gemSize / 2,
+                            offsetY - (boardSize - row) * gemSize, // Start above the board
+                            gemType.key
+                        ).setInteractive();
+                        
+                        // Add icon to gem
+                        const icon = scene.add.text(
+                            offsetX + col * gemSize + gemSize / 2,
+                            offsetY - (boardSize - row) * gemSize,
+                            gemType.icon,
+                            {
+                                fontSize: Math.floor(gemSize * 0.8) + 'px',
+                                color: '#FFFFFF',
+                                fontStyle: 'bold',
+                                stroke: '#000000',
+                                strokeThickness: 5
+                            }
+                        ).setOrigin(0.5);
+                        
+                        gem.setData('row', row);
+                        gem.setData('col', col);
+                        gem.setData('type', gemType.key);
+                        gem.setData('value', gemType.value);
+                        gem.setData('icon', icon);
+                        gem.setData('soundColor', gemType.soundColor);
+                        
+                        // Add event listeners for the new gem
+                        gem.on('pointerdown', function(pointer) {
+                            if (!canMove) return;
+                            
+                            // Store drag start position
+                            dragStartGem = gem;
+                            dragStartPosition.x = pointer.x;
+                            dragStartPosition.y = pointer.y;
+                            
+                            // Select the gem
+                            if (!selectedGem) {
+                                selectedGem = gem;
+                                gem.setTint(0xaaaaaa);
+                                
+                                // Play selection sound
+                                playSound('select');
+                                
+                                // Add pulsing effect to selected gem
+                                scene.tweens.add({
+                                    targets: gem,
+                                    scaleX: 1.1,
+                                    scaleY: 1.1,
+                                    duration: 200,
+                                    yoyo: true,
+                                    repeat: -1
+                                });
+                            }
+                        });
+                        
+                        gem.on('pointerup', function(pointer) {
+                            if (!canMove || !dragStartGem) return;
+                            
+                            // Calculate drag distance
+                            const dragDistance = Phaser.Math.Distance.Between(
+                                dragStartPosition.x, dragStartPosition.y,
+                                pointer.x, pointer.y
+                            );
+                            
+                            // If drag distance is small, treat it as a tap
+                            if (dragDistance < 10) {
+                                // If we already have a selected gem, try to swap
+                                if (selectedGem && selectedGem !== gem) {
+                                    const row1 = selectedGem.getData('row');
+                                    const col1 = selectedGem.getData('col');
+                                    const row2 = gem.getData('row');
+                                    const col2 = gem.getData('col');
+                                    
+                                    // Check if gems are adjacent
+                                    const isAdjacent = 
+                                        (Math.abs(row1 - row2) === 1 && col1 === col2) ||
+                                        (Math.abs(col1 - col2) === 1 && row1 === row2);
+                                    
+                                    if (isAdjacent) {
+                                        canMove = false;
+                                        
+                                        // Play swap sound
+                                        playSound('swap');
+                                        
+                                        // Remove selection effects
+                                        scene.tweens.killTweensOf(selectedGem);
+                                        selectedGem.clearTint();
+                                        selectedGem.setScale(1);
+                                        
+                                        // Swap gems
+                                        swapGems(selectedGem, gem, scene);
+                                        
+                                        // Check for matches after swap
+                                        setTimeout(() => {
+                                            const matches = findMatches();
+                                            if (matches.length > 0) {
+                                                // Matches found
+                                                removeMatches(matches, scene);
+                                                movesLeft--;
+                                                document.getElementById('moves').textContent = movesLeft;
+                                                
+                                                // Check for level completion
+                                                if (score >= targetScore) {
+                                                    levelUp(scene);
+                                                }
+                                                
+                                                // Check for game over
+                                                if (movesLeft <= 0 && score < targetScore) {
+                                                    gameOver(scene);
+                                                }
+                                            } else {
+                                                // No matches - swap back
+                                                swapGems(selectedGem, gem, scene);
+                                                canMove = true;
+                                            }
+                                        }, 500);
+                                    } else {
+                                        // Not adjacent - deselect first gem
+                                        scene.tweens.killTweensOf(selectedGem);
+                                        selectedGem.clearTint();
+                                        selectedGem.setScale(1);
+                                        
+                                        // Select new gem
+                                        selectedGem = gem;
+                                        gem.setTint(0xaaaaaa);
+                                        
+                                        // Play selection sound
+                                        playSound('select');
+                                        
+                                        // Add pulsing effect to selected gem
+                                        scene.tweens.add({
+                                            targets: gem,
+                                            scaleX: 1.1,
+                                            scaleY: 1.1,
+                                            duration: 200,
+                                            yoyo: true,
+                                            repeat: -1
+                                        });
+                                    }
+                                }
+                            } else {
+                                // Handle drag gesture
+                                handleDragGesture(scene, gem, pointer);
+                            }
+                            
+                            dragStartGem = null;
+                        });
+                        
+                        board[row][col] = gem;
+                        
+                        // Animate falling with slight delay per column for visual effect
+                        scene.tweens.add({
+                            targets: [gem, icon],
+                            y: offsetY + row * gemSize + gemSize / 2,
+                            duration: 600 + (col * 100),
+                            ease: 'Bounce.out'
+                        });
+                    }
+                }
+            }
+        }
+
+        function addScore(points, scene) {
+            // Update score
+            score += points;
+            document.getElementById('score').textContent = score;
+            
+            // Add visual effect to score display
+            const scoreElement = document.getElementById('score');
+            scoreElement.style.transform = 'scale(1.2)';
+            setTimeout(() => {
+                scoreElement.style.transform = 'scale(1)';
+            }, 300);
+        }
+
+        function levelUp(scene) {
+            level++;
+            movesLeft += 10; // Bonus moves for next level
+            targetScore = level * 1500;
+            
+            document.getElementById('level').textContent = level;
+            document.getElementById('moves').textContent = movesLeft;
+            
+            // Play level up sound
+            playSound('levelup');
+            
+            // Show level up message
+            const levelUpText = scene.add.text(game.scale.width / 2, game.scale.height / 2, `LEVEL ${level}!`,
+            {
+                fontSize: Math.min(48, game.scale.width * 0.08) + 'px',
+                fill: '#ffcc00',
+                fontStyle: 'bold',
+                stroke: '#000',
+                strokeThickness: 6
+            }).setOrigin(0.5);
+            
+            // Animate level up text
+            scene.tweens.add({
+                targets: levelUpText,
+                scaleX: 1.5,
+                scaleY: 1.5,
+                alpha: 0,
+                duration: 1500,
+                ease: 'Power2',
+                onComplete: () => levelUpText.destroy()
+            });
+        }
+
+        function gameOver(scene) {
+            canMove = false;
+            
+            // Play game over sound
+            playSound('gameover');
+            
+            // Update final score
+            document.getElementById('final-score').textContent = score;
+            
+            // Show game over popup
+            setTimeout(() => {
+                document.getElementById('game-over-popup').classList.add('active');
+            }, 1000);
+        }
+
+        function showHint(scene) {
+            if (!canMove) return;
+            
+            // Play hint sound
+            playSound('hint');
+            
+            // Find a possible move
+            for (let row = 0; row < boardSize; row++) {
+                for (let col = 0; col < boardSize - 1; col++) {
+                    // Check horizontal swap
+                    const gem1 = board[row][col];
+                    const gem2 = board[row][col + 1];
+                    
+                    if (gem1 && gem2) {
+                        // Swap temporarily
+                        swapGemsNoAnimation(gem1, gem2);
+                        
+                        // Check for matches
+                        const matches = findMatches();
+                        
+                        // Swap back
+                        swapGemsNoAnimation(gem1, gem2);
+                        
+                        if (matches.length > 0) {
+                            // Highlight the gems
+                            scene.tweens.add({
+                                targets: [gem1, gem2],
+                                scaleX: 1.2,
+                                scaleY: 1.2,
+                                duration: 300,
+                                yoyo: true,
+                                repeat: 2,
+                                onComplete: () => {
+                                    gem1.setScale(1);
+                                    gem2.setScale(1);
+                                }
+                            });
+                            return;
+                        }
+                    }
+                }
+            }
+            
+            // Check vertical swaps
+            for (let row = 0; row < boardSize - 1; row++) {
+                for (let col = 0; col < boardSize; col++) {
+                    const gem1 = board[row][col];
+                    const gem2 = board[row + 1][col];
+                    
+                    if (gem1 && gem2) {
+                        // Swap temporarily
+                        swapGemsNoAnimation(gem1, gem2);
+                        
+                        // Check for matches
+                        const matches = findMatches();
+                        
+                        // Swap back
+                        swapGemsNoAnimation(gem1, gem2);
+                        
+                        if (matches.length > 0) {
+                            // Highlight the gems
+                            scene.tweens.add({
+                                targets: [gem1, gem2],
+                                scaleX: 1.2,
+                                scaleY: 1.2,
+                                duration: 300,
+                                yoyo: true,
+                                repeat: 2,
+                                onComplete: () => {
+                                    gem1.setScale(1);
+                                    gem2.setScale(1);
+                                }
+                            });
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
+        function swapGemsNoAnimation(gem1, gem2) {
+            // Swap board positions without animation
+            const row1 = gem1.getData('row');
+            const col1 = gem1.getData('col');
+            const row2 = gem2.getData('row');
+            const col2 = gem2.getData('col');
+            
+            board[row1][col1] = gem2;
+            board[row2][col2] = gem1;
+            
+            gem1.setData('row', row2);
+            gem1.setData('col', col2);
+            gem2.setData('row', row1);
+            gem2.setData('col', col1);
+        }
+        
+        // Audio functions
+        function initAudio() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Create sound effects
+                sounds = {
+                    select: createBeepSound(400, 0.1),
+                    swap: createBeepSound(300, 0.2),
+                    match: createChordSound([523.25, 659.25, 783.99], 0.3), // C, E, G
+                    fall: createSlideSound(400, 200, 0.3),
+                    levelup: createSlideSound(200, 600, 0.5),
+                    gameover: createBeepSound(150, 1.0),
+                    click: createBeepSound(600, 0.05),
+                    hint: createBeepSound(800, 0.2)
+                };
+            } catch (e) {
+                console.log("Web Audio API is not supported in this browser");
+            }
+        }
+        
+        function createBeepSound(frequency, duration) {
+            return function() {
+                if (!audioContext) return;
+                
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = frequency;
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + duration);
+            };
+        }
+        
+        function createChordSound(frequencies, duration) {
+            return function() {
+                if (!audioContext) return;
+                
+                frequencies.forEach(freq => {
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.frequency.value = freq;
+                    oscillator.type = 'sine';
+                    
+                    gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+                    
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + duration);
+                });
+            };
+        }
+        
+        function createSlideSound(startFreq, endFreq, duration) {
+            return function() {
+                if (!audioContext) return;
+                
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(startFreq, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(endFreq, audioContext.currentTime + duration);
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + duration);
+            };
+        }
+        
+        function playSound(soundName) {
+            if (sounds[soundName]) {
+                sounds[soundName]();
+            }
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            game.scale.resize(window.innerWidth, window.innerHeight);
+        });
+        
+        // Prevent context menu on mobile
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        });
+    </script>
+</body>
+</html>
