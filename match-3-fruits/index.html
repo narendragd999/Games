@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Match-3 Fruits</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 5px;
+            background: linear-gradient(to bottom, #6a11cb, #fff);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            color: #333;
+            box-sizing: border-box;
+        }
+        #game {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            padding: 5px;
+        }
+        #score {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+            text-align: center;
+        }
+        #board {
+            display: grid;
+            gap: 1px;
+            background: white;
+            padding: 2px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 10px;
+            justify-content: center;
+        }
+        .cell {
+            background: #f9f9f9;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+            touch-action: manipulation;
+            border: 1px solid #eee;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            width: 100%;
+            align-items: center;
+        }
+        select {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 5px;
+            background: white;
+            color: #333;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 14px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 14px;
+            min-width: 80px;
+            transition: opacity 0.2s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        .primary {
+            background: #3498db;
+        }
+        .secondary {
+            background: #6a11cb;
+        }
+        #modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            max-width: 90%;
+            max-height: 80%;
+            overflow-y: auto;
+            text-align: center;
+            color: #333;
+        }
+        .modal-content h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        #loader {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            color: white;
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @media (max-width: 480px) {
+            #score {
+                font-size: 18px;
+            }
+            button {
+                padding: 6px 12px;
+                font-size: 12px;
+                min-width: 70px;
+            }
+            select {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="game">
+        <div id="score">Score: 0</div>
+        <div id="board"></div>
+        <div class="controls">
+            <select id="sizeSelect" onchange="changeSize(this.value)">
+                <option value="4">4x4</option>
+                <option value="5">5x5</option>
+                <option value="6">6x6</option>
+                <option value="7">7x7</option>
+                <option value="8" selected>8x8</option>
+            </select>
+            <button class="primary" onclick="newGame()">New Game</button>
+            <button class="secondary" onclick="hint()">Hint</button>
+            <button class="secondary" onclick="autoSolve()">Auto-solve</button>
+            <button class="secondary" onclick="checkSolution()">Check</button>
+            <button class="secondary" onclick="showInstructions()">?</button>
+        </div>
+    </div>
+
+    <div id="modal">
+        <div class="modal-content">
+            <h2>Match-3 Fruits Instructions</h2>
+            <p>Swap adjacent fruits to match 3 or more in a row (horizontal or vertical). Matches disappear, fruits above drop down, and new ones appear from the top. Continue until no more moves are possible. Use hints for help, auto-solve to watch the solution, or check if solved! Select board size for different challenges.</p>
+            <button class="primary" onclick="closeModal()">Close</button>
+        </div>
+    </div>
+
+    <div id="loader">
+        <div class="spinner"></div>
+    </div>
+
+    <script>
+        const fruits = ['🍎', '🍌', '🍒', '🍊', '🍇', '🍓'];
+        let boardSize = 4;
+        let board = [];
+        let cells = [];
+        let score = 0;
+        let audioCtx = null;
+        const boardEl = document.getElementById('board');
+
+        function randomFruit() {
+            return fruits[Math.floor(Math.random() * fruits.length)];
+        }
+
+        function createBoard(n) {
+            boardEl.innerHTML = '';
+            cells = [];
+            for (let i = 0; i < n * n; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.draggable = true;
+                cell.dataset.index = i;
+                cell.addEventListener('dragstart', dragStart);
+                cell.addEventListener('dragover', allowDrop);
+                cell.addEventListener('drop', drop);
+                boardEl.appendChild(cell);
+                cells.push(cell);
+            }
+            setCellSize();
+            board = Array(n * n).fill(null);
+        }
+
+        function setCellSize() {
+            const availableWidth = Math.min(window.innerWidth * 0.95, 500);
+            const cellSize = Math.max(30, Math.floor(availableWidth / boardSize) - 2);
+            cells.forEach(cell => {
+                cell.style.width = cellSize + 'px';
+                cell.style.height = cellSize + 'px';
+                cell.style.fontSize = Math.floor(cellSize * 0.6) + 'px';
+            });
+            boardEl.style.gridTemplateColumns = `repeat(${boardSize}, ${cellSize}px)`;
+            boardEl.style.gridTemplateRows = `repeat(${boardSize}, ${cellSize}px)`;
+        }
+
+        function init() {
+            createBoard(boardSize);
+            window.addEventListener('resize', setCellSize);
+            newGame();
+        }
+
+        function changeSize(sizeStr) {
+            const n = parseInt(sizeStr);
+            if (n !== boardSize) {
+                boardSize = n;
+                createBoard(boardSize);
+                newGame();
+            }
+        }
+
+        function updateBoard() {
+            cells.forEach((cell, i) => {
+                cell.textContent = board[i] || '';
+            });
+        }
+
+        function allowDrop(e) {
+            e.preventDefault();
+        }
+
+        function dragStart(e) {
+            e.dataTransfer.setData('text', this.dataset.index);
+            playSound('move');
+        }
+
+        function drop(e) {
+            e.preventDefault();
+            const draggedIndex = parseInt(e.dataTransfer.getData('text'));
+            const targetIndex = parseInt(this.dataset.index);
+            if (isAdjacent(draggedIndex, targetIndex)) {
+                swap(draggedIndex, targetIndex);
+                playSound('drop');
+                setTimeout(findAndRemoveMatches, 100);
+            }
+        }
+
+        function isAdjacent(i1, i2) {
+            const row1 = Math.floor(i1 / boardSize), col1 = i1 % boardSize;
+            const row2 = Math.floor(i2 / boardSize), col2 = i2 % boardSize;
+            return (Math.abs(row1 - row2) + Math.abs(col1 - col2) === 1);
+        }
+
+        function swap(i1, i2) {
+            [board[i1], board[i2]] = [board[i2], board[i1]];
+            updateBoard();
+        }
+
+        function findAllMatches() {
+            let matched = new Set();
+            const total = boardSize * boardSize;
+            // Horizontal matches
+            for (let r = 0; r < boardSize; r++) {
+                for (let c = 0; c <= boardSize - 3; c++) {
+                    const idx1 = r * boardSize + c;
+                    const idx2 = idx1 + 1;
+                    const idx3 = idx1 + 2;
+                    if (board[idx1] && board[idx1] === board[idx2] && board[idx1] === board[idx3]) {
+                        matched.add(idx1);
+                        matched.add(idx2);
+                        matched.add(idx3);
+                    }
+                }
+            }
+            // Vertical matches
+            for (let c = 0; c < boardSize; c++) {
+                for (let r = 0; r <= boardSize - 3; r++) {
+                    const idx1 = r * boardSize + c;
+                    const idx2 = (r + 1) * boardSize + c;
+                    const idx3 = (r + 2) * boardSize + c;
+                    if (board[idx1] && board[idx1] === board[idx2] && board[idx1] === board[idx3]) {
+                        matched.add(idx1);
+                        matched.add(idx2);
+                        matched.add(idx3);
+                    }
+                }
+            }
+            return matched;
+        }
+
+        function findAndRemoveMatches() {
+            let matched = findAllMatches();
+            if (matched.size === 0) return;
+            matched.forEach(i => cells[i].style.backgroundColor = 'yellow');
+            score += matched.size * 10;
+            updateScore();
+            setTimeout(() => {
+                let removed = Array.from(matched);
+                removed.forEach(i => {
+                    board[i] = null;
+                    cells[i].textContent = '';
+                    cells[i].style.backgroundColor = '';
+                });
+                dropFruits();
+                setTimeout(findAndRemoveMatches, 300);
+            }, 300);
+        }
+
+        function dropFruits() {
+            for (let c = 0; c < boardSize; c++) {
+                let colBoard = [];
+                for (let r = 0; r < boardSize; r++) {
+                    const idx = r * boardSize + c;
+                    if (board[idx] !== null) {
+                        colBoard.push(board[idx]);
+                    }
+                }
+                while (colBoard.length < boardSize) {
+                    colBoard.unshift(randomFruit());
+                }
+                for (let r = 0; r < boardSize; r++) {
+                    const idx = r * boardSize + c;
+                    board[idx] = colBoard[r];
+                }
+            }
+            updateBoard();
+        }
+
+        function hasMatches() {
+            return findAllMatches().size > 0;
+        }
+
+        function findValidMove() {
+            const total = boardSize * boardSize;
+            for (let i = 0; i < total; i++) {
+                const row = Math.floor(i / boardSize), col = i % boardSize;
+                // Check right
+                if (col < boardSize - 1) {
+                    let temp = board[i];
+                    board[i] = board[i + 1];
+                    board[i + 1] = temp;
+                    if (hasMatches()) {
+                        temp = board[i];
+                        board[i] = board[i + 1];
+                        board[i + 1] = temp;
+                        return [i, i + 1];
+                    }
+                    temp = board[i];
+                    board[i] = board[i + 1];
+                    board[i + 1] = temp;
+                }
+                // Check down
+                if (row < boardSize - 1) {
+                    let temp = board[i];
+                    board[i] = board[i + boardSize];
+                    board[i + boardSize] = temp;
+                    if (hasMatches()) {
+                        temp = board[i];
+                        board[i] = board[i + boardSize];
+                        board[i + boardSize] = temp;
+                        return [i, i + boardSize];
+                    }
+                    temp = board[i];
+                    board[i] = board[i + boardSize];
+                    board[i + boardSize] = temp;
+                }
+            }
+            return null;
+        }
+
+        function hasValidMove() {
+            return findValidMove() !== null;
+        }
+
+        async function autoSolve() {
+            document.getElementById('loader').style.display = 'flex';
+            while (true) {
+                const move = findValidMove();
+                if (!move) break;
+                swap(move[0], move[1]);
+                await new Promise(resolve => setTimeout(resolve, 500));
+                findAndRemoveMatches();
+                await new Promise(resolve => setTimeout(resolve, 600));
+            }
+            document.getElementById('loader').style.display = 'none';
+            playSound('button');
+        }
+
+        function hint() {
+            const move = findValidMove();
+            if (move) {
+                cells[move[0]].style.border = '2px solid red';
+                cells[move[1]].style.border = '2px solid red';
+                setTimeout(() => {
+                    cells[move[0]].style.border = '';
+                    cells[move[1]].style.border = '';
+                }, 2000);
+            }
+            playSound('button');
+        }
+
+        function checkSolution() {
+            if (!hasValidMove()) {
+                alert('Congratulations! Puzzle solved.');
+            } else {
+                alert('Not yet solved. Keep matching!');
+            }
+            playSound('button');
+        }
+
+        function newGame() {
+            document.getElementById('loader').style.display = 'flex';
+            let attempts = 0;
+            const total = boardSize * boardSize;
+            do {
+                board = Array(total).fill().map(() => randomFruit());
+                attempts++;
+            } while (!hasValidMove() && attempts < 1000); // Increased attempts for better solvability
+            updateBoard();
+            score = 0;
+            updateScore();
+            document.getElementById('loader').style.display = 'none';
+            playSound('new');
+        }
+
+        function updateScore() {
+            document.getElementById('score').textContent = `Score: ${score}`;
+        }
+
+        function showInstructions() {
+            document.getElementById('modal').style.display = 'flex';
+            playSound('button');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+            playSound('button');
+        }
+
+        function playSound(type) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            gain.gain.value = 0.1;
+            osc.frequency.value = type === 'move' ? 440 : type === 'drop' ? 220 : 880;
+            osc.type = 'sine';
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.2);
+        }
+
+        // Close modal on outside click
+        document.getElementById('modal').addEventListener('click', (e) => {
+            if (e.target.id === 'modal') closeModal();
+        });
+
+        window.onload = init;
+    </script>
+</body>
+</html>
