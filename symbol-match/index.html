@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Symbol Match</title>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+}
+
+.container {
+  width: 100vw;
+  height: 100vh;
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  gap: 8px;
+}
+
+.header {
+  text-align: center;
+  padding: 8px 0;
+}
+
+.header h1 {
+  font-size: 24px;
+  margin-bottom: 4px;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.score {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.game-board {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 8px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 15px;
+  backdrop-filter: blur(10px);
+}
+
+.cell {
+  background: rgba(255,255,255,0.2);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  cursor: pointer;
+  transition: all 0.3s;
+  border: 2px solid transparent;
+  user-select: none;
+  position: relative;
+}
+
+.cell.hidden .symbol {
+  opacity: 0;
+}
+
+.cell.revealed .symbol {
+  opacity: 1;
+}
+
+.cell:active {
+  transform: scale(0.95);
+}
+
+.cell.selected {
+  background: rgba(255,255,255,0.4);
+  border-color: #fff;
+  transform: scale(1.05);
+}
+
+.cell.matched {
+  background: rgba(76,175,80,0.5);
+  border-color: #4caf50;
+}
+
+.cell.wrong {
+  background: rgba(244,67,54,0.5);
+  border-color: #f44336;
+  animation: shake 0.5s;
+}
+
+.cell.hint {
+  animation: pulse 0.5s;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  padding: 0 8px;
+}
+
+.btn {
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+  color: white;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+}
+
+.btn:active {
+  transform: scale(0.95);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.btn-secondary {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.btn-success {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.btn-warning {
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.8);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal.active {
+  display: flex;
+}
+
+.modal-content {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+  border-radius: 15px;
+  max-width: 90%;
+  max-height: 80%;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+
+.modal-content h2 {
+  margin-bottom: 15px;
+  font-size: 22px;
+}
+
+.modal-content p {
+  margin-bottom: 10px;
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+.modal-content ul {
+  margin: 10px 0 10px 20px;
+  line-height: 1.8;
+  font-size: 14px;
+}
+
+.close-btn {
+  margin-top: 15px;
+  width: 100%;
+}
+
+.message {
+  text-align: center;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 8px;
+  min-height: 32px;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+}
+
+.timer {
+  font-size: 18px;
+  font-weight: bold;
+  color: #ffeb3b;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+
+.timer.warning {
+  color: #ff5252;
+  animation: pulse 1s infinite;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Symbol Match</h1>
+    <div class="score">
+      Time: <span class="timer" id="timer">60</span>s | 
+      Moves: <span id="moves">0</span> | 
+      Hints: <span id="hints">2</span>
+    </div>
+  </div>
+
+  <div class="message" id="message">Memorize the symbols!</div>
+
+  <div class="game-board" id="board"></div>
+
+  <div class="controls">
+    <button class="btn btn-primary" onclick="newGame()">New Game</button>
+    <button class="btn btn-secondary" onclick="showHint()">Hint</button>
+    <button class="btn btn-success" onclick="checkSolution()">Check</button>
+    <button class="btn btn-warning" onclick="autoSolve()">Auto-Solve</button>
+  </div>
+
+  <button class="btn btn-primary" onclick="showInstructions()" style="margin-top: 8px;">Instructions</button>
+</div>
+
+<div class="modal" id="modal">
+  <div class="modal-content">
+    <h2>How to Play</h2>
+    <p><strong>Objective:</strong> Memorize and match all symbol patterns within 60 seconds!</p>
+    <ul>
+      <li>Study the board for 3 seconds at the start</li>
+      <li>Symbols will hide - rely on your memory!</li>
+      <li>Tap two cells to reveal and match them</li>
+      <li>Wrong matches cost you 3 seconds penalty</li>
+      <li>Match all pairs before time runs out</li>
+    </ul>
+    <p><strong>Features:</strong></p>
+    <ul>
+      <li><strong>Hint:</strong> Reveals one matching pair (2 hints per game)</li>
+      <li><strong>Check:</strong> Validates your current matches</li>
+      <li><strong>Auto-Solve:</strong> Completes the puzzle (ends game)</li>
+      <li><strong>New Game:</strong> Starts a fresh puzzle</li>
+    </ul>
+    <p><strong>Challenge Mode:</strong> Beat your best time and moves!</p>
+    <button class="btn btn-primary close-btn" onclick="closeModal()">Got It!</button>
+  </div>
+</div>
+
+<script>
+const symbols = ['🌟', '🎨', '🎵', '🎮', '🚀', '🌈', '⚡', '🔥', '💎', '🎯', '🌺', '🦋'];
+let board = [];
+let selected = [];
+let matched = [];
+let moves = 0;
+let hintsLeft = 2;
+let solution = {};
+let timeLeft = 60;
+let timerInterval = null;
+let isRevealed = false;
+let gameActive = false;
+
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playSound(freq, duration) {
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.frequency.value = freq;
+  gain.gain.value = 0.1;
+  osc.start();
+  osc.stop(audioCtx.currentTime + duration);
+}
+
+function initGame() {
+  board = [];
+  selected = [];
+  matched = [];
+  moves = 0;
+  hintsLeft = 2;
+  timeLeft = 60;
+  solution = {};
+  isRevealed = true;
+  gameActive = false;
+  
+  if (timerInterval) clearInterval(timerInterval);
+  
+  const pairs = symbols.slice(0, 8);
+  const grid = [...pairs, ...pairs];
+  
+  for (let i = grid.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [grid[i], grid[j]] = [grid[j], grid[i]];
+  }
+  
+  board = grid;
+  
+  for (let i = 0; i < board.length; i++) {
+    for (let j = i + 1; j < board.length; j++) {
+      if (board[i] === board[j]) {
+        solution[i] = j;
+        solution[j] = i;
+        break;
+      }
+    }
+  }
+  
+  renderBoard();
+  updateScore();
+  showMessage('Memorize the symbols!');
+  
+  setTimeout(() => {
+    isRevealed = false;
+    gameActive = true;
+    renderBoard();
+    showMessage('Find the matching pairs!');
+    startTimer();
+  }, 3000);
+}
+
+function startTimer() {
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    updateScore();
+    
+    if (timeLeft <= 10) {
+      document.getElementById('timer').classList.add('warning');
+    }
+    
+    if (timeLeft <= 0) {
+      endGame(false);
+    }
+  }, 1000);
+}
+
+function endGame(won) {
+  gameActive = false;
+  clearInterval(timerInterval);
+  
+  if (won) {
+    showMessage(`You won in ${moves} moves with ${timeLeft}s left! 🏆`);
+    playSound(800, 0.5);
+  } else {
+    showMessage('Time\'s up! Game Over! ⏰');
+    playSound(150, 0.5);
+    isRevealed = true;
+    renderBoard();
+  }
+  
+  setTimeout(newGame, 4000);
+}
+
+function renderBoard() {
+  const boardEl = document.getElementById('board');
+  boardEl.innerHTML = '';
+  
+  board.forEach((symbol, idx) => {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    
+    if (!isRevealed && !matched.includes(idx) && !selected.includes(idx)) {
+      cell.classList.add('hidden');
+    } else {
+      cell.classList.add('revealed');
+    }
+    
+    const symbolEl = document.createElement('div');
+    symbolEl.className = 'symbol';
+    symbolEl.textContent = symbol;
+    cell.appendChild(symbolEl);
+    
+    cell.onclick = () => selectCell(idx);
+    
+    if (selected.includes(idx)) cell.classList.add('selected');
+    if (matched.includes(idx)) cell.classList.add('matched');
+    
+    boardEl.appendChild(cell);
+  });
+}
+
+function selectCell(idx) {
+  if (!gameActive || matched.includes(idx) || selected.includes(idx)) return;
+  
+  selected.push(idx);
+  playSound(400, 0.1);
+  
+  if (selected.length === 2) {
+    moves++;
+    updateScore();
+    
+    const [first, second] = selected;
+    const cells = document.querySelectorAll('.cell');
+    
+    if (board[first] === board[second]) {
+      matched.push(first, second);
+      playSound(600, 0.2);
+      showMessage('Perfect match! 🎉');
+      selected = [];
+      
+      if (matched.length === board.length) {
+        setTimeout(() => endGame(true), 500);
+      }
+    } else {
+      cells[first].classList.add('wrong');
+      cells[second].classList.add('wrong');
+      playSound(200, 0.2);
+      showMessage('Wrong! -3 seconds ⏱️');
+      timeLeft = Math.max(0, timeLeft - 3);
+      updateScore();
+      
+      setTimeout(() => {
+        cells[first].classList.remove('wrong');
+        cells[second].classList.remove('wrong');
+        selected = [];
+        renderBoard();
+      }, 1000);
+    }
+  }
+  
+  renderBoard();
+}
+
+function showHint() {
+  if (!gameActive) return;
+  
+  if (hintsLeft <= 0) {
+    showMessage('No hints left!');
+    playSound(200, 0.2);
+    return;
+  }
+  
+  const unmatched = board.map((_, i) => i).filter(i => !matched.includes(i));
+  if (unmatched.length === 0) return;
+  
+  const first = unmatched[0];
+  const second = solution[first];
+  
+  hintsLeft--;
+  timeLeft = Math.max(0, timeLeft - 5);
+  updateScore();
+  
+  const cells = document.querySelectorAll('.cell');
+  cells[first].classList.add('hint');
+  cells[second].classList.add('hint');
+  cells[first].classList.add('revealed');
+  cells[second].classList.add('revealed');
+  cells[first].querySelector('.symbol').style.opacity = 1;
+  cells[second].querySelector('.symbol').style.opacity = 1;
+  
+  playSound(500, 0.2);
+  showMessage('Hint revealed! -5 seconds');
+  
+  setTimeout(() => {
+    cells[first].classList.remove('hint');
+    cells[second].classList.remove('hint');
+    if (!matched.includes(first)) {
+      cells[first].classList.remove('revealed');
+      cells[first].querySelector('.symbol').style.opacity = 0;
+    }
+    if (!matched.includes(second)) {
+      cells[second].classList.remove('revealed');
+      cells[second].querySelector('.symbol').style.opacity = 0;
+    }
+  }, 2000);
+}
+
+function checkSolution() {
+  if (!gameActive) return;
+  
+  if (matched.length === 0) {
+    showMessage('No matches yet!');
+    playSound(200, 0.2);
+    return;
+  }
+  
+  let correct = true;
+  for (let i = 0; i < matched.length; i += 2) {
+    const first = matched[i];
+    const second = matched[i + 1];
+    if (solution[first] !== second) {
+      correct = false;
+      break;
+    }
+  }
+  
+  if (correct) {
+    showMessage('All matches correct! ✓');
+    playSound(600, 0.2);
+  } else {
+    showMessage('Some matches are wrong! ✗');
+    playSound(200, 0.2);
+    timeLeft = Math.max(0, timeLeft - 3);
+    updateScore();
+  }
+}
+
+function autoSolve() {
+  if (!gameActive) return;
+  
+  matched = [];
+  selected = [];
+  
+  for (let i = 0; i < board.length; i++) {
+    if (!matched.includes(i)) {
+      const pair = solution[i];
+      matched.push(i, pair);
+    }
+  }
+  
+  isRevealed = true;
+  renderBoard();
+  showMessage('Puzzle solved! Game Over! 🎯');
+  playSound(700, 0.3);
+  
+  gameActive = false;
+  clearInterval(timerInterval);
+  setTimeout(newGame, 3000);
+}
+
+function newGame() {
+  document.getElementById('timer').classList.remove('warning');
+  initGame();
+  playSound(500, 0.1);
+}
+
+function showInstructions() {
+  const wasActive = gameActive;
+  if (gameActive) {
+    gameActive = false;
+    clearInterval(timerInterval);
+  }
+  
+  document.getElementById('modal').classList.add('active');
+  playSound(400, 0.1);
+  
+  const closeBtn = document.querySelector('.close-btn');
+  closeBtn.onclick = () => {
+    closeModal();
+    if (wasActive) {
+      gameActive = true;
+      startTimer();
+    }
+  };
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('active');
+  playSound(400, 0.1);
+}
+
+function updateScore() {
+  document.getElementById('moves').textContent = moves;
+  document.getElementById('hints').textContent = hintsLeft;
+  document.getElementById('timer').textContent = timeLeft;
+}
+
+function showMessage(msg) {
+  document.getElementById('message').textContent = msg;
+}
+
+initGame();
+</script>
+</body>
+</html>
