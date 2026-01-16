@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Unscramble</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(to bottom, #6a11cb, #ffffff);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #6a11cb;
+            margin-bottom: 15px;
+            font-size: 1.8rem;
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .info-label {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .info-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #6a11cb;
+        }
+
+        .difficulty-selector {
+            margin-bottom: 15px;
+        }
+
+        .difficulty-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            margin: 0 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .difficulty-btn.active {
+            background-color: #6a11cb;
+            transform: scale(1.1);
+        }
+
+        .scrambled-word {
+            font-size: 2rem;
+            font-weight: bold;
+            letter-spacing: 5px;
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            min-height: 80px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .letter-bank {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .letter-tile {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #333;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+            user-select: none;
+        }
+
+        .letter-tile.used {
+            opacity: 0.3;
+            cursor: default;
+        }
+
+        .letter-tile.dragging {
+            opacity: 0.7;
+            transform: scale(1.1);
+        }
+
+        .answer-area {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin: 20px 0;
+            min-height: 60px;
+            flex-wrap: wrap;
+        }
+
+        .answer-slot {
+            background-color: #e0e0e0;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 50px;
+            height: 50px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+        }
+
+        .answer-slot.filled {
+            background-color: #6a11cb;
+            color: white;
+        }
+
+        .answer-slot.valid-drop {
+            background-color: #e8f4fd;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 8px;
+            padding: 10px 15px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .btn-secondary {
+            background-color: #6a11cb;
+            color: white;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            opacity: 1;
+        }
+
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            opacity: 1;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .modal-content {
+            background-color: white;
+            border-radius: 15px;
+            padding: 20px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .modal-title {
+            color: #6a11cb;
+            font-size: 1.3rem;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .instructions-list {
+            text-align: left;
+            margin: 15px 0;
+            padding-left: 20px;
+        }
+
+        .instructions-list li {
+            margin-bottom: 10px;
+        }
+
+        .progress {
+            margin: 15px 0;
+            text-align: left;
+        }
+
+        .progress-bar {
+            height: 10px;
+            background-color: #e0e0e0;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: #6a11cb;
+            width: 0%;
+            transition: width 0.5s;
+        }
+
+        .word-count {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
+            
+            .scrambled-word {
+                font-size: 1.5rem;
+                min-height: 60px;
+            }
+            
+            .letter-tile, .answer-slot {
+                width: 40px;
+                height: 40px;
+                font-size: 1.3rem;
+            }
+            
+            .btn {
+                padding: 8px 12px;
+                font-size: 0.8rem;
+                min-width: 100px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><i class="fas fa-scroll"></i> Word Unscramble</h1>
+        
+        <div class="game-info">
+            <div class="info-item">
+                <span class="info-label">Words Solved</span>
+                <span class="info-value" id="words-solved">0/0</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Hints Left</span>
+                <span class="info-value" id="hints-left">3</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Time</span>
+                <span class="info-value" id="timer">00:00</span>
+            </div>
+        </div>
+        
+        <div class="difficulty-selector">
+            <button class="difficulty-btn active" data-difficulty="easy">Easy</button>
+            <button class="difficulty-btn" data-difficulty="medium">Medium</button>
+            <button class="difficulty-btn" data-difficulty="hard">Hard</button>
+        </div>
+        
+        <div class="progress">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <div class="word-count" id="word-count">Word 1 of 5</div>
+        </div>
+        
+        <div class="scrambled-word" id="scrambled-word"></div>
+        
+        <div class="answer-area" id="answer-area"></div>
+        
+        <div class="letter-bank" id="letter-bank"></div>
+        
+        <div class="controls">
+            <button class="btn btn-secondary" id="hint-btn"><i class="fas fa-lightbulb"></i> Hint</button>
+            <button class="btn btn-primary" id="check-btn"><i class="fas fa-check"></i> Check</button>
+            <button class="btn btn-secondary" id="clear-btn"><i class="fas fa-eraser"></i> Clear</button>
+            <button class="btn btn-primary" id="shuffle-btn"><i class="fas fa-random"></i> Shuffle</button>
+            <button class="btn btn-secondary" id="new-game-btn"><i class="fas fa-plus"></i> New Game</button>
+        </div>
+        
+        <div class="message" id="message"></div>
+        
+        <button class="btn btn-secondary" id="instructions-btn" style="margin-top: 15px;">
+            <i class="fas fa-question-circle"></i> How to Play
+        </button>
+    </div>
+    
+    <div class="modal" id="instructions-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">How to Play</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <p>Unscramble the letters to form a valid word!</p>
+            <ul class="instructions-list">
+                <li>Look at the scrambled word and try to figure out what it is</li>
+                <li>Drag and drop letters from the bank to the answer area</li>
+                <li>Arrange the letters in the correct order to form the word</li>
+                <li>Use the Check button to verify your answer</li>
+                <li>Use the Hint button if you need help (limited uses)</li>
+                <li>Shuffle the letters if you want to see them in a different order</li>
+                <li>Solve all words to complete the game!</li>
+            </ul>
+            <button class="btn btn-primary" id="close-instructions">Got it!</button>
+        </div>
+    </div>
+
+    <script>
+        // Game state
+        const gameState = {
+            difficulty: 'easy',
+            words: [],
+            currentWordIndex: 0,
+            solvedWords: [],
+            hintsLeft: 3,
+            startTime: null,
+            timerInterval: null,
+            isDragging: false,
+            dragElement: null,
+            currentAnswer: []
+        };
+
+        // Word lists by difficulty
+        const wordLists = {
+            easy: [
+                'APPLE', 'TIGER', 'HONEY', 'WATER', 'SMILE', 
+                'MUSIC', 'BEACH', 'CLOUD', 'GRAPE', 'TRAIN'
+            ],
+            medium: [
+                'BANANA', 'DRAGON', 'JUNGLE', 'PURPLE', 'SUNSET', 
+                'BUTTER', 'GARDEN', 'PENCIL', 'WINDOW', 'BASKET'
+            ],
+            hard: [
+                'ELEPHANT', 'BUTTERFLY', 'ADVENTURE', 'MYSTERY', 'UNIVERSE',
+                'CHOCOLATE', 'MOUNTAIN', 'HOSPITAL', 'NOTEBOOK', 'CALENDAR'
+            ]
+        };
+
+        // DOM elements
+        const scrambledWordElement = document.getElementById('scrambled-word');
+        const answerAreaElement = document.getElementById('answer-area');
+        const letterBankElement = document.getElementById('letter-bank');
+        const wordsSolvedElement = document.getElementById('words-solved');
+        const hintsLeftElement = document.getElementById('hints-left');
+        const timerElement = document.getElementById('timer');
+        const messageElement = document.getElementById('message');
+        const progressFillElement = document.getElementById('progress-fill');
+        const wordCountElement = document.getElementById('word-count');
+        const difficultyButtons = document.querySelectorAll('.difficulty-btn');
+        const hintButton = document.getElementById('hint-btn');
+        const checkButton = document.getElementById('check-btn');
+        const clearButton = document.getElementById('clear-btn');
+        const shuffleButton = document.getElementById('shuffle-btn');
+        const newGameButton = document.getElementById('new-game-btn');
+        const instructionsButton = document.getElementById('instructions-btn');
+        const instructionsModal = document.getElementById('instructions-modal');
+        const closeInstructionsButton = document.getElementById('close-instructions');
+        const closeModalButton = document.querySelector('.close-modal');
+
+        // Initialize the game
+        function initGame() {
+            setupEventListeners();
+            startNewGame();
+        }
+
+        // Set up event listeners
+        function setupEventListeners() {
+            // Difficulty buttons
+            difficultyButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    playButtonSound();
+                    const difficulty = button.getAttribute('data-difficulty');
+                    changeDifficulty(difficulty);
+                });
+            });
+
+            // Game control buttons
+            hintButton.addEventListener('click', useHint);
+            checkButton.addEventListener('click', checkAnswer);
+            clearButton.addEventListener('click', clearAnswer);
+            shuffleButton.addEventListener('click', shuffleLetters);
+            newGameButton.addEventListener('click', startNewGame);
+            instructionsButton.addEventListener('click', showInstructions);
+            closeInstructionsButton.addEventListener('click', hideInstructions);
+            closeModalButton.addEventListener('click', hideInstructions);
+
+            // Drag and drop events
+            document.addEventListener('dragstart', handleDragStart);
+            document.addEventListener('dragover', handleDragOver);
+            document.addEventListener('dragenter', handleDragEnter);
+            document.addEventListener('dragleave', handleDragLeave);
+            document.addEventListener('drop', handleDrop);
+            document.addEventListener('dragend', handleDragEnd);
+
+            // Touch events for mobile
+            document.addEventListener('touchstart', handleTouchStart, { passive: false });
+            document.addEventListener('touchmove', handleTouchMove, { passive: false });
+            document.addEventListener('touchend', handleTouchEnd);
+        }
+
+        // Start a new game
+        function startNewGame() {
+            playButtonSound();
+            resetGameState();
+            generateWordList();
+            loadCurrentWord();
+            startTimer();
+        }
+
+        // Reset game state
+        function resetGameState() {
+            gameState.currentWordIndex = 0;
+            gameState.solvedWords = [];
+            gameState.hintsLeft = 3;
+            gameState.startTime = new Date();
+            gameState.currentAnswer = [];
+            clearInterval(gameState.timerInterval);
+            updateUI();
+        }
+
+        // Generate word list based on difficulty
+        function generateWordList() {
+            const wordList = wordLists[gameState.difficulty];
+            gameState.words = [];
+            
+            // Select 5 random words
+            const shuffled = [...wordList].sort(() => 0.5 - Math.random());
+            gameState.words = shuffled.slice(0, 5);
+        }
+
+        // Load the current word
+        function loadCurrentWord() {
+            if (gameState.currentWordIndex >= gameState.words.length) {
+                // Game completed
+                showMessage('Congratulations! You solved all the words!', 'success');
+                clearInterval(gameState.timerInterval);
+                return;
+            }
+            
+            const word = gameState.words[gameState.currentWordIndex];
+            gameState.currentAnswer = [];
+            
+            // Scramble the word
+            const scrambled = scrambleWord(word);
+            scrambledWordElement.textContent = scrambled.split('').join(' ');
+            
+            // Create answer slots
+            renderAnswerArea();
+            
+            // Create letter bank
+            renderLetterBank(word);
+            
+            updateUI();
+        }
+
+        // Scramble a word
+        function scrambleWord(word) {
+            const letters = word.split('');
+            for (let i = letters.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [letters[i], letters[j]] = [letters[j], letters[i]];
+            }
+            
+            // Make sure it's not the same as the original word
+            if (letters.join('') === word) {
+                return scrambleWord(word);
+            }
+            
+            return letters.join('');
+        }
+
+        // Render the answer area
+        function renderAnswerArea() {
+            answerAreaElement.innerHTML = '';
+            const wordLength = gameState.words[gameState.currentWordIndex].length;
+            
+            for (let i = 0; i < wordLength; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'answer-slot';
+                slot.setAttribute('data-index', i);
+                slot.textContent = gameState.currentAnswer[i] || '';
+                
+                if (gameState.currentAnswer[i]) {
+                    slot.classList.add('filled');
+                }
+                
+                answerAreaElement.appendChild(slot);
+            }
+        }
+
+        // Render the letter bank
+        function renderLetterBank(word) {
+            letterBankElement.innerHTML = '';
+            const letters = word.split('');
+            
+            // Shuffle the letters for the bank
+            const shuffledLetters = [...letters].sort(() => 0.5 - Math.random());
+            
+            shuffledLetters.forEach((letter, index) => {
+                const tile = document.createElement('div');
+                tile.className = 'letter-tile';
+                tile.textContent = letter;
+                tile.setAttribute('draggable', 'true');
+                tile.setAttribute('data-letter', letter);
+                tile.setAttribute('data-index', index);
+                
+                // Mark as used if already in answer
+                const usedCount = gameState.currentAnswer.filter(l => l === letter).length;
+                const totalCount = letters.filter(l => l === letter).length;
+                
+                if (usedCount >= totalCount) {
+                    tile.classList.add('used');
+                }
+                
+                letterBankElement.appendChild(tile);
+            });
+        }
+
+        // Update the UI
+        function updateUI() {
+            wordsSolvedElement.textContent = `${gameState.solvedWords.length}/${gameState.words.length}`;
+            hintsLeftElement.textContent = gameState.hintsLeft;
+            
+            // Update progress
+            const progress = (gameState.currentWordIndex / gameState.words.length) * 100;
+            progressFillElement.style.width = `${progress}%`;
+            
+            wordCountElement.textContent = `Word ${gameState.currentWordIndex + 1} of ${gameState.words.length}`;
+            
+            // Disable hint button if no hints left
+            hintButton.disabled = gameState.hintsLeft <= 0;
+            hintButton.classList.toggle('hint-used', gameState.hintsLeft <= 0);
+        }
+
+        // Start the timer
+        function startTimer() {
+            clearInterval(gameState.timerInterval);
+            gameState.timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        // Update the timer display
+        function updateTimer() {
+            const now = new Date();
+            const diff = Math.floor((now - gameState.startTime) / 1000);
+            const minutes = Math.floor(diff / 60);
+            const seconds = diff % 60;
+            timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        // Change difficulty
+        function changeDifficulty(difficulty) {
+            gameState.difficulty = difficulty;
+            
+            // Update active button
+            difficultyButtons.forEach(button => {
+                button.classList.toggle('active', button.getAttribute('data-difficulty') === difficulty);
+            });
+            
+            startNewGame();
+        }
+
+        // Use a hint
+        function useHint() {
+            if (gameState.hintsLeft <= 0) return;
+            
+            playButtonSound();
+            gameState.hintsLeft--;
+            
+            const word = gameState.words[gameState.currentWordIndex];
+            const missingLetters = word.length - gameState.currentAnswer.filter(Boolean).length;
+            
+            if (missingLetters > 0) {
+                // Reveal one letter
+                for (let i = 0; i < word.length; i++) {
+                    if (!gameState.currentAnswer[i]) {
+                        gameState.currentAnswer[i] = word[i];
+                        break;
+                    }
+                }
+                
+                renderAnswerArea();
+                renderLetterBank(word);
+                showMessage('A letter has been revealed!', 'success');
+            } else {
+                showMessage('You already have all the letters!', 'error');
+            }
+            
+            updateUI();
+        }
+
+        // Check the answer
+        function checkAnswer() {
+            playButtonSound();
+            const userWord = gameState.currentAnswer.join('');
+            const correctWord = gameState.words[gameState.currentWordIndex];
+            
+            if (userWord.length !== correctWord.length) {
+                showMessage('Please use all the letters!', 'error');
+                playErrorSound();
+                return;
+            }
+            
+            if (userWord === correctWord) {
+                // Correct answer
+                playSuccessSound();
+                gameState.solvedWords.push(correctWord);
+                gameState.currentWordIndex++;
+                
+                if (gameState.currentWordIndex >= gameState.words.length) {
+                    // Game completed
+                    showMessage('Congratulations! You solved all the words!', 'success');
+                    clearInterval(gameState.timerInterval);
+                } else {
+                    showMessage('Correct! Loading next word...', 'success');
+                    setTimeout(() => {
+                        loadCurrentWord();
+                    }, 1500);
+                }
+            } else {
+                // Incorrect answer
+                showMessage('Incorrect! Try again.', 'error');
+                playErrorSound();
+            }
+            
+            updateUI();
+        }
+
+        // Clear the answer
+        function clearAnswer() {
+            playButtonSound();
+            const word = gameState.words[gameState.currentWordIndex];
+            gameState.currentAnswer = [];
+            renderAnswerArea();
+            renderLetterBank(word);
+        }
+
+        // Shuffle the letters
+        function shuffleLetters() {
+            playButtonSound();
+            const word = gameState.words[gameState.currentWordIndex];
+            renderLetterBank(word);
+        }
+
+        // Show instructions modal
+        function showInstructions() {
+            playButtonSound();
+            instructionsModal.style.display = 'flex';
+        }
+
+        // Hide instructions modal
+        function hideInstructions() {
+            playButtonSound();
+            instructionsModal.style.display = 'none';
+        }
+
+        // Show a message
+        function showMessage(text, type) {
+            messageElement.textContent = text;
+            messageElement.className = 'message ' + type;
+            
+            // Hide message after 3 seconds
+            setTimeout(() => {
+                messageElement.style.opacity = '0';
+                setTimeout(() => {
+                    messageElement.className = 'message';
+                    messageElement.style.opacity = '1';
+                }, 300);
+            }, 3000);
+        }
+
+        // Drag and drop handlers
+        function handleDragStart(e) {
+            if (!e.target.classList.contains('letter-tile') || e.target.classList.contains('used')) return;
+            
+            gameState.isDragging = true;
+            gameState.dragElement = e.target;
+            e.target.classList.add('dragging');
+            e.dataTransfer.setData('text/plain', e.target.getAttribute('data-letter'));
+            
+            playDragSound();
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+        }
+
+        function handleDragEnter(e) {
+            e.preventDefault();
+            if (e.target.classList.contains('answer-slot')) {
+                e.target.classList.add('valid-drop');
+            }
+        }
+
+        function handleDragLeave(e) {
+            if (e.target.classList.contains('answer-slot')) {
+                e.target.classList.remove('valid-drop');
+            }
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            
+            if (e.target.classList.contains('answer-slot')) {
+                e.target.classList.remove('valid-drop');
+                
+                const letter = e.dataTransfer.getData('text/plain');
+                const slotIndex = parseInt(e.target.getAttribute('data-index'));
+                
+                // Add the letter to the answer
+                gameState.currentAnswer[slotIndex] = letter;
+                
+                // Update the display
+                renderAnswerArea();
+                renderLetterBank(gameState.words[gameState.currentWordIndex]);
+                playDropSound();
+            }
+        }
+
+        function handleDragEnd(e) {
+            if (gameState.dragElement) {
+                gameState.dragElement.classList.remove('dragging');
+                gameState.isDragging = false;
+                gameState.dragElement = null;
+            }
+            
+            // Remove valid-drop class from all slots
+            document.querySelectorAll('.answer-slot').forEach(slot => {
+                slot.classList.remove('valid-drop');
+            });
+        }
+
+        // Touch event handlers for mobile
+        let touchStartX, touchStartY;
+
+        function handleTouchStart(e) {
+            if (!e.target.classList.contains('letter-tile') || e.target.classList.contains('used')) return;
+            
+            e.preventDefault();
+            gameState.isDragging = true;
+            gameState.dragElement = e.target;
+            gameState.dragElement.classList.add('dragging');
+            
+            const touch = e.touches[0];
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+            
+            playDragSound();
+        }
+
+        function handleTouchMove(e) {
+            if (!gameState.isDragging) return;
+            e.preventDefault();
+        }
+
+        function handleTouchEnd(e) {
+            if (!gameState.isDragging) return;
+            
+            e.preventDefault();
+            gameState.isDragging = false;
+            
+            const touch = e.changedTouches[0];
+            const element = document.elementFromPoint(touch.clientX, touch.clientY);
+            
+            if (element && element.classList.contains('answer-slot')) {
+                const letter = gameState.dragElement.getAttribute('data-letter');
+                const slotIndex = parseInt(element.getAttribute('data-index'));
+                
+                // Add the letter to the answer
+                gameState.currentAnswer[slotIndex] = letter;
+                
+                // Update the display
+                renderAnswerArea();
+                renderLetterBank(gameState.words[gameState.currentWordIndex]);
+                playDropSound();
+            }
+            
+            if (gameState.dragElement) {
+                gameState.dragElement.classList.remove('dragging');
+                gameState.dragElement = null;
+            }
+        }
+
+        // Audio functions (simplified for this example)
+        function playDragSound() {
+            // In a real implementation, you would play actual sound files
+            console.log("Drag sound");
+        }
+
+        function playDropSound() {
+            console.log("Drop sound");
+        }
+
+        function playButtonSound() {
+            console.log("Button sound");
+        }
+
+        function playSuccessSound() {
+            console.log("Success sound");
+        }
+
+        function playErrorSound() {
+            console.log("Error sound");
+        }
+
+        // Initialize the game when the page loads
+        window.addEventListener('DOMContentLoaded', initGame);
+    </script>
+</body>
+</html>
