@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Flip & Match</title>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+}
+
+.header {
+  padding: 10px;
+  text-align: center;
+  color: white;
+  background: rgba(0,0,0,0.2);
+}
+
+.header h1 {
+  font-size: 1.5rem;
+  margin-bottom: 5px;
+}
+
+.controls {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+  flex-wrap: wrap;
+  padding: 5px;
+}
+
+.btn {
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.9);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #667eea;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn:active {
+  transform: scale(0.95);
+  background: rgba(255,255,255,0.7);
+}
+
+.game-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  overflow: hidden;
+}
+
+.grid {
+  display: grid;
+  gap: 8px;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.cell {
+  aspect-ratio: 1;
+  background: rgba(255,255,255,0.9);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+  user-select: none;
+}
+
+.cell.flipped {
+  background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%);
+  color: white;
+  transform: rotateY(180deg);
+}
+
+.cell.matched {
+  background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+  color: white;
+  animation: match 0.5s;
+}
+
+@keyframes match {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.status {
+  padding: 8px;
+  text-align: center;
+  color: white;
+  background: rgba(0,0,0,0.2);
+  font-size: 0.9rem;
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.7);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal.active {
+  display: flex;
+}
+
+.modal-content {
+  background: white;
+  padding: 20px;
+  border-radius: 15px;
+  max-width: 90%;
+  max-height: 80%;
+  overflow-y: auto;
+}
+
+.modal-content h2 {
+  color: #667eea;
+  margin-bottom: 15px;
+}
+
+.modal-content p {
+  margin-bottom: 10px;
+  line-height: 1.6;
+}
+
+.close-btn {
+  margin-top: 15px;
+  width: 100%;
+}
+
+@media (max-width: 400px) {
+  .header h1 { font-size: 1.2rem; }
+  .btn { padding: 6px 10px; font-size: 0.75rem; }
+  .cell { font-size: 1.5rem; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🎮 Flip & Match</h1>
+  <div class="controls">
+    <button class="btn" onclick="newPuzzle()">New Puzzle</button>
+    <button class="btn" onclick="getHint()">Hint</button>
+    <button class="btn" onclick="checkSolution()">Check</button>
+    <button class="btn" onclick="autoSolve()">Auto Solve</button>
+    <button class="btn" onclick="showInstructions()">Help</button>
+  </div>
+</div>
+
+<div class="game-container">
+  <div class="grid" id="grid"></div>
+</div>
+
+<div class="status" id="status">Tap cards to flip and match pairs!</div>
+
+<div class="modal" id="modal">
+  <div class="modal-content">
+    <h2>📖 How to Play</h2>
+    <p><strong>Objective:</strong> Find and match all pairs of identical emojis!</p>
+    <p><strong>Rules:</strong></p>
+    <p>• Tap a card to flip it and reveal the emoji</p>
+    <p>• Tap another card to find its match</p>
+    <p>• If they match, they stay revealed</p>
+    <p>• If they don't match, they flip back</p>
+    <p>• Match all pairs to win!</p>
+    <p><strong>Features:</strong></p>
+    <p>• <strong>Hint:</strong> Reveals one unmatched pair</p>
+    <p>• <strong>Check:</strong> Verifies if all matches are correct</p>
+    <p>• <strong>Auto Solve:</strong> Automatically completes the puzzle</p>
+    <p>• <strong>New Puzzle:</strong> Start a fresh game</p>
+    <button class="btn close-btn" onclick="closeModal()">Got it!</button>
+  </div>
+</div>
+
+<script>
+const emojis = ['🎮','🎯','🎨','🎭','🎪','🎸','🎺','🎻','🏀','⚽','🏈','🎾','🎳','🎲','🎰','🎴','🍎','🍕','🍔','🍟','🍿','🎂','🍩','🍪','🐶','🐱','🐭','🐹','🐰','🐻','🐼','🐨'];
+
+let grid = [];
+let flipped = [];
+let matched = new Set();
+let size = 4;
+let canClick = true;
+
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+const audioCtx = new AudioContext();
+
+function playSound(freq, duration) {
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.frequency.value = freq;
+  osc.type = 'sine';
+  gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+  osc.start();
+  osc.stop(audioCtx.currentTime + duration);
+}
+
+function initGame() {
+  const pairs = size * size / 2;
+  const selected = emojis.slice(0, pairs);
+  const cards = [...selected, ...selected];
+  grid = cards.sort(() => Math.random() - 0.5);
+  matched = new Set();
+  flipped = [];
+  renderGrid();
+  updateStatus('Tap cards to flip and match pairs!');
+}
+
+function renderGrid() {
+  const container = document.getElementById('grid');
+  const cellSize = Math.min((window.innerHeight - 200) / size, (window.innerWidth - 40) / size);
+  container.style.gridTemplateColumns = `repeat(${size}, ${cellSize}px)`;
+  container.style.gridTemplateRows = `repeat(${size}, ${cellSize}px)`;
+  
+  container.innerHTML = grid.map((emoji, i) => 
+    `<div class="cell ${matched.has(i) ? 'matched' : ''}" onclick="flipCard(${i})" data-index="${i}">
+      ${matched.has(i) ? emoji : '?'}
+    </div>`
+  ).join('');
+}
+
+function flipCard(index) {
+  if (!canClick || flipped.includes(index) || matched.has(index)) return;
+  
+  playSound(400, 0.1);
+  const cell = document.querySelector(`[data-index="${index}"]`);
+  cell.classList.add('flipped');
+  cell.textContent = grid[index];
+  flipped.push(index);
+  
+  if (flipped.length === 2) {
+    canClick = false;
+    setTimeout(checkMatch, 800);
+  }
+}
+
+function checkMatch() {
+  const [i1, i2] = flipped;
+  const cells = [document.querySelector(`[data-index="${i1}"]`), 
+                 document.querySelector(`[data-index="${i2}"]`)];
+  
+  if (grid[i1] === grid[i2]) {
+    playSound(600, 0.2);
+    matched.add(i1);
+    matched.add(i2);
+    cells.forEach(c => {
+      c.classList.remove('flipped');
+      c.classList.add('matched');
+    });
+    updateStatus(`Great! ${matched.size / 2} of ${grid.length / 2} pairs matched!`);
+    
+    if (matched.size === grid.length) {
+      setTimeout(() => {
+        playSound(800, 0.3);
+        updateStatus('🎉 You won! Starting new puzzle...');
+        setTimeout(newPuzzle, 2000);
+      }, 500);
+    }
+  } else {
+    playSound(200, 0.2);
+    setTimeout(() => {
+      cells.forEach(c => {
+        c.classList.remove('flipped');
+        c.textContent = '?';
+      });
+    }, 200);
+  }
+  
+  flipped = [];
+  canClick = true;
+}
+
+function getHint() {
+  const unmatched = grid.map((v, i) => matched.has(i) ? null : i).filter(v => v !== null);
+  if (unmatched.length < 2) return updateStatus('All pairs matched!');
+  
+  const first = unmatched[0];
+  const match = unmatched.find(i => i !== first && grid[i] === grid[first]);
+  if (!match) return;
+  
+  playSound(500, 0.15);
+  [first, match].forEach(i => {
+    const cell = document.querySelector(`[data-index="${i}"]`);
+    cell.classList.add('flipped');
+    cell.textContent = grid[i];
+  });
+  
+  updateStatus('Hint revealed! Memorize these positions.');
+  setTimeout(() => {
+    [first, match].forEach(i => {
+      const cell = document.querySelector(`[data-index="${i}"]`);
+      if (!matched.has(i)) {
+        cell.classList.remove('flipped');
+        cell.textContent = '?';
+      }
+    });
+  }, 2000);
+}
+
+function checkSolution() {
+  playSound(450, 0.15);
+  if (matched.size === grid.length) {
+    updateStatus('✅ Perfect! All pairs are matched!');
+  } else {
+    updateStatus(`⏳ ${matched.size / 2} of ${grid.length / 2} pairs matched. Keep going!`);
+  }
+}
+
+function autoSolve() {
+  playSound(550, 0.2);
+  canClick = false;
+  updateStatus('Auto-solving...');
+  
+  const unmatched = grid.map((v, i) => matched.has(i) ? null : i).filter(v => v !== null);
+  let delay = 0;
+  
+  for (let i = 0; i < unmatched.length; i += 2) {
+    setTimeout(() => {
+      const i1 = unmatched[i];
+      const i2 = unmatched.find((idx, j) => j > i && grid[idx] === grid[i1]);
+      if (i2 !== undefined) {
+        matched.add(i1);
+        matched.add(i2);
+        const cells = [document.querySelector(`[data-index="${i1}"]`), 
+                       document.querySelector(`[data-index="${i2}"]`)];
+        cells.forEach(c => {
+          c.classList.add('matched');
+          c.textContent = grid[parseInt(c.dataset.index)];
+        });
+        playSound(600, 0.1);
+      }
+      
+      if (matched.size === grid.length) {
+        setTimeout(() => {
+          updateStatus('✨ Puzzle solved! Starting new game...');
+          setTimeout(newPuzzle, 1500);
+        }, 300);
+      }
+    }, delay);
+    delay += 400;
+  }
+  
+  setTimeout(() => canClick = true, delay);
+}
+
+function newPuzzle() {
+  playSound(500, 0.15);
+  initGame();
+}
+
+function updateStatus(msg) {
+  document.getElementById('status').textContent = msg;
+}
+
+function showInstructions() {
+  playSound(450, 0.1);
+  document.getElementById('modal').classList.add('active');
+}
+
+function closeModal() {
+  playSound(450, 0.1);
+  document.getElementById('modal').classList.remove('active');
+}
+
+window.addEventListener('resize', renderGrid);
+initGame();
+</script>
+
+</body>
+</html>
