@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tower Platformer - Phaser Edition</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            background: linear-gradient(to bottom, #6a11cb, #fff);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            color: #333;
+            touch-action: manipulation;
+            overflow: hidden;
+        }
+        
+        .game-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+        
+        #phaser-game {
+            width: 100%;
+            height: 65vh;
+            overflow: hidden;
+        }
+        
+        .hud {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            right: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+        
+        .score-container, .lives-container {
+            background: rgba(255, 255, 255, 0.92);
+            padding: 8px 12px;
+            border-radius: 50px;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+            backdrop-filter: blur(5px);
+        }
+        
+        .coin-icon, .heart-icon {
+            width: 22px;
+            height: 22px;
+            margin-right: 8px;
+        }
+        
+        #score, #lives {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .mobile-controls {
+            display: flex;
+            width: 100%;
+            justify-content: space-between;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 20px;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+            margin-top: 10px;
+        }
+        
+        .direction-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 8px;
+        }
+        
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            justify-content: center;
+        }
+        
+        .btn {
+            border: none;
+            border-radius: 50%;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #6a11cb;
+            color: white;
+        }
+        
+        .btn-direction {
+            width: 60px;
+            height: 60px;
+            background: rgba(52, 152, 219, 0.9);
+            color: white;
+            font-size: 22px;
+        }
+        
+        .btn-up {
+            grid-column: 2;
+            grid-row: 1;
+        }
+        
+        .btn-left {
+            grid-column: 1;
+            grid-row: 2;
+        }
+        
+        .btn-right {
+            grid-column: 3;
+            grid-row: 2;
+        }
+        
+        .btn-down {
+            grid-column: 2;
+            grid-row: 3;
+        }
+        
+        .btn-action {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            font-size: 14px;
+            text-align: center;
+            line-height: 1.2;
+        }
+        
+        .btn-jump {
+            background: #6a11cb;
+            color: white;
+        }
+        
+        .btn-restart {
+            background: #3498db;
+            color: white;
+        }
+        
+        .instructions {
+            text-align: center;
+            margin-top: 15px;
+            color: #2c3e50;
+            font-size: 14px;
+            max-width: 800px;
+            width: 100%;
+            padding: 0 10px;
+        }
+        
+        .instructions b {
+            color: #6a11cb;
+        }
+        
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        .modal.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 400px;
+            width: 85%;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+        }
+        
+        .modal h2 {
+            margin-bottom: 20px;
+            color: #2c3e50;
+            font-size: 28px;
+        }
+        
+        .modal p {
+            margin-bottom: 25px;
+            line-height: 1.5;
+            font-size: 16px;
+        }
+        
+        .modal-btn {
+            padding: 12px 25px;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+        }
+        
+        .modal-btn-primary {
+            background: #3498db;
+            color: white;
+        }
+        
+        .modal-btn-primary:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+        }
+        
+        .loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            color: white;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 15px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Mobile-specific adjustments */
+        @media (max-width: 768px) {
+            .game-container {
+                border-radius: 12px;
+            }
+            
+            #phaser-game {
+                height: 70vh;
+            }
+            
+            .btn-direction {
+                width: 55px;
+                height: 55px;
+                font-size: 20px;
+            }
+            
+            .btn-action {
+                width: 65px;
+                height: 65px;
+                font-size: 13px;
+            }
+            
+            .hud {
+                top: 10px;
+                left: 10px;
+                right: 10px;
+            }
+            
+            .score-container, .lives-container {
+                padding: 6px 10px;
+            }
+            
+            .coin-icon, .heart-icon {
+                width: 20px;
+                height: 20px;
+            }
+            
+            #score, #lives {
+                font-size: 16px;
+            }
+            
+            .mobile-controls {
+                padding: 8px;
+                border-radius: 16px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .btn-direction {
+                width: 50px;
+                height: 50px;
+                font-size: 18px;
+            }
+            
+            .btn-action {
+                width: 60px;
+                height: 60px;
+                font-size: 12px;
+            }
+            
+            #phaser-game {
+                height: 65vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div id="phaser-game"></div>
+        <div class="hud">
+            <div class="score-container">
+                <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cGF0aCBmaWxsPSIjRkRCQzQwIiBkPSJNNTA2LjggMTQ1LjJjLTQuNC0xMC45LTE2LjEtMTcuMi0yNy44LTE3LjJoLTc2VjcyYzAtOS40LTcuNi0xNy0xNy0xN0gxMTdjLTkuNCAwLTE3IDcuNi0xNyAxN3Y1NkgyNGMtMTEuOCAwLTIzLjQgNi4zLTI3LjggMTcuMi01LjIgMTMuMS0uOSAyOC4yIDEwLjQgMzYuNWw4OS4zIDY0LjUtODkuMyA2NC41Yy0xMS4zIDguMy0xNS42IDIzLjQtMTAuNCAzNi41IDQuNCAxMC45IDE2LjEgMTcuMiAyNy44IDE3LjJoNzZ2NTZjMCA5LjQgNy42IDE3IDE3IDE3aDI4MmM5LjQgMCAxNy03LjYgMTctMTd2LTU2aDc2YzExLjggMCAyMy40LTYuMyAyNy44LTE3LjIgNS4yLTEzLjEgMC45LTI4LjItMTAuNC0zNi41bC04OS4zLTY0LjUgODkuMy02NC41YzExLjMtOC4zIDE1LjYtMjMuNCAxMC40LTM2LjV6TTM1MCAzMjZIMTYyVjE4NmgxODh2MTQweiIvPjwvc3ZnPg==" class="coin-icon" alt="Coins">
+                <span id="score">0</span>
+            </div>
+            <div class="lives-container">
+                <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cGF0aCBmaWxsPSIjRTc0QzNCIiBkPSJNNTA2LjggMTQ1LjJjLTQuNC0xMC45LTE2LjEtMTcuMi0yNy44LTE3LjJoLTc2VjcyYzAtOS40LTcuNi0xNy0xNy0xN0gxMTdjLTkuNCAwLTE3IDcuNi0xNyAxN3Y1NkgyNGMtMTEuOCAwLTIzLjQgNi4yLTI3LjggMTcuMi01LjIgMTMuMS0uOSAyOC4yIDEwLjQgMzYuNWw4OS4zIDY0LjUtODkuMyA2NC41Yy0xMS4zIDguMy0xNS42IDIzLjQtMTAuNCAzNi41IDQuNCAxMC45IDE2LjEgMTcuMiAyNy44IDE3LjJoNzZ2NTZjMCA5LjQgNy42IDE3IDE3IDE3aDI4MmM5LjQgMCAxNy03LjYgMTctMTd2LTU2aDc2YzExLjggMCAyMy40LTYuMyAy3LjgtMTcuMiA1LjItMTMuMSAwLjktMjguMi0xMC40LTM2LjVsLTg5LjMtNjQuNSA4OS4zLTY0LjVjMTEuMy04LjMgMTUuNi0yMy40IDEwLjQtMzYuNXpNMzUwIDMyNkgxNjJWMTg2aDE4OHYxNDB6Ii8+PC9zdmc+" class="heart-icon" alt="Lives">
+                <span id="lives">3</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="mobile-controls">
+        <div class="direction-buttons">
+            <button class="btn btn-direction btn-up" id="up-btn">↑</button>
+            <button class="btn btn-direction btn-left" id="left-btn">←</button>
+            <button class="btn btn-direction btn-right" id="right-btn">→</button>
+            <button class="btn btn-direction btn-down" id="down-btn">↓</button>
+        </div>
+        <div class="action-buttons">
+            <button class="btn btn-action btn-jump" id="jump-btn">JUMP</button>
+            <button class="btn btn-action btn-restart" id="restart-btn">RESTART</button>
+        </div>
+    </div>
+
+    <div class="instructions">
+        Swipe or use buttons to move. Tap JUMP to jump. Collect all coins and reach the top!
+    </div>
+
+    <div class="modal" id="start-modal">
+        <div class="modal-content">
+            <h2>Tower Platformer</h2>
+            <p>Collect all coins and avoid monsters! Climb the tower to reach the top platform.</p>
+            <button class="modal-btn modal-btn-primary" id="start-btn">Start Game</button>
+        </div>
+    </div>
+
+    <div class="modal" id="win-modal">
+        <div class="modal-content">
+            <h2>Congratulations!</h2>
+            <p>You collected all coins and reached the top with a score of <span id="final-score">0</span>!</p>
+            <button class="modal-btn modal-btn-primary" id="play-again-btn">Play Again</button>
+        </div>
+    </div>
+
+    <div class="modal" id="lose-modal">
+        <div class="modal-content">
+            <h2>Game Over</h2>
+            <p>You ran out of lives! Your final score was <span id="lose-score">0</span>.</p>
+            <button class="modal-btn modal-btn-primary" id="try-again-btn">Try Again</button>
+        </div>
+    </div>
+
+    <div class="loader" id="loader">
+        <div class="spinner"></div>
+        <p>Loading game assets...</p>
+    </div>
+
+    <script>
+        // Phaser game configuration
+        const config = {
+            type: Phaser.AUTO,
+            parent: 'phaser-game',
+            width: 800,
+            height: 500,
+            physics: {
+                default: 'arcade',
+                arcade: {
+                    gravity: { y: 800 },
+                    debug: false
+                }
+            },
+            scale: {
+                mode: Phaser.Scale.FIT,
+                autoCenter: Phaser.Scale.CENTER_BOTH
+            },
+            scene: {
+                preload: preload,
+                create: create,
+                update: update
+            }
+        };
+
+        // Game variables
+        let game;
+        let player;
+        let platforms;
+        let ladders;
+        let coins;
+        let monsters;
+        let cursors;
+        let score = 0;
+        let lives = 3;
+        let totalCoins = 0;
+        let levelCompleted = false;
+        let isClimbing = false;
+        let gameRunning = false;
+        let controlKeys = {};
+        
+        // Preload assets
+        function preload() {
+            // Simple shapes for game objects (we'll use graphics instead of loading images)
+            this.load.image('coin', 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iMTQiIGZpbGw9IiNmZmQ3MDAiIHN0cm9rZT0iI2JhOGIwMCIgc3Ryb2tlLXdpZHRoPSIyIi8+PGNpcmNsZSBjeD0iMTEiIGN5PSIxMSIgcj0iNCIgZmlsbD0iI2ZmZmZmZiIgZmlsbC1vcGFjaXR5PSIwLjciLz48L3N2Zz4=');
+            this.load.image('monster', 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MCA0MCI+PHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiByeD0iMTAiIHJ5PSIxMCIgZmlsbD0iI2U3NGMzYiIvPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTUiIHI9IjUiIGZpbGw9IiNmZmZmZmYiLz48Y2lyY2xlIGN4PSIyOCIgY3k9IjE1IiByPSI1IiBmaWxsPSIjZmZmZmZmIi8+PGNpcmNsZSBjeD0iMTAiIGN5PSIxNSIgcj0iMiIgZmlsbD0iIzAwMDAwMCIvPjxjaXJjbGUgY3g9IjMwIiBjeT0iMTUiIHI9IjIiIGZpbGw9IiMwMDAwMDAiLz48cmVjdCB4PSIxNSIgeT0iMjUiIHdpZHRoPSIxMCIgaGVpZ2h0PSI1IiByeD0iMiIgcnk9IjIiIGZpbGw9IiMwMDAwMDAiLz48L3N2Zz4=');
+        }
+
+        // Create game objects
+        function create() {
+            // Set up the world bounds
+            this.physics.world.setBounds(0, 0, config.width, config.height);
+            
+            // Create player
+            player = this.physics.add.sprite(config.width / 2, config.height - 100, null);
+            player.setSize(30, 40);
+            player.setBounce(0.1);
+            player.setCollideWorldBounds(true);
+            
+            // Create platforms
+            platforms = this.physics.add.staticGroup();
+            
+            // Ground
+            platforms.create(config.width / 2, config.height - 40, null).setSize(config.width, 20).refreshBody();
+            
+            // First level platforms
+            platforms.create(125, config.height - 140, null).setSize(150, 20).refreshBody();
+            platforms.create(config.width - 125, config.height - 140, null).setSize(150, 20).refreshBody();
+            
+            // Second level platforms
+            platforms.create(175, config.height - 240, null).setSize(150, 20).refreshBody();
+            platforms.create(config.width - 175, config.height - 240, null).setSize(150, 20).refreshBody();
+            
+            // Third level platforms
+            platforms.create(225, config.height - 340, null).setSize(150, 20).refreshBody();
+            platforms.create(config.width - 225, config.height - 340, null).setSize(150, 20).refreshBody();
+            
+            // Top platform (goal)
+            platforms.create(config.width / 2, 110, null).setSize(150, 20).refreshBody();
+            
+            // Create ladders
+            ladders = this.physics.add.staticGroup();
+            ladders.create(180, config.height - 100, null).setSize(30, 100).refreshBody();
+            ladders.create(config.width - 180, config.height - 100, null).setSize(30, 100).refreshBody();
+            ladders.create(230, config.height - 200, null).setSize(30, 100).refreshBody();
+            ladders.create(config.width - 230, config.height - 200, null).setSize(30, 100).refreshBody();
+            ladders.create(280, config.height - 300, null).setSize(30, 250).refreshBody();
+            
+            // Create coins
+            coins = this.physics.add.group();
+            totalCoins = 0;
+            
+            // Add coins to platforms
+            platforms.getChildren().forEach((platform, index) => {
+                if (index > 0) { // Don't put coins on the ground
+                    const coinsPerPlatform = index === platforms.getChildren().length - 1 ? 5 : 3;
+                    
+                    for (let i = 0; i < coinsPerPlatform; i++) {
+                        const coinX = platform.x - platform.width/2 + 30 + Math.random() * (platform.width - 60);
+                        const coinY = platform.y - 40;
+                        
+                        const coin = coins.create(coinX, coinY, 'coin');
+                        coin.setSize(30, 30);
+                        coin.setImmovable(true);
+                        totalCoins++;
+                    }
+                }
+            });
+            
+            // Create monsters
+            monsters = this.physics.add.group();
+            
+            // First monster
+            const monster1 = monsters.create(200, config.height - 160, 'monster');
+            monster1.setSize(40, 40);
+            monster1.setVelocityX(100);
+            monster1.setCollideWorldBounds(true);
+            monster1.setBounce(1, 0);
+            
+            // Second monster
+            const monster2 = monsters.create(config.width - 240, config.height - 160, 'monster');
+            monster2.setSize(40, 40);
+            monster2.setVelocityX(-100);
+            monster2.setCollideWorldBounds(true);
+            monster2.setBounce(1, 0);
+            
+            // Third monster
+            const monster3 = monsters.create(250, config.height - 260, 'monster');
+            monster3.setSize(40, 40);
+            monster3.setVelocityX(100);
+            monster3.setCollideWorldBounds(true);
+            monster3.setBounce(1, 0);
+            
+            // Set up collisions
+            this.physics.add.collider(player, platforms);
+            this.physics.add.collider(monsters, platforms);
+            this.physics.add.overlap(player, coins, collectCoin, null, this);
+            this.physics.add.overlap(player, monsters, hitMonster, null, this);
+            
+            // Set up keyboard controls
+            cursors = this.input.keyboard.createCursorKeys();
+            
+            // Set up restart functionality
+            this.input.keyboard.on('keydown-R', restartGame, this);
+            
+            // Initially pause the game
+            this.physics.pause();
+            
+            // Hide loader
+            document.getElementById('loader').style.display = 'none';
+        }
+
+        // Update game state
+        function update() {
+            if (!gameRunning || levelCompleted) return;
+            
+            // Reset horizontal movement
+            player.setVelocityX(0);
+            
+            // Handle left/right movement
+            if (cursors.left.isDown || controlKeys.left) {
+                player.setVelocityX(-200);
+                player.flipX = true;
+            } else if (cursors.right.isDown || controlKeys.right) {
+                player.setVelocityX(200);
+                player.flipX = false;
+            }
+            
+            // Handle jumping
+            if ((cursors.up.isDown || controlKeys.up) && player.body.touching.down) {
+                player.setVelocityY(-400);
+            }
+            
+            // Check if player is on a ladder
+            let onLadder = false;
+            ladders.getChildren().forEach(ladder => {
+                if (Phaser.Geom.Rectangle.Overlaps(
+                    player.getBounds(),
+                    ladder.getBounds()
+                )) {
+                    onLadder = true;
+                }
+            });
+            
+            // Handle ladder climbing
+            if (onLadder) {
+                player.setGravityY(0);
+                
+                if (cursors.up.isDown || controlKeys.up) {
+                    player.setVelocityY(-150);
+                    isClimbing = true;
+                } else if (cursors.down.isDown || controlKeys.down) {
+                    player.setVelocityY(150);
+                    isClimbing = true;
+                } else {
+                    player.setVelocityY(0);
+                }
+            } else {
+                player.setGravityY(800);
+                isClimbing = false;
+            }
+            
+            // Check if player fell off the screen
+            if (player.y > config.height) {
+                loseLife();
+            }
+            
+            // Check win condition
+            const topPlatform = platforms.getChildren()[platforms.getChildren().length - 1];
+            if (Phaser.Geom.Rectangle.Overlaps(
+                player.getBounds(),
+                topPlatform.getBounds()
+            ) && coins.countActive(true) === 0) {
+                winGame();
+            }
+        }
+
+        // Collect coin function
+        function collectCoin(player, coin) {
+            coin.disableBody(true, true);
+            score += 10;
+            document.getElementById('score').textContent = score;
+        }
+
+        // Monster collision function
+        function hitMonster(player, monster) {
+            loseLife();
+        }
+
+        // Lose a life
+        function loseLife() {
+            lives--;
+            document.getElementById('lives').textContent = lives;
+            
+            if (lives <= 0) {
+                gameOver();
+            } else {
+                // Reset player position
+                player.setPosition(config.width / 2, config.height - 100);
+                player.setVelocity(0, 0);
+            }
+        }
+
+        // Game over
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('lose-score').textContent = score;
+            document.getElementById('lose-modal').classList.add('active');
+            this.physics.pause();
+        }
+
+        // Win game
+        function winGame() {
+            levelCompleted = true;
+            gameRunning = false;
+            document.getElementById('final-score').textContent = score;
+            document.getElementById('win-modal').classList.add('active');
+            this.physics.pause();
+        }
+
+        // Restart game
+        function restartGame() {
+            this.scene.restart();
+            score = 0;
+            lives = 3;
+            levelCompleted = false;
+            document.getElementById('score').textContent = score;
+            document.getElementById('lives').textContent = lives;
+            document.getElementById('win-modal').classList.remove('active');
+            document.getElementById('lose-modal').classList.remove('active');
+            gameRunning = true;
+            this.physics.resume();
+        }
+
+        // Initialize the game
+        function initGame() {
+            game = new Phaser.Game(config);
+            
+            // Set up event listeners for mobile controls
+            document.getElementById('up-btn').addEventListener('touchstart', () => controlKeys.up = true);
+            document.getElementById('up-btn').addEventListener('touchend', () => controlKeys.up = false);
+            
+            document.getElementById('left-btn').addEventListener('touchstart', () => controlKeys.left = true);
+            document.getElementById('left-btn').addEventListener('touchend', () => controlKeys.left = false);
+            
+            document.getElementById('right-btn').addEventListener('touchstart', () => controlKeys.right = true);
+            document.getElementById('right-btn').addEventListener('touchend', () => controlKeys.right = false);
+            
+            document.getElementById('down-btn').addEventListener('touchstart', () => controlKeys.down = true);
+            document.getElementById('down-btn').addEventListener('touchend', () => controlKeys.down = false);
+            
+            document.getElementById('jump-btn').addEventListener('touchstart', () => controlKeys.up = true);
+            document.getElementById('jump-btn').addEventListener('touchend', () => controlKeys.up = false);
+            
+            document.getElementById('restart-btn').addEventListener('click', () => {
+                game.scene.getScene('default').scene.restart();
+                score = 0;
+                lives = 3;
+                levelCompleted = false;
+                document.getElementById('score').textContent = score;
+                document.getElementById('lives').textContent = lives;
+                document.getElementById('win-modal').classList.remove('active');
+                document.getElementById('lose-modal').classList.remove('active');
+                gameRunning = true;
+                game.scene.getScene('default').physics.resume();
+            });
+            
+            // Start game button
+            document.getElementById('start-btn').addEventListener('click', () => {
+                document.getElementById('start-modal').classList.remove('active');
+                gameRunning = true;
+                game.scene.getScene('default').physics.resume();
+            });
+            
+            // Play again button
+            document.getElementById('play-again-btn').addEventListener('click', () => {
+                game.scene.getScene('default').scene.restart();
+                score = 0;
+                lives = 3;
+                levelCompleted = false;
+                document.getElementById('score').textContent = score;
+                document.getElementById('lives').textContent = lives;
+                document.getElementById('win-modal').classList.remove('active');
+                gameRunning = true;
+                game.scene.getScene('default').physics.resume();
+            });
+            
+            // Try again button
+            document.getElementById('try-again-btn').addEventListener('click', () => {
+                game.scene.getScene('default').scene.restart();
+                score = 0;
+                lives = 3;
+                levelCompleted = false;
+                document.getElementById('score').textContent = score;
+                document.getElementById('lives').textContent = lives;
+                document.getElementById('lose-modal').classList.remove('active');
+                gameRunning = true;
+                game.scene.getScene('default').physics.resume();
+            });
+        }
+
+        // Event listeners
+        window.addEventListener('load', function() {
+            // Simulate loading
+            setTimeout(function() {
+                initGame();
+                document.getElementById('start-modal').classList.add('active');
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
