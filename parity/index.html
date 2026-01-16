@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parity Challenge</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+        }
+
+        .game-container {
+            width: 100%;
+            max-width: 400px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            padding: 18px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .title {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: #2c3e50;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .info-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: #6a11cb;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+            transition: all 0.2s;
+        }
+
+        .info-icon:active {
+            transform: scale(0.95);
+        }
+
+        .difficulty-selector {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            gap: 8px;
+        }
+
+        .diff-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+        }
+
+        .diff-btn.easy {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .diff-btn.medium {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .diff-btn.hard {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .diff-btn.active {
+            box-shadow: 0 0 0 3px #3498db;
+            transform: scale(1.02);
+        }
+
+        .diff-btn:active {
+            transform: scale(0.98);
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .cell {
+            aspect-ratio: 1;
+            background: white;
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.8rem;
+            font-weight: 800;
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            color: #2c3e50;
+        }
+
+        .cell.selected {
+            box-shadow: 0 0 0 4px #3498db;
+            transform: scale(1.05);
+        }
+
+        .cell.highlight {
+            background: #e1f5fe;
+            animation: pulse 0.5s;
+        }
+
+        .cell.max-value {
+            background: #fff8e1;
+            color: #ff8f00;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            background: #f8f9fa;
+            padding: 14px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.05);
+        }
+
+        .stat {
+            text-align: center;
+            flex: 1;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-weight: 800;
+            color: #2c3e50;
+            font-size: 1.3rem;
+        }
+
+        .moves-left.warning {
+            color: #e74c3c;
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-3px); }
+            75% { transform: translateX(3px); }
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .control-btn {
+            padding: 12px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            background: #f8f9fa;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.2s;
+            font-size: 1.1rem;
+        }
+
+        .control-btn:active {
+            transform: scale(0.95);
+        }
+
+        .control-btn.up { grid-column: 2; grid-row: 1; }
+        .control-btn.down { grid-column: 2; grid-row: 3; }
+        .control-btn.left { grid-column: 1; grid-row: 2; }
+        .control-btn.right { grid-column: 3; grid-row: 2; }
+        .control-btn.select { 
+            grid-column: 2; 
+            grid-row: 2; 
+            background: #3498db; 
+            color: white; 
+            box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3);
+        }
+
+        .power-ups {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .power-up {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s;
+        }
+
+        .power-up:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .power-up:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+
+        .power-up.reset {
+            background: #fff0e5;
+            color: #e67e22;
+        }
+
+        .power-up.add-moves {
+            background: #e5f7ff;
+            color: #3498db;
+        }
+
+        .power-up.solve {
+            background: #e6f7e6;
+            color: #27ae60;
+        }
+
+        .power-up i {
+            font-size: 1.2rem;
+            margin-bottom: 5px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #6a11cb;
+            color: white;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            width: 90%;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+            padding-bottom: 14px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #2c3e50;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 1.8rem;
+            cursor: pointer;
+            color: #7f8c8d;
+        }
+
+        .modal-content {
+            line-height: 1.6;
+            color: #34495e;
+        }
+
+        .modal-content p {
+            margin-bottom: 14px;
+        }
+
+        .modal-content h3 {
+            margin: 18px 0 10px;
+            color: #2c3e50;
+        }
+
+        .feature-list {
+            padding-left: 20px;
+            margin-bottom: 15px;
+        }
+
+        .feature-list li {
+            margin-bottom: 8px;
+        }
+
+        /* Win message */
+        .win-message {
+            text-align: center;
+            padding: 18px;
+            background: #4CAF50;
+            color: white;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            display: none;
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+            animation: celebrate 1s;
+        }
+
+        @keyframes celebrate {
+            0% { transform: scale(0.8); opacity: 0; }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .win-message.active {
+            display: block;
+        }
+
+        .game-over {
+            background: #e74c3c;
+        }
+
+        /* Solution path animation */
+        .solution-path {
+            position: absolute;
+            background: rgba(52, 152, 219, 0.3);
+            border-radius: 50%;
+            width: 70%;
+            height: 70%;
+            animation: pathPulse 1.5s infinite;
+            z-index: -1;
+        }
+
+        @keyframes pathPulse {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+            100% { transform: scale(0.8); opacity: 0.5; }
+        }
+
+        /* Responsive adjustments */
+        @media (max-height: 700px) {
+            .game-container {
+                transform: scale(0.9);
+            }
+        }
+
+        @media (max-height: 600px) {
+            .game-container {
+                transform: scale(0.85);
+            }
+            
+            .game-board {
+                gap: 8px;
+            }
+            
+            .cell {
+                font-size: 1.5rem;
+            }
+            
+            .stats {
+                padding: 10px;
+            }
+            
+            .stat-value {
+                font-size: 1.1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <h1 class="title">Parity Challenge</h1>
+            <div class="info-icon" id="infoBtn">
+                <i class="fas fa-question"></i>
+            </div>
+        </div>
+
+        <div class="difficulty-selector">
+            <button class="diff-btn easy active" data-difficulty="easy">Easy</button>
+            <button class="diff-btn medium" data-difficulty="medium">Medium</button>
+            <button class="diff-btn hard" data-difficulty="hard">Hard</button>
+        </div>
+
+        <div class="win-message" id="winMessage">
+            <i class="fas fa-trophy"></i> Congratulations! You've achieved parity!
+        </div>
+
+        <div class="game-board" id="gameBoard">
+            <!-- Cells will be generated by JavaScript -->
+        </div>
+
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-label">Moves</div>
+                <div class="stat-value" id="movesCount">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Target</div>
+                <div class="stat-value" id="targetValue">5</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Moves Left</div>
+                <div class="stat-value moves-left" id="movesLeft">20</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="control-btn up"><i class="fas fa-arrow-up"></i></button>
+            <button class="control-btn down"><i class="fas fa-arrow-down"></i></button>
+            <button class="control-btn left"><i class="fas fa-arrow-left"></i></button>
+            <button class="control-btn right"><i class="fas fa-arrow-right"></i></button>
+            <button class="control-btn select">Select</button>
+        </div>
+
+        <div class="power-ups">
+            <button class="power-up reset" id="resetPowerUp" title="Reset one cell to 0">
+                <i class="fas fa-undo"></i>
+                <span>Reset Cell</span>
+            </button>
+            <button class="power-up add-moves" id="movesPowerUp" title="Get 5 extra moves">
+                <i class="fas fa-plus-circle"></i>
+                <span>+5 Moves</span>
+            </button>
+            <button class="power-up solve" id="solvePowerUp" title="Show optimal solution">
+                <i class="fas fa-robot"></i>
+                <span>Show Solution</span>
+            </button>
+        </div>
+
+        <div class="action-buttons">
+            <button class="btn btn-primary" id="resetBtn">Reset Board</button>
+            <button class="btn btn-secondary" id="newGameBtn">New Game</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">How to Play Parity Challenge</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-content">
+                <p><strong>Parity Challenge</strong> is an enhanced numbers puzzle game where the goal is to make all numbers on the board equal to the target value.</p>
+                
+                <h3>Game Rules:</h3>
+                <ul class="feature-list">
+                    <li>Use arrow buttons or keyboard arrows to move the cursor</li>
+                    <li>Press "Select" or tap a cell to increment its value</li>
+                    <li>Match all numbers to the target value within the move limit</li>
+                    <li>Each difficulty level has different challenges</li>
+                </ul>
+                
+                <h3>Power-ups:</h3>
+                <ul class="feature-list">
+                    <li><strong>Reset Cell</strong>: Set one cell back to 0 (limited uses)</li>
+                    <li><strong>+5 Moves</strong>: Get extra moves when you're running low</li>
+                    <li><strong>Show Solution</strong>: Highlight the optimal path to solve the puzzle</li>
+                </ul>
+                
+                <h3>Difficulty Levels:</h3>
+                <ul class="feature-list">
+                    <li><strong>Easy</strong>: 3x3 grid, 20 moves, target 5</li>
+                    <li><strong>Medium</strong>: 4x4 grid, 25 moves, target 7</li>
+                    <li><strong>Hard</strong>: 5x5 grid, 30 moves, target 9</li>
+                </ul>
+                
+                <h3>Optimal Strategy:</h3>
+                <p>The most efficient solution is to increment cells in a specific order to minimize the total number of moves needed. The solution finder uses a mathematical approach to determine this optimal path.</p>
+                
+                <p>Plan your moves carefully to achieve parity before running out of moves!</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Game state
+            const gameState = {
+                boardSize: 3,
+                moves: 0,
+                maxMoves: 20,
+                currentPosition: { row: 1, col: 1 },
+                targetValue: 5,
+                board: [],
+                gameActive: true,
+                difficulty: 'easy',
+                powerUps: {
+                    reset: 2,
+                    addMoves: 1,
+                    solve: 1
+                },
+                solutionPath: []
+            };
+
+            // DOM elements
+            const gameBoard = document.getElementById('gameBoard');
+            const movesCount = document.getElementById('movesCount');
+            const targetValue = document.getElementById('targetValue');
+            const movesLeft = document.getElementById('movesLeft');
+            const winMessage = document.getElementById('winMessage');
+            const resetBtn = document.getElementById('resetBtn');
+            const newGameBtn = document.getElementById('newGameBtn');
+            const infoBtn = document.getElementById('infoBtn');
+            const modal = document.getElementById('modal');
+            const closeModal = document.querySelector('.close-modal');
+            const controlBtns = document.querySelectorAll('.control-btn');
+            const diffBtns = document.querySelectorAll('.diff-btn');
+            const resetPowerUp = document.getElementById('resetPowerUp');
+            const movesPowerUp = document.getElementById('movesPowerUp');
+            const solvePowerUp = document.getElementById('solvePowerUp');
+
+            // Initialize the game board
+            function initGame() {
+                gameBoard.innerHTML = '';
+                gameBoard.style.gridTemplateColumns = `repeat(${gameState.boardSize}, 1fr)`;
+                
+                // Initialize board data and create cells
+                gameState.board = [];
+                for (let row = 0; row < gameState.boardSize; row++) {
+                    gameState.board[row] = [];
+                    for (let col = 0; col < gameState.boardSize; col++) {
+                        // Start with random values between 0 and target-1
+                        gameState.board[row][col] = Math.floor(Math.random() * gameState.targetValue);
+                        
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        cell.dataset.row = row;
+                        cell.dataset.col = col;
+                        cell.textContent = gameState.board[row][col];
+                        
+                        // Add max value class if applicable
+                        if (gameState.board[row][col] === gameState.targetValue - 1) {
+                            cell.classList.add('max-value');
+                        }
+                        
+                        cell.addEventListener('click', () => {
+                            if (gameState.gameActive) {
+                                selectCell(row, col);
+                            }
+                        });
+                        
+                        gameBoard.appendChild(cell);
+                    }
+                }
+                
+                // Set initial position
+                gameState.currentPosition = { 
+                    row: Math.floor(gameState.boardSize / 2), 
+                    col: Math.floor(gameState.boardSize / 2) 
+                };
+                updateCursor();
+                
+                // Reset moves and UI
+                gameState.moves = 0;
+                movesCount.textContent = '0';
+                movesLeft.textContent = gameState.maxMoves;
+                winMessage.classList.remove('active');
+                gameState.gameActive = true;
+                
+                // Clear solution path
+                gameState.solutionPath = [];
+                
+                // Update power-up buttons
+                updatePowerUpButtons();
+            }
+
+            // Set difficulty level
+            function setDifficulty(difficulty) {
+                gameState.difficulty = difficulty;
+                
+                // Update active button
+                diffBtns.forEach(btn => {
+                    if (btn.dataset.difficulty === difficulty) {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                });
+                
+                // Set parameters based on difficulty
+                switch(difficulty) {
+                    case 'easy':
+                        gameState.boardSize = 3;
+                        gameState.maxMoves = 20;
+                        gameState.targetValue = 5;
+                        break;
+                    case 'medium':
+                        gameState.boardSize = 4;
+                        gameState.maxMoves = 25;
+                        gameState.targetValue = 7;
+                        break;
+                    case 'hard':
+                        gameState.boardSize = 5;
+                        gameState.maxMoves = 30;
+                        gameState.targetValue = 9;
+                        break;
+                }
+                
+                // Update UI
+                targetValue.textContent = gameState.targetValue;
+                
+                // Reset power-ups
+                gameState.powerUps.reset = 2;
+                gameState.powerUps.addMoves = 1;
+                gameState.powerUps.solve = 1;
+                
+                // Initialize new game
+                initGame();
+            }
+
+            // Update cursor position on the board
+            function updateCursor() {
+                // Remove selected class from all cells
+                document.querySelectorAll('.cell').forEach(cell => {
+                    cell.classList.remove('selected');
+                });
+                
+                // Add selected class to current cell
+                const currentCell = document.querySelector(
+                    `.cell[data-row="${gameState.currentPosition.row}"][data-col="${gameState.currentPosition.col}"]`
+                );
+                
+                if (currentCell) {
+                    currentCell.classList.add('selected');
+                }
+            }
+
+            // Select the current cell
+            function selectCell(row, col) {
+                if (!gameState.gameActive) return;
+                if (gameState.moves >= gameState.maxMoves) return;
+                
+                // Update board value
+                gameState.board[row][col] = (gameState.board[row][col] + 1) % (gameState.targetValue + 1);
+                
+                // Update UI
+                const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+                cell.textContent = gameState.board[row][col];
+                
+                // Update cell styling
+                cell.classList.remove('max-value');
+                if (gameState.board[row][col] === gameState.targetValue - 1) {
+                    cell.classList.add('max-value');
+                }
+                
+                // Add highlight effect
+                cell.classList.add('highlight');
+                setTimeout(() => cell.classList.remove('highlight'), 300);
+                
+                // Update moves
+                gameState.moves++;
+                movesCount.textContent = gameState.moves;
+                
+                const remainingMoves = gameState.maxMoves - gameState.moves;
+                movesLeft.textContent = remainingMoves;
+                
+                // Add warning class if moves are low
+                if (remainingMoves <= 5) {
+                    movesLeft.classList.add('warning');
+                } else {
+                    movesLeft.classList.remove('warning');
+                }
+                
+                // Check win condition
+                checkWinCondition();
+                
+                // Check game over condition
+                if (gameState.moves >= gameState.maxMoves && gameState.gameActive) {
+                    gameOver();
+                }
+            }
+
+            // Check if all cells have the target value
+            function checkWinCondition() {
+                let allEqual = true;
+                
+                for (let row = 0; row < gameState.boardSize; row++) {
+                    for (let col = 0; col < gameState.boardSize; col++) {
+                        if (gameState.board[row][col] !== gameState.targetValue) {
+                            allEqual = false;
+                            break;
+                        }
+                    }
+                    if (!allEqual) break;
+                }
+                
+                if (allEqual) {
+                    winMessage.classList.add('active');
+                    winMessage.textContent = "🎉 Congratulations! You've achieved parity!";
+                    gameState.gameActive = false;
+                }
+            }
+
+            // Game over function
+            function gameOver() {
+                winMessage.classList.add('active');
+                winMessage.textContent = "Game Over! You ran out of moves.";
+                winMessage.classList.add('game-over');
+                gameState.gameActive = false;
+            }
+
+            // Move cursor
+            function moveCursor(direction) {
+                if (!gameState.gameActive) return;
+                
+                let newRow = gameState.currentPosition.row;
+                let newCol = gameState.currentPosition.col;
+                
+                switch(direction) {
+                    case 'up':
+                        newRow = Math.max(0, newRow - 1);
+                        break;
+                    case 'down':
+                        newRow = Math.min(gameState.boardSize - 1, newRow + 1);
+                        break;
+                    case 'left':
+                        newCol = Math.max(0, newCol - 1);
+                        break;
+                    case 'right':
+                        newCol = Math.min(gameState.boardSize - 1, newCol + 1);
+                        break;
+                }
+                
+                gameState.currentPosition = { row: newRow, col: newCol };
+                updateCursor();
+            }
+
+            // Use reset power-up
+            function useResetPowerUp() {
+                if (gameState.powerUps.reset > 0 && gameState.gameActive) {
+                    const row = gameState.currentPosition.row;
+                    const col = gameState.currentPosition.col;
+                    
+                    gameState.board[row][col] = 0;
+                    const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+                    cell.textContent = '0';
+                    cell.classList.remove('max-value');
+                    
+                    // Add highlight effect
+                    cell.classList.add('highlight');
+                    setTimeout(() => cell.classList.remove('highlight'), 300);
+                    
+                    gameState.powerUps.reset--;
+                    updatePowerUpButtons();
+                    
+                    // Check win condition again
+                    checkWinCondition();
+                }
+            }
+
+            // Use add moves power-up
+            function useAddMovesPowerUp() {
+                if (gameState.powerUps.addMoves > 0 && gameState.gameActive) {
+                    gameState.maxMoves += 5;
+                    movesLeft.textContent = gameState.maxMoves - gameState.moves;
+                    
+                    gameState.powerUps.addMoves--;
+                    updatePowerUpButtons();
+                    
+                    // Remove warning class temporarily
+                    movesLeft.classList.remove('warning');
+                    setTimeout(() => {
+                        if (gameState.maxMoves - gameState.moves <= 5) {
+                            movesLeft.classList.add('warning');
+                        }
+                    }, 1000);
+                }
+            }
+
+            // Find optimal solution using a mathematical approach
+            function findOptimalSolution() {
+                // Create a copy of the board
+                const board = JSON.parse(JSON.stringify(gameState.board));
+                const target = gameState.targetValue;
+                const size = gameState.boardSize;
+                
+                // Calculate the required increments for each cell
+                const requiredIncrements = [];
+                for (let row = 0; row < size; row++) {
+                    requiredIncrements[row] = [];
+                    for (let col = 0; col < size; col++) {
+                        // Calculate how many increments are needed to reach the target
+                        let incrementsNeeded = (target - board[row][col]) % (target + 1);
+                        if (incrementsNeeded < 0) incrementsNeeded += target + 1;
+                        requiredIncrements[row][col] = incrementsNeeded;
+                    }
+                }
+                
+                // Find the optimal path using a greedy approach
+                const path = [];
+                const visited = Array(size).fill().map(() => Array(size).fill(false));
+                
+                // Start from the center or a cell with the highest required increments
+                let currentRow = Math.floor(size / 2);
+                let currentCol = Math.floor(size / 2);
+                
+                // Find the cell that needs the most increments
+                let maxIncrements = -1;
+                for (let row = 0; row < size; row++) {
+                    for (let col = 0; col < size; col++) {
+                        if (requiredIncrements[row][col] > maxIncrements) {
+                            maxIncrements = requiredIncrements[row][col];
+                            currentRow = row;
+                            currentCol = col;
+                        }
+                    }
+                }
+                
+                // Generate the solution path
+                while (true) {
+                    // Mark current cell as visited
+                    visited[currentRow][currentCol] = true;
+                    
+                    // Add the required increments for this cell to the path
+                    for (let i = 0; i < requiredIncrements[currentRow][currentCol]; i++) {
+                        path.push({ row: currentRow, col: currentCol });
+                    }
+                    
+                    // Find the next unvisited cell with the highest required increments
+                    let nextRow = -1;
+                    let nextCol = -1;
+                    maxIncrements = -1;
+                    
+                    for (let row = 0; row < size; row++) {
+                        for (let col = 0; col < size; col++) {
+                            if (!visited[row][col] && requiredIncrements[row][col] > maxIncrements) {
+                                maxIncrements = requiredIncrements[row][col];
+                                nextRow = row;
+                                nextCol = col;
+                            }
+                        }
+                    }
+                    
+                    // If no more cells, break
+                    if (nextRow === -1 || nextCol === -1) break;
+                    
+                    // Add movement path to the next cell
+                    // Move horizontally first, then vertically
+                    while (currentCol !== nextCol) {
+                        if (currentCol < nextCol) {
+                            currentCol++;
+                        } else {
+                            currentCol--;
+                        }
+                        path.push({ row: currentRow, col: currentCol, move: true });
+                    }
+                    
+                    while (currentRow !== nextRow) {
+                        if (currentRow < nextRow) {
+                            currentRow++;
+                        } else {
+                            currentRow--;
+                        }
+                        path.push({ row: currentRow, col: currentCol, move: true });
+                    }
+                }
+                
+                return path;
+            }
+
+            // Use solve power-up to show optimal solution
+            function useSolvePowerUp() {
+                if (gameState.powerUps.solve > 0 && gameState.gameActive) {
+                    // Calculate optimal solution
+                    gameState.solutionPath = findOptimalSolution();
+                    
+                    // Visualize the solution path
+                    visualizeSolution();
+                    
+                    gameState.powerUps.solve--;
+                    updatePowerUpButtons();
+                }
+            }
+
+            // Visualize the solution path
+            function visualizeSolution() {
+                // Clear any existing visualization
+                document.querySelectorAll('.solution-path').forEach(el => el.remove());
+                
+                if (gameState.solutionPath.length === 0) return;
+                
+                // Show the path step by step
+                let index = 0;
+                const interval = setInterval(() => {
+                    if (index >= gameState.solutionPath.length) {
+                        clearInterval(interval);
+                        return;
+                    }
+                    
+                    const step = gameState.solutionPath[index];
+                    const cell = document.querySelector(`.cell[data-row="${step.row}"][data-col="${step.col}"]`);
+                    
+                    if (cell && !step.move) {
+                        // This is an increment step, highlight the cell
+                        const highlight = document.createElement('div');
+                        highlight.className = 'solution-path';
+                        cell.appendChild(highlight);
+                        
+                        // Remove the highlight after some time
+                        setTimeout(() => {
+                            if (cell.contains(highlight)) {
+                                cell.removeChild(highlight);
+                            }
+                        }, 1400);
+                    }
+                    
+                    index++;
+                }, 150);
+            }
+
+            // Update power-up buttons state
+            function updatePowerUpButtons() {
+                resetPowerUp.disabled = gameState.powerUps.reset <= 0;
+                movesPowerUp.disabled = gameState.powerUps.addMoves <= 0;
+                solvePowerUp.disabled = gameState.powerUps.solve <= 0;
+                
+                resetPowerUp.innerHTML = `<i class="fas fa-undo"></i><span>Reset (${gameState.powerUps.reset})</span>`;
+                movesPowerUp.innerHTML = `<i class="fas fa-plus-circle"></i><span>+5 Moves (${gameState.powerUps.addMoves})</span>`;
+                solvePowerUp.innerHTML = `<i class="fas fa-robot"></i><span>Solve (${gameState.powerUps.solve})</span>`;
+            }
+
+            // Set up control button events
+            controlBtns.forEach(btn => {
+                if (btn.classList.contains('up')) {
+                    btn.addEventListener('click', () => moveCursor('up'));
+                } else if (btn.classList.contains('down')) {
+                    btn.addEventListener('click', () => moveCursor('down'));
+                } else if (btn.classList.contains('left')) {
+                    btn.addEventListener('click', () => moveCursor('left'));
+                } else if (btn.classList.contains('right')) {
+                    btn.addEventListener('click', () => moveCursor('right'));
+                } else if (btn.classList.contains('select')) {
+                    btn.addEventListener('click', () => {
+                        selectCell(gameState.currentPosition.row, gameState.currentPosition.col);
+                    });
+                }
+            });
+
+            // Set up difficulty buttons
+            diffBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    setDifficulty(btn.dataset.difficulty);
+                });
+            });
+
+            // Set up power-up buttons
+            resetPowerUp.addEventListener('click', useResetPowerUp);
+            movesPowerUp.addEventListener('click', useAddMovesPowerUp);
+            solvePowerUp.addEventListener('click', useSolvePowerUp);
+
+            // Keyboard support
+            document.addEventListener('keydown', (e) => {
+                if (!gameState.gameActive) return;
+                
+                switch(e.key) {
+                    case 'ArrowUp':
+                        moveCursor('up');
+                        break;
+                    case 'ArrowDown':
+                        moveCursor('down');
+                        break;
+                    case 'ArrowLeft':
+                        moveCursor('left');
+                        break;
+                    case 'ArrowRight':
+                        moveCursor('right');
+                        break;
+                    case ' ':
+                    case 'Enter':
+                        selectCell(gameState.currentPosition.row, gameState.currentPosition.col);
+                        break;
+                    case 'r':
+                    case 'R':
+                        useResetPowerUp();
+                        break;
+                    case 'a':
+                    case 'A':
+                        useAddMovesPowerUp();
+                        break;
+                    case 's':
+                    case 'S':
+                        useSolvePowerUp();
+                        break;
+                }
+            });
+
+            // Reset button
+            resetBtn.addEventListener('click', initGame);
+
+            // New game button
+            newGameBtn.addEventListener('click', () => {
+                setDifficulty(gameState.difficulty);
+            });
+
+            // Modal functionality
+            infoBtn.addEventListener('click', () => {
+                modal.classList.add('active');
+            });
+
+            closeModal.addEventListener('click', () => {
+                modal.classList.remove('active');
+            });
+
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('active');
+                }
+            });
+
+            // Initialize the game with default difficulty
+            setDifficulty('easy');
+        });
+    </script>
+</body>
+</html>
