@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Sliding Block Puzzle</title>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.container {
+  max-width: 100vw;
+  max-height: 100vh;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.header {
+  text-align: center;
+  color: white;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+
+.header h1 {
+  font-size: clamp(22px, 5vw, 32px);
+  margin-bottom: 8px;
+}
+
+.info {
+  display: flex;
+  gap: 20px;
+  font-size: clamp(13px, 3vw, 16px);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.info span {
+  background: rgba(255,255,255,0.15);
+  padding: 5px 12px;
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
+}
+
+.board-container {
+  background: rgba(255,255,255,0.95);
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+}
+
+.board {
+  width: min(85vw, 420px);
+  height: min(85vw, 420px);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 15px;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: 3px;
+  padding: 3px;
+  box-shadow: inset 0 4px 10px rgba(0,0,0,0.3);
+}
+
+.tile {
+  background: linear-gradient(145deg, #ffffff, #e0e0e0);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(24px, 5vw, 36px);
+  font-weight: bold;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  user-select: none;
+}
+
+.tile:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+}
+
+.tile:active {
+  transform: scale(0.98);
+}
+
+.tile.empty {
+  background: transparent;
+  box-shadow: none;
+  cursor: default;
+}
+
+.tile.empty:hover {
+  transform: none;
+}
+
+.tile:not(.empty) {
+  background: linear-gradient(145deg, #4facfe, #00f2fe);
+  color: white;
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  width: 100%;
+  max-width: 500px;
+}
+
+.btn {
+  padding: 12px 18px;
+  border: none;
+  border-radius: 10px;
+  font-size: clamp(13px, 3vw, 15px);
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  color: white;
+  flex: 1;
+  min-width: 100px;
+}
+
+.btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+
+.btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); }
+.btn-success { background: linear-gradient(135deg, #56ab2f, #a8e063); }
+.btn-warning { background: linear-gradient(135deg, #f093fb, #f5576c); }
+.btn-info { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.8);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.modal.active {
+  display: flex;
+}
+
+.modal-content {
+  background: white;
+  padding: 30px;
+  border-radius: 20px;
+  max-width: 450px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 15px 50px rgba(0,0,0,0.5);
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-content h2 {
+  color: #667eea;
+  margin-bottom: 20px;
+  font-size: clamp(20px, 5vw, 28px);
+}
+
+.modal-content p, .modal-content li {
+  margin-bottom: 12px;
+  line-height: 1.7;
+  font-size: clamp(14px, 3vw, 16px);
+  color: #333;
+}
+
+.modal-content ul {
+  margin-left: 25px;
+}
+
+.close-modal {
+  margin-top: 20px;
+  width: 100%;
+}
+
+.win-animation {
+  animation: celebrate 0.6s ease;
+}
+
+@keyframes celebrate {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  25% { transform: scale(1.1) rotate(-5deg); }
+  50% { transform: scale(1.1) rotate(5deg); }
+  75% { transform: scale(1.1) rotate(-5deg); }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1>🧩 Sliding Block Puzzle</h1>
+    <div class="info">
+      <span>Moves: <strong id="moves">0</strong></span>
+      <span>Level: <strong id="level">1</strong></span>
+      <span>Best: <strong id="best">--</strong></span>
+    </div>
+  </div>
+
+  <div class="board-container">
+    <div class="board" id="board"></div>
+  </div>
+
+  <div class="controls">
+    <button class="btn btn-primary" id="btnNew">New Puzzle</button>
+    <button class="btn btn-info" id="btnHint">Hint</button>
+    <button class="btn btn-success" id="btnCheck">Check</button>
+    <button class="btn btn-warning" id="btnSolve">Auto-Solve</button>
+    <button class="btn btn-primary" id="btnHelp">Help</button>
+  </div>
+</div>
+
+<div class="modal" id="modal">
+  <div class="modal-content">
+    <h2>🧩 How to Play</h2>
+    <p>Arrange the numbered tiles in order by sliding them into the empty space!</p>
+    <ul>
+      <li><strong>Goal:</strong> Arrange tiles from 1-15 in order, with the empty space at bottom-right</li>
+      <li><strong>Controls:</strong> Click or tap tiles adjacent to the empty space to slide them</li>
+      <li><strong>Strategy:</strong> Work on corners first, then build rows</li>
+      <li><strong>Hint:</strong> Shows which tile to move next</li>
+      <li><strong>Check:</strong> Verifies if puzzle is solved</li>
+      <li><strong>Auto-Solve:</strong> Watch the puzzle solve itself!</li>
+    </ul>
+    <p style="margin-top: 20px; font-weight: bold; color: #667eea;">Try to solve in the fewest moves possible!</p>
+    <button class="btn btn-primary close-modal" id="btnClose">Start Playing!</button>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  let audioCtx = null;
+
+  const audio = {
+    init: function() {
+      if (!audioCtx) {
+        try {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        } catch(e) {
+          console.log('Audio not supported');
+        }
+      }
+    },
+    slide: function() {
+      if (!audioCtx) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.frequency.value = 400;
+        gain.gain.value = 0.08;
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+        osc.stop(audioCtx.currentTime + 0.15);
+      } catch(e) {}
+    },
+    win: function() {
+      if (!audioCtx) return;
+      try {
+        const notes = [523, 659, 784, 1047];
+        notes.forEach(function(freq, i) {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.frequency.value = freq;
+          gain.gain.value = 0.1;
+          osc.start(audioCtx.currentTime + i * 0.15);
+          gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.15 + 0.3);
+          osc.stop(audioCtx.currentTime + i * 0.15 + 0.3);
+        });
+      } catch(e) {}
+    }
+  };
+
+  let tiles = [];
+  let moves = 0;
+  let level = 0;
+  let bestScore = null;
+  let solving = false;
+  let solveInterval = null;
+
+  function init() {
+    audio.init();
+    loadBestScore();
+    createBoard();
+    newPuzzle();
+    
+    document.getElementById('btnNew').addEventListener('click', newPuzzle);
+    document.getElementById('btnHint').addEventListener('click', showHint);
+    document.getElementById('btnCheck').addEventListener('click', checkSolution);
+    document.getElementById('btnSolve').addEventListener('click', autoSolve);
+    document.getElementById('btnHelp').addEventListener('click', showInstructions);
+    document.getElementById('btnClose').addEventListener('click', closeModal);
+    
+    setTimeout(showInstructions, 500);
+  }
+
+  function createBoard() {
+    const board = document.getElementById('board');
+    for (let i = 0; i < 16; i++) {
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      tile.dataset.index = i;
+      tile.addEventListener('click', handleTileClick);
+      board.appendChild(tile);
+    }
+  }
+
+  function newPuzzle() {
+    if (solveInterval) {
+      clearInterval(solveInterval);
+      solveInterval = null;
+    }
+    solving = false;
+    moves = 0;
+    level++;
+    updateUI();
+    
+    tiles = generateSolvablePuzzle();
+    renderBoard();
+  }
+
+  function generateSolvablePuzzle() {
+    const solved = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0];
+    const puzzle = solved.slice();
+    
+    const shuffleMoves = 50 + level * 10;
+    
+    for (let i = 0; i < shuffleMoves; i++) {
+      const emptyIndex = puzzle.indexOf(0);
+      const validMoves = getValidMoves(emptyIndex);
+      const randomMove = validMoves[Math.floor(Math.random() * validMoves.length)];
+      
+      const temp = puzzle[emptyIndex];
+      puzzle[emptyIndex] = puzzle[randomMove];
+      puzzle[randomMove] = temp;
+    }
+    
+    return puzzle;
+  }
+
+  function getValidMoves(emptyIndex) {
+    const moves = [];
+    const row = Math.floor(emptyIndex / 4);
+    const col = emptyIndex % 4;
+    
+    if (row > 0) moves.push(emptyIndex - 4);
+    if (row < 3) moves.push(emptyIndex + 4);
+    if (col > 0) moves.push(emptyIndex - 1);
+    if (col < 3) moves.push(emptyIndex + 1);
+    
+    return moves;
+  }
+
+  function renderBoard() {
+    const board = document.getElementById('board');
+    const tileElements = board.querySelectorAll('.tile');
+    
+    tiles.forEach(function(value, index) {
+      const tile = tileElements[index];
+      if (value === 0) {
+        tile.textContent = '';
+        tile.className = 'tile empty';
+      } else {
+        tile.textContent = value;
+        tile.className = 'tile';
+      }
+    });
+  }
+
+  function handleTileClick(e) {
+    if (solving) return;
+    
+    const clickedIndex = parseInt(e.currentTarget.dataset.index);
+    const emptyIndex = tiles.indexOf(0);
+    
+    if (canMove(clickedIndex, emptyIndex)) {
+      moveTile(clickedIndex, emptyIndex);
+      moves++;
+      updateUI();
+      audio.slide();
+      
+      if (isSolved()) {
+        setTimeout(function() {
+          handleWin();
+        }, 300);
+      }
+    }
+  }
+
+  function canMove(clickedIndex, emptyIndex) {
+    const validMoves = getValidMoves(emptyIndex);
+    return validMoves.includes(clickedIndex);
+  }
+
+  function moveTile(fromIndex, toIndex) {
+    const temp = tiles[fromIndex];
+    tiles[fromIndex] = tiles[toIndex];
+    tiles[toIndex] = temp;
+    renderBoard();
+  }
+
+  function isSolved() {
+    for (let i = 0; i < 15; i++) {
+      if (tiles[i] !== i + 1) return false;
+    }
+    return tiles[15] === 0;
+  }
+
+  function handleWin() {
+    audio.win();
+    const board = document.getElementById('board');
+    board.classList.add('win-animation');
+    
+    setTimeout(function() {
+      board.classList.remove('win-animation');
+    }, 600);
+    
+    let message = '🎉 Congratulations! You solved it in ' + moves + ' moves!';
+    
+    if (bestScore === null || moves < bestScore) {
+      bestScore = moves;
+      saveBestScore();
+      message += '\n🌟 New best score!';
+    }
+    
+    alert(message);
+    updateUI();
+    
+    setTimeout(newPuzzle, 1000);
+  }
+
+  function checkSolution() {
+    if (isSolved()) {
+      alert('✅ Perfect! The puzzle is solved!');
+    } else {
+      const correctCount = tiles.filter(function(val, idx) {
+        if (idx < 15) return val === idx + 1;
+        return val === 0;
+      }).length;
+      alert('Not yet! You have ' + correctCount + ' of 16 tiles in correct position. Keep going!');
+    }
+  }
+
+  function showHint() {
+    const emptyIndex = tiles.indexOf(0);
+    
+    for (let i = 0; i < 16; i++) {
+      const expectedValue = i < 15 ? i + 1 : 0;
+      if (tiles[i] !== expectedValue) {
+        const validMoves = getValidMoves(emptyIndex);
+        if (validMoves.includes(i)) {
+          const tileElements = document.getElementById('board').querySelectorAll('.tile');
+          tileElements[i].style.background = 'linear-gradient(145deg, #FFD700, #FFA500)';
+          setTimeout(function() {
+            renderBoard();
+          }, 1000);
+          alert('💡 Hint: Try moving tile ' + tiles[i] + '!');
+          return;
+        }
+      }
+    }
+    
+    const validMoves = getValidMoves(emptyIndex);
+    if (validMoves.length > 0) {
+      const suggestedMove = validMoves[0];
+      alert('💡 Hint: Try moving tile ' + tiles[suggestedMove] + '!');
+    }
+  }
+
+  function autoSolve() {
+    if (solving) {
+      clearInterval(solveInterval);
+      solving = false;
+      return;
+    }
+    
+    if (isSolved()) {
+      alert('✅ Puzzle is already solved!');
+      return;
+    }
+    
+    solving = true;
+    const solution = solvePuzzleIDA();
+    
+    if (!solution || solution.length === 0) {
+      alert('Unable to find solution quickly. Try solving manually!');
+      solving = false;
+      return;
+    }
+    
+    let step = 0;
+    solveInterval = setInterval(function() {
+      if (!solving || step >= solution.length) {
+        clearInterval(solveInterval);
+        solveInterval = null;
+        solving = false;
+        if (step >= solution.length && isSolved()) {
+          setTimeout(function() {
+            handleWin();
+          }, 300);
+        }
+        return;
+      }
+      
+      const move = solution[step];
+      const emptyIndex = tiles.indexOf(0);
+      moveTile(move, emptyIndex);
+      moves++;
+      updateUI();
+      audio.slide();
+      step++;
+    }, 250);
+  }
+
+  function solvePuzzleIDA() {
+    const maxDepth = 30;
+    
+    for (let depth = 1; depth <= maxDepth; depth++) {
+      const result = idaSearch(tiles.slice(), 0, depth, -1, []);
+      if (result) return result;
+    }
+    
+    return null;
+  }
+
+  function idaSearch(state, g, limit, prevMove, path) {
+    const h = manhattanDistance(state);
+    const f = g + h;
+    
+    if (f > limit) return null;
+    if (isSolvedState(state)) return path;
+    
+    const emptyIndex = state.indexOf(0);
+    const validMoves = getValidMoves(emptyIndex);
+    
+    validMoves.sort(function(a, b) {
+      const stateA = state.slice();
+      stateA[emptyIndex] = stateA[a];
+      stateA[a] = 0;
+      const stateB = state.slice();
+      stateB[emptyIndex] = stateB[b];
+      stateB[b] = 0;
+      return manhattanDistance(stateA) - manhattanDistance(stateB);
+    });
+    
+    for (let i = 0; i < validMoves.length; i++) {
+      const moveIndex = validMoves[i];
+      if (moveIndex === prevMove) continue;
+      
+      const newState = state.slice();
+      newState[emptyIndex] = newState[moveIndex];
+      newState[moveIndex] = 0;
+      
+      const result = idaSearch(newState, g + 1, limit, emptyIndex, path.concat([moveIndex]));
+      if (result) return result;
+    }
+    
+    return null;
+  }
+
+  function manhattanDistance(state) {
+    let distance = 0;
+    for (let i = 0; i < 16; i++) {
+      const value = state[i];
+      if (value === 0) continue;
+      
+      const targetRow = Math.floor((value - 1) / 4);
+      const targetCol = (value - 1) % 4;
+      const currentRow = Math.floor(i / 4);
+      const currentCol = i % 4;
+      
+      distance += Math.abs(targetRow - currentRow) + Math.abs(targetCol - currentCol);
+    }
+    return distance;
+  }
+
+  function isSolvedState(state) {
+    for (let i = 0; i < 15; i++) {
+      if (state[i] !== i + 1) return false;
+    }
+    return state[15] === 0;
+  }
+
+  function updateUI() {
+    document.getElementById('moves').textContent = moves;
+    document.getElementById('level').textContent = level;
+    document.getElementById('best').textContent = bestScore !== null ? bestScore : '--';
+  }
+
+  function loadBestScore() {
+    try {
+      const saved = localStorage.getItem('slidingPuzzleBest');
+      if (saved) {
+        bestScore = parseInt(saved);
+      }
+    } catch(e) {}
+  }
+
+  function saveBestScore() {
+    try {
+      localStorage.setItem('slidingPuzzleBest', bestScore.toString());
+    } catch(e) {}
+  }
+
+  function showInstructions() {
+    document.getElementById('modal').classList.add('active');
+  }
+
+  function closeModal() {
+    document.getElementById('modal').classList.remove('active');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+</body>
+</html>
