@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zipline Runner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+        
+        /* Define scrolling background (simple stars) */
+        @keyframes scrollBackground {
+            from { background-position: 0 0; }
+            to { background-position: -2000px 0; }
+        }
+
+        body {
+            font-family: 'VT323', monospace;
+            background-color: #0d1117; 
+            color: #c9d1d9;
+            margin: 0;
+            padding: 0;
+            /* स्क्रॉलिंग बंद रखने के लिए */
+            overflow: hidden; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            /* dynamic viewport height के लिए अपडेट किया गया */
+            height: var(--app-height, 100vh);
+        }
+
+        #game-container {
+            width: 100vw; 
+            /* height: 100vh; को height: 100% में बदला गया ताकि यह body की height का उपयोग कर सके */
+            height: 100%; 
+            max-width: 650px; 
+            display: flex;
+            flex-direction: column;
+            border-radius: 1rem;
+            box-shadow: 0 0 50px rgba(88, 166, 255, 0.4); /* Neon blue shadow */
+            background-color: #161b22;
+            /* यह सुनिश्चित करता है कि पैडिंग और बॉर्डर 100vh के अंदर रहें */
+            box-sizing: border-box;
+        }
+
+        #gameCanvas {
+            width: 100%;
+            height: auto; 
+            min-height: 300px;
+            background: #000000; /* Dark background */
+            background-image: radial-gradient(#203647 1px, transparent 0), radial-gradient(#203647 1px, transparent 0);
+            background-size: 50px 50px;
+            background-position: 0 0;
+            border-radius: 0.5rem;
+            /* कैनवस को बची हुई सारी जगह लेने देता है */
+            flex-grow: 1; 
+            cursor: pointer;
+            border: 2px solid #58a6ff;
+            animation: scrollBackground 100s linear infinite; /* Subtle scrolling effect */
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.1s ease-in-out;
+            box-shadow: 0 5px #000;
+            transform: translateY(0);
+            border: 2px solid #58a6ff;
+            text-shadow: 0 0 5px #c9d1d9;
+        }
+
+        .btn:hover {
+            box-shadow: 0 8px 15px rgba(88, 166, 255, 0.5);
+        }
+
+        .btn:active {
+            box-shadow: 0 2px #000;
+            transform: translateY(3px);
+        }
+
+        .primary-btn {
+            background-color: #2e8b57; /* Neon Green */
+            color: white;
+            border-color: #58a6ff;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.95);
+            display: none; 
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background-color: #161b22;
+            padding: 2.5rem;
+            border-radius: 1rem;
+            border: 3px solid #58a6ff;
+            box-shadow: 0 0 25px rgba(88, 166, 255, 0.6);
+            max-width: 90%;
+            width: 450px;
+            color: #c9d1d9;
+            text-align: center;
+            font-size: 1.2rem;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- पैडिंग और गैप को मोबाइल के लिए कम रखा गया है -->
+    <div id="game-container" class="p-2 sm:p-4 flex flex-col gap-2 sm:gap-4">
+        <h1 class="text-4xl font-black text-center text-[#58a6ff] mt-2 tracking-widest" style="text-shadow: 0 0 10px #58a6ff;">
+            &lt;ZIPLINE_RUNNER/&gt;
+        </h1>
+        
+        <div id="game-header" class="flex justify-between items-center text-xl font-semibold bg-gray-900/70 p-3 rounded-xl border border-[#2e8b57]">
+            <span class="text-[#2e8b57]">SCORE: <span id="currentScore">0</span>m</span>
+            <span class="text-red-400">BEST: <span id="highScore">0</span>m</span>
+            <button id="instructionsBtn" onclick="window.showInstructions()" class="text-[#58a6ff] hover:text-white transition-colors text-2xl">
+                <i class="fas fa-info-circle"></i>
+            </button>
+        </div>
+
+        <canvas id="gameCanvas" class="shadow-xl"></canvas>
+
+        <div id="game-controls" class="flex justify-around items-center gap-4">
+            <button id="startGameBtn" class="btn primary-btn w-full text-2xl">
+                <i class="fas fa-play mr-2"></i> रन शुरू करें (SPACE / TAP)
+            </button>
+        </div>
+        
+    </div>
+
+    <!-- Instructions Modal -->
+    <div id="instructionsModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 class="text-3xl font-bold mb-6 text-[#58a6ff]">कैसे खेलें</h2>
+            <p class="text-left mb-6 leading-relaxed">
+                आप **Synthetic Zipline Simulation** में एक टेस्ट विषय हैं। <br><br>
+                सिंथेटिक ज़मीन पर दौड़ने और ऊपर की पावर लाइन पर झूलने के बीच टॉगल करने के लिए **SPACE** दबाएं या स्क्रीन पर **टैप** करें।<br><br> 
+                आक्रामक लाल **काँटों (SPIKES)** से बचें। जीवित रहना ही एकमात्र लक्ष्य है।
+            </p>
+            <button onclick="window.hideInstructions()" class="btn primary-btn mt-4 text-xl">आगे बढ़ें &gt;&gt;</button>
+        </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="gameOverModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 class="text-4xl font-bold mb-4 text-red-400" style="text-shadow: 0 0 10px rgba(255, 77, 77, 0.8);">समाप्त (TERMINATED)</h2>
+            <p class="text-2xl mb-6">दूरी (DISTANCE): <span id="finalScore" class="font-extrabold text-[#58a6ff]">0</span>m</p>
+            
+            <button id="closeGameOver" onclick="window.hideGameOver()" class="btn primary-btn mt-2 text-xl w-full">सिमुलेशन पुनः आरंभ करें</button>
+        </div>
+    </div>
+
+
+    <script>
+        // यह फ़ंक्शन असली viewport height की गणना करता है और उसे CSS variable के रूप में सेट करता है।
+        // यह मोबाइल ब्राउज़रों पर $100vh$ की समस्या को हल करता है।
+        function setAppHeight() {
+            document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
+        }
+        
+        // --- Game Class ---
+        class Game {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.currentScore = 0;
+                // Initialize high score from localStorage
+                this.localHighScore = parseInt(localStorage.getItem('ziplineHighScore') || '0', 10);
+                this.isGameOver = false;
+                this.isGameRunning = false;
+                this.animationFrameId = null;
+
+                // Game constants
+                this.gameSpeed = 4;
+                this.initialSpeed = 4;
+                this.playerSize = 12; // Smaller for better visual flow
+                this.groundHeight = 50;
+                this.grappleY = 70; // Zipline Y position
+                this.maxSpeedReached = 0; 
+                this.groundScrollOffset = 0; // for parallax effect
+
+                // Player state
+                this.playerX = 80;
+                this.playerY = 0; 
+                this.isGrappling = false; 
+
+                // Obstacle state
+                this.obstacles = [];
+                this.obstacleSpawnTimer = 0;
+                this.obstacleInterval = 100;
+                
+                this.bindEvents();
+                this.resizeCanvas();
+                window.addEventListener('resize', this.resizeCanvas.bind(this));
+            }
+
+            resizeCanvas() {
+                this.canvas.width = this.canvas.clientWidth;
+                this.canvas.height = this.canvas.clientHeight;
+                if (!this.isGameRunning) {
+                    this.playerY = this.canvas.height - this.groundHeight - this.playerSize;
+                }
+                document.getElementById('highScore').textContent = this.localHighScore;
+            }
+
+            bindEvents() {
+                document.getElementById('startGameBtn').addEventListener('click', () => this.startGame());
+                
+                // Handle keyboard input (Space)
+                document.addEventListener('keydown', (e) => {
+                    if (e.code === 'Space' && this.isGameRunning) {
+                        e.preventDefault();
+                        this.toggleGrapple();
+                    }
+                });
+                
+                // Handle click/tap input
+                this.canvas.addEventListener('click', () => {
+                    if (this.isGameRunning) {
+                        this.toggleGrapple();
+                    } else if (this.isGameOver) {
+                        window.hideGameOver();
+                        this.startGame();
+                    }
+                });
+            }
+
+            toggleGrapple() {
+                this.isGrappling = !this.isGrappling;
+            }
+
+            startGame() {
+                if (this.isGameRunning) {
+                    cancelAnimationFrame(this.animationFrameId);
+                }
+                
+                // UI updates
+                // हिंदी में अपडेट किया गया
+                document.getElementById('startGameBtn').innerHTML = '<i class="fas fa-redo mr-2"></i> पुनः आरंभ करें (SPACE / TAP)';
+
+                // Reset state
+                this.currentScore = 0;
+                this.isGameOver = false;
+                this.isGameRunning = true;
+                this.gameSpeed = this.initialSpeed;
+                this.playerY = this.canvas.height - this.groundHeight - this.playerSize;
+                this.isGrappling = false;
+                this.obstacles = [];
+                this.obstacleSpawnTimer = 0;
+                this.maxSpeedReached = this.initialSpeed;
+                this.groundScrollOffset = 0;
+
+                // Start game loop
+                this.gameLoop();
+            }
+
+            endGame() {
+                if (this.isGameOver) return;
+                this.isGameRunning = false;
+                this.isGameOver = true;
+                
+                // Update high score locally using localStorage
+                if (this.currentScore > this.localHighScore) {
+                    this.localHighScore = this.currentScore;
+                    localStorage.setItem('ziplineHighScore', this.localHighScore.toString());
+                    document.getElementById('highScore').textContent = this.localHighScore;
+                }
+                
+                cancelAnimationFrame(this.animationFrameId);
+
+                // Show Game Over Modal
+                document.getElementById('finalScore').textContent = this.currentScore;
+                window.showGameOver();
+            }
+
+            // Main game loop
+            gameLoop() {
+                if (!this.isGameRunning) return;
+
+                this.update();
+                this.draw();
+                
+                this.animationFrameId = requestAnimationFrame(this.gameLoop.bind(this));
+            }
+
+            update() {
+                // Score and Speed
+                this.currentScore += Math.floor(this.gameSpeed / 4);
+                this.gameSpeed += 0.008; // Increase speed slightly faster
+                if (this.gameSpeed > this.maxSpeedReached) {
+                    this.maxSpeedReached = this.gameSpeed;
+                }
+                document.getElementById('currentScore').textContent = this.currentScore;
+
+                // Player movement (smooth transition)
+                const targetY = this.isGrappling 
+                    ? this.grappleY + this.playerSize * 0.5 // Slightly below zipline
+                    : this.canvas.height - this.groundHeight - this.playerSize; // On ground
+                
+                this.playerY += (targetY - this.playerY) * 0.18; // Smoother, quicker easing
+
+                // Ground scrolling for effect
+                this.groundScrollOffset = (this.groundScrollOffset + this.gameSpeed * 0.1) % 40;
+
+
+                // Obstacle generation
+                this.obstacleSpawnTimer++;
+                // Decrease interval as speed increases
+                const speedFactor = this.gameSpeed / this.initialSpeed;
+                const newInterval = this.obstacleInterval / speedFactor;
+
+                if (this.obstacleSpawnTimer >= newInterval) {
+                    const isHigh = Math.random() > 0.5; // Spawn high (zipline) or low (ground)
+                    const obstacleY = isHigh 
+                        ? this.grappleY + 10 // Aligned with zipline
+                        : this.canvas.height - this.groundHeight; // Aligned with ground top
+                    
+                    this.obstacles.push({
+                        x: this.canvas.width, 
+                        y: obstacleY, 
+                        size: 25,
+                        isHigh: isHigh
+                    });
+                    this.obstacleSpawnTimer = 0;
+                }
+
+                // Obstacle movement and collision check
+                const playerX = this.playerX;
+                this.obstacles.forEach((obstacle) => {
+                    obstacle.x -= this.gameSpeed;
+                    
+                    // Simple AABB (Axis-Aligned Bounding Box) for collision approximation
+                    const playerLeft = playerX - this.playerSize * 0.8;
+                    const playerRight = playerX + this.playerSize * 0.8;
+                    const playerTop = this.playerY - this.playerSize;
+                    const playerBottom = this.playerY + this.playerSize;
+
+                    // Obstacle bounding box (it's a triangle/square, so we use a small radius for spike tip)
+                    const obsRadius = obstacle.size * 0.3; // Collision radius around spike tip
+                    const obsCenterY = obstacle.isHigh ? obstacle.y : obstacle.y - obsRadius;
+
+                    const collision = (
+                        playerRight > obstacle.x - obsRadius && 
+                        playerLeft < obstacle.x + obsRadius && 
+                        playerBottom > obsCenterY - obsRadius &&
+                        playerTop < obsCenterY + obsRadius
+                    );
+
+                    if (collision) {
+                        this.endGame();
+                    }
+                });
+
+                // Remove off-screen obstacles
+                this.obstacles = this.obstacles.filter(o => o.x > -50);
+            }
+            
+            // --- Drawing Functions for Polished Look ---
+            drawZipline() {
+                const Y = this.grappleY;
+                const W = this.canvas.width;
+                
+                // Cable shadow/depth
+                this.ctx.strokeStyle = '#203647'; 
+                this.ctx.lineWidth = 5;
+                this.ctx.beginPath();
+                this.ctx.moveTo(0, Y + 1);
+                this.ctx.lineTo(W, Y + 1);
+                this.ctx.stroke();
+
+                // Main cable
+                this.ctx.strokeStyle = '#8b949e'; 
+                this.ctx.lineWidth = 3;
+                this.ctx.beginPath();
+                this.ctx.moveTo(0, Y);
+                this.ctx.lineTo(W, Y);
+                this.ctx.stroke();
+            }
+
+            drawGround() {
+                const H = this.canvas.height;
+                const GH = this.groundHeight;
+                
+                // Base Ground (Neon Green)
+                this.ctx.fillStyle = '#2e8b57';
+                this.ctx.fillRect(0, H - GH, this.canvas.width, GH);
+
+                // Grid/Parallax Lines (Subtle effect)
+                this.ctx.strokeStyle = '#4CAF50';
+                this.ctx.lineWidth = 1;
+                this.ctx.beginPath();
+                
+                // Draw horizontal lines
+                for (let i = 0; i < 4; i++) {
+                    const lineY = H - GH + (i * (GH / 4));
+                    this.ctx.moveTo(0, lineY);
+                    this.ctx.lineTo(this.canvas.width, lineY);
+                }
+                
+                // Draw vertical lines with scrolling offset
+                for (let i = 0; i < this.canvas.width / 40 + 2; i++) {
+                    const lineX = (i * 40 - this.groundScrollOffset) % (this.canvas.width + 40);
+                    if (lineX > -40) {
+                        this.ctx.moveTo(lineX, H - GH);
+                        this.ctx.lineTo(lineX, H);
+                    }
+                }
+                this.ctx.stroke();
+            }
+            
+            drawSpike(x, y, size, isHigh) {
+                this.ctx.fillStyle = '#ff4d4d'; // Red Spike
+                this.ctx.beginPath();
+                
+                if (isHigh) {
+                    // Downward-pointing triangle (Spike hanging from the zipline)
+                    this.ctx.moveTo(x - size / 2, y); // Bottom left
+                    this.ctx.lineTo(x + size / 2, y); // Bottom right
+                    this.ctx.lineTo(x, y + size); // Tip
+                } else {
+                    // Upward-pointing triangle (Spike coming from the ground)
+                    this.ctx.moveTo(x - size / 2, y); // Bottom left
+                    this.ctx.lineTo(x + size / 2, y); // Bottom right
+                    this.ctx.lineTo(x, y - size); // Tip
+                }
+                
+                this.ctx.closePath();
+                this.ctx.fill();
+                
+                // Add a small neon glow
+                this.ctx.shadowBlur = 10;
+                this.ctx.shadowColor = '#ff4d4d';
+                this.ctx.fill();
+                this.ctx.shadowBlur = 0; // Reset shadow
+            }
+
+            drawPlayer() {
+                const x = this.playerX;
+                const y = this.playerY;
+                const r = this.playerSize;
+
+                // Player Body (Neon Blue)
+                this.ctx.fillStyle = '#58a6ff';
+                this.ctx.beginPath();
+                this.ctx.arc(x, y, r, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                // Neon Glow
+                this.ctx.shadowBlur = 15;
+                this.ctx.shadowColor = '#58a6ff';
+                this.ctx.fill();
+                this.ctx.shadowBlur = 0;
+
+                // Draw Grapple line if grappling
+                if (this.isGrappling) {
+                    this.ctx.strokeStyle = '#2e8b57'; // Green connection
+                    this.ctx.lineWidth = 3;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x, y - r);
+                    this.ctx.lineTo(x, this.grappleY + 1); // Connect to the cable
+                    this.ctx.stroke();
+                }
+            }
+
+
+            draw() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.ctx.fillStyle = '#000000'; // Background is handled by CSS, but draw a clear area just in case.
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+                this.drawZipline();
+                this.drawGround();
+                
+                this.obstacles.forEach(obstacle => {
+                    this.drawSpike(obstacle.x, obstacle.y, obstacle.size, obstacle.isHigh);
+                });
+
+                this.drawPlayer();
+            }
+
+
+            // --- Initialization ---
+            init() {
+                document.getElementById('highScore').textContent = this.localHighScore;
+                this.resizeCanvas();
+            }
+        }
+        
+        // --- GLOBAL MODAL FUNCTIONS ---
+        const instructionsModal = document.getElementById('instructionsModal');
+        const gameOverModal = document.getElementById('gameOverModal');
+
+        function showInstructions() {
+            instructionsModal.style.display = 'flex';
+            instructionsModal.style.opacity = 0;
+            setTimeout(() => instructionsModal.style.opacity = 1, 10);
+        }
+
+        function hideInstructions() {
+            instructionsModal.style.opacity = 0;
+            setTimeout(() => instructionsModal.style.display = 'none', 300);
+        }
+        window.showInstructions = showInstructions;
+        window.hideInstructions = hideInstructions;
+        
+        function showGameOver() {
+            gameOverModal.style.display = 'flex';
+            gameOverModal.style.opacity = 0;
+            setTimeout(() => gameOverModal.style.opacity = 1, 10);
+        }
+        
+        function hideGameOver() {
+            gameOverModal.style.opacity = 0;
+            setTimeout(() => gameOverModal.style.display = 'none', 300);
+        }
+        window.hideGameOver = hideGameOver;
+
+
+        // --- APPLICATION ENTRY POINT ---
+        window.onload = function() {
+            // Fix viewport height for mobile browsers
+            setAppHeight(); 
+            window.addEventListener('resize', setAppHeight); // Re-set on resize/orientation change
+
+            const game = new Game();
+            game.init(); 
+            
+            document.getElementById('closeGameOver').addEventListener('click', () => {
+                hideGameOver();
+                game.startGame(); // Start a new game immediately on closing the modal
+            });
+        };
+    </script>
+</body>
+</html>
