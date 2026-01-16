@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pattern Matching Grid</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            padding: 10px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 20px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        h1 {
+            color: #667eea;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .info-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .score {
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .grid-container {
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .pattern-display {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .pattern-cell {
+            aspect-ratio: 1;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            background: #f0f0f0;
+            border: 2px solid #ddd;
+            transition: all 0.3s ease;
+        }
+
+        .missing-cell {
+            background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
+            border: 2px dashed #e17055;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .option-cell {
+            aspect-ratio: 1;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            background: linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3);
+        }
+
+        .option-cell:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(108, 92, 231, 0.4);
+        }
+
+        .option-cell:active {
+            transform: translateY(0);
+        }
+
+        .option-cell.selected {
+            background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
+            box-shadow: 0 6px 20px rgba(0, 184, 148, 0.4);
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: white;
+        }
+
+        .btn-check {
+            background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
+            grid-column: 1 / -1;
+        }
+
+        .btn-hint {
+            background: linear-gradient(135deg, #fdcb6e 0%, #e17055 100%);
+        }
+
+        .btn-solve {
+            background: linear-gradient(135deg, #fd79a8 0%, #e84393 100%);
+        }
+
+        .btn-new {
+            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+        }
+
+        .btn-help {
+            background: linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .message {
+            text-align: center;
+            padding: 10px;
+            border-radius: 10px;
+            margin-top: 10px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .message.success {
+            background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
+            color: white;
+        }
+
+        .message.error {
+            background: linear-gradient(135deg, #ff7675 0%, #d63031 100%);
+            color: white;
+        }
+
+        .message.info {
+            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+            color: white;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 400px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .modal-content p {
+            margin-bottom: 10px;
+            line-height: 1.6;
+            color: #555;
+        }
+
+        .modal-content ul {
+            margin-left: 20px;
+            margin-bottom: 15px;
+            color: #555;
+        }
+
+        .modal-content li {
+            margin-bottom: 8px;
+        }
+
+        .close-modal {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 100%;
+            margin-top: 15px;
+        }
+
+        @media (max-width: 400px) {
+            .container {
+                padding: 15px;
+            }
+
+            h1 {
+                font-size: 20px;
+            }
+
+            .pattern-cell, .option-cell {
+                font-size: 20px;
+            }
+
+            button {
+                padding: 10px;
+                font-size: 13px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Pattern Matching</h1>
+        </div>
+
+        <div class="info-bar">
+            <div>Level: <span id="level" class="score">1</span></div>
+            <div>Score: <span id="score" class="score">0</span></div>
+            <div>Hints: <span id="hints" class="score">3</span></div>
+        </div>
+
+        <div class="grid-container">
+            <div class="pattern-display" id="patternGrid"></div>
+            <div class="options-grid" id="optionsGrid"></div>
+        </div>
+
+        <div class="controls">
+            <button class="btn-check" id="checkBtn">✓ Check Solution</button>
+            <button class="btn-hint" id="hintBtn">💡 Hint</button>
+            <button class="btn-solve" id="solveBtn">🔓 Auto-Solve</button>
+            <button class="btn-new" id="newBtn">🔄 New Puzzle</button>
+            <button class="btn-help" id="helpBtn">❓ Instructions</button>
+        </div>
+
+        <div class="message" id="message"></div>
+    </div>
+
+    <div class="modal" id="instructionsModal">
+        <div class="modal-content">
+            <h2>📋 How to Play</h2>
+            <p><strong>Objective:</strong> Complete the pattern sequence by finding the missing piece!</p>
+            
+            <h3 style="color: #667eea; margin-top: 15px;">Rules:</h3>
+            <ul>
+                <li>Study the pattern in the grid carefully</li>
+                <li>Identify the logical sequence</li>
+                <li>Select the correct option from below</li>
+                <li>Click "Check Solution" to verify</li>
+            </ul>
+
+            <h3 style="color: #667eea; margin-top: 15px;">Features:</h3>
+            <ul>
+                <li><strong>Hints:</strong> Get clues when stuck (3 per game)</li>
+                <li><strong>Auto-Solve:</strong> Reveal the answer</li>
+                <li><strong>New Puzzle:</strong> Generate a fresh challenge</li>
+            </ul>
+
+            <h3 style="color: #667eea; margin-top: 15px;">Scoring:</h3>
+            <ul>
+                <li>+10 points for correct answer</li>
+                <li>-5 points for using hints</li>
+                <li>Progress through increasing levels!</li>
+            </ul>
+
+            <button class="close-modal" id="closeModal">Got it!</button>
+        </div>
+    </div>
+
+    <script>
+        // Audio Context for sounds
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(frequency, duration, type = 'sine') {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = frequency;
+            oscillator.type = type;
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + duration);
+        }
+
+        function playSuccess() {
+            playSound(523.25, 0.2);
+            setTimeout(() => playSound(659.25, 0.2), 100);
+            setTimeout(() => playSound(783.99, 0.3), 200);
+        }
+
+        function playError() {
+            playSound(200, 0.3, 'sawtooth');
+        }
+
+        function playClick() {
+            playSound(400, 0.1, 'square');
+        }
+
+        function playHint() {
+            playSound(600, 0.2);
+        }
+
+        // Game state
+        let gameState = {
+            level: 1,
+            score: 0,
+            hints: 3,
+            currentPattern: [],
+            missingIndex: 0,
+            correctAnswer: '',
+            selectedAnswer: null,
+            solved: false
+        };
+
+        // Pattern symbols
+        const symbols = ['🔴', '🟢', '🔵', '🟡', '🟣', '🟠', '⭐', '❤️', '💎', '🔷', '🔶', '⬛'];
+        
+        // Pattern types
+        function generatePattern() {
+            const patternTypes = [
+                generateSequentialPattern,
+                generateAlternatingPattern,
+                generateRotatingPattern,
+                generateMirrorPattern
+            ];
+            
+            const generator = patternTypes[Math.floor(Math.random() * patternTypes.length)];
+            return generator();
+        }
+
+        function generateSequentialPattern() {
+            const symbolSet = symbols.slice(0, 4 + Math.floor(gameState.level / 3));
+            const pattern = [];
+            let current = 0;
+            
+            for (let i = 0; i < 8; i++) {
+                pattern.push(symbolSet[current % symbolSet.length]);
+                current++;
+            }
+            
+            return pattern;
+        }
+
+        function generateAlternatingPattern() {
+            const symbolSet = symbols.slice(0, Math.min(4, 2 + gameState.level));
+            const pattern = [];
+            
+            for (let i = 0; i < 8; i++) {
+                pattern.push(symbolSet[i % 2]);
+            }
+            
+            return pattern;
+        }
+
+        function generateRotatingPattern() {
+            const symbolSet = symbols.slice(0, 3 + Math.floor(gameState.level / 2));
+            const pattern = [];
+            
+            for (let i = 0; i < 8; i++) {
+                pattern.push(symbolSet[Math.floor(i / 2) % symbolSet.length]);
+            }
+            
+            return pattern;
+        }
+
+        function generateMirrorPattern() {
+            const symbolSet = symbols.slice(0, 4);
+            const half = [
+                symbolSet[0], symbolSet[1], 
+                symbolSet[2], symbolSet[3]
+            ];
+            
+            return [...half, ...half.reverse()];
+        }
+
+        function initializeGame() {
+            gameState.currentPattern = generatePattern();
+            gameState.missingIndex = Math.floor(Math.random() * 8);
+            gameState.correctAnswer = gameState.currentPattern[gameState.missingIndex];
+            gameState.selectedAnswer = null;
+            gameState.solved = false;
+            
+            renderGame();
+            updateDisplay();
+        }
+
+        function renderGame() {
+            const patternGrid = document.getElementById('patternGrid');
+            patternGrid.innerHTML = '';
+            
+            gameState.currentPattern.forEach((symbol, index) => {
+                const cell = document.createElement('div');
+                cell.className = 'pattern-cell';
+                
+                if (index === gameState.missingIndex && !gameState.solved) {
+                    cell.classList.add('missing-cell');
+                    cell.textContent = '?';
+                } else {
+                    cell.textContent = symbol;
+                }
+                
+                patternGrid.appendChild(cell);
+            });
+            
+            renderOptions();
+        }
+
+        function renderOptions() {
+            const optionsGrid = document.getElementById('optionsGrid');
+            optionsGrid.innerHTML = '';
+            
+            // Generate options (correct answer + random wrong answers)
+            const options = [gameState.correctAnswer];
+            const availableSymbols = symbols.filter(s => s !== gameState.correctAnswer);
+            
+            while (options.length < 6) {
+                const randomSymbol = availableSymbols[Math.floor(Math.random() * availableSymbols.length)];
+                if (!options.includes(randomSymbol)) {
+                    options.push(randomSymbol);
+                }
+            }
+            
+            // Shuffle options
+            options.sort(() => Math.random() - 0.5);
+            
+            options.forEach(symbol => {
+                const cell = document.createElement('button');
+                cell.className = 'option-cell';
+                cell.textContent = symbol;
+                
+                if (gameState.selectedAnswer === symbol) {
+                    cell.classList.add('selected');
+                }
+                
+                cell.onclick = () => selectOption(symbol, cell);
+                optionsGrid.appendChild(cell);
+            });
+        }
+
+        function selectOption(symbol, cell) {
+            if (gameState.solved) return;
+            
+            playClick();
+            gameState.selectedAnswer = symbol;
+            
+            // Update UI
+            document.querySelectorAll('.option-cell').forEach(c => c.classList.remove('selected'));
+            cell.classList.add('selected');
+        }
+
+        function checkSolution() {
+            if (!gameState.selectedAnswer) {
+                showMessage('Please select an answer first!', 'info');
+                playError();
+                return;
+            }
+            
+            if (gameState.solved) {
+                showMessage('Puzzle already solved!', 'info');
+                return;
+            }
+            
+            if (gameState.selectedAnswer === gameState.correctAnswer) {
+                gameState.score += 10;
+                gameState.solved = true;
+                playSuccess();
+                showMessage('🎉 Correct! Well done!', 'success');
+                
+                // Update the missing cell with correct answer
+                const cells = document.querySelectorAll('.pattern-cell');
+                cells[gameState.missingIndex].textContent = gameState.correctAnswer;
+                cells[gameState.missingIndex].classList.remove('missing-cell');
+                
+                // Auto-generate new puzzle after delay
+                setTimeout(() => {
+                    gameState.level++;
+                    initializeGame();
+                }, 2000);
+            } else {
+                playError();
+                showMessage('❌ Wrong answer. Try again!', 'error');
+            }
+            
+            updateDisplay();
+        }
+
+        function useHint() {
+            if (gameState.hints <= 0) {
+                showMessage('No hints remaining!', 'error');
+                playError();
+                return;
+            }
+            
+            if (gameState.solved) {
+                showMessage('Puzzle already solved!', 'info');
+                return;
+            }
+            
+            gameState.hints--;
+            gameState.score = Math.max(0, gameState.score - 5);
+            playHint();
+            
+            // Highlight correct answer briefly
+            const options = document.querySelectorAll('.option-cell');
+            options.forEach(cell => {
+                if (cell.textContent === gameState.correctAnswer) {
+                    cell.style.animation = 'pulse 0.5s 3';
+                    setTimeout(() => {
+                        cell.style.animation = '';
+                    }, 1500);
+                }
+            });
+            
+            showMessage('💡 Watch the pulsing option!', 'info');
+            updateDisplay();
+        }
+
+        function autoSolve() {
+            if (gameState.solved) {
+                showMessage('Puzzle already solved!', 'info');
+                return;
+            }
+            
+            playSuccess();
+            gameState.solved = true;
+            gameState.selectedAnswer = gameState.correctAnswer;
+            
+            const cells = document.querySelectorAll('.pattern-cell');
+            cells[gameState.missingIndex].textContent = gameState.correctAnswer;
+            cells[gameState.missingIndex].classList.remove('missing-cell');
+            
+            renderOptions();
+            showMessage('🔓 Solution revealed!', 'success');
+            
+            setTimeout(() => {
+                gameState.level++;
+                initializeGame();
+            }, 2000);
+        }
+
+        function newPuzzle() {
+            playClick();
+            gameState.level++;
+            initializeGame();
+            showMessage('🔄 New puzzle generated!', 'info');
+        }
+
+        function showMessage(text, type) {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = text;
+            messageEl.className = `message ${type}`;
+            
+            if (type !== 'success') {
+                setTimeout(() => {
+                    messageEl.textContent = '';
+                    messageEl.className = 'message';
+                }, 3000);
+            }
+        }
+
+        function updateDisplay() {
+            document.getElementById('level').textContent = gameState.level;
+            document.getElementById('score').textContent = gameState.score;
+            document.getElementById('hints').textContent = gameState.hints;
+        }
+
+        // Event listeners
+        document.getElementById('checkBtn').onclick = checkSolution;
+        document.getElementById('hintBtn').onclick = useHint;
+        document.getElementById('solveBtn').onclick = autoSolve;
+        document.getElementById('newBtn').onclick = newPuzzle;
+        document.getElementById('helpBtn').onclick = () => {
+            playClick();
+            document.getElementById('instructionsModal').classList.add('active');
+        };
+        document.getElementById('closeModal').onclick = () => {
+            playClick();
+            document.getElementById('instructionsModal').classList.remove('active');
+        };
+
+        // Close modal on outside click
+        document.getElementById('instructionsModal').onclick = (e) => {
+            if (e.target.id === 'instructionsModal') {
+                document.getElementById('instructionsModal').classList.remove('active');
+            }
+        };
+
+        // Initialize game on load
+        initializeGame();
+        
+        // Show instructions on first load
+        setTimeout(() => {
+            document.getElementById('instructionsModal').classList.add('active');
+        }, 500);
+    </script>
+</body>
+</html>
