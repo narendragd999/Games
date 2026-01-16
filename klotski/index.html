@@ -1,0 +1,823 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Klotski — Huarong Dao</title>
+  <!-- CSS section goes below -->
+  <style>
+    :root{
+  --bg1:#6a11cb; --bg2:#ffffff;
+  --primary:#3498db; --secondary:#6a11cb; --card:#ffffff;
+  --shadow: 0 6px 18px rgba(10,10,20,0.12);
+  --radius:16px;
+  --success:#2ecc71; --warning:#f39c12; --danger:#e74c3c;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;color:#111;overflow:hidden;}
+body{
+  background:linear-gradient(135deg,var(--bg1) 0%, var(--bg2) 100%);
+  display:flex;align-items:center;justify-content:center;padding:16px;
+  touch-action: none;
+}
+.app{
+  width:100%;max-width:480px;
+  height:100%;
+  display:flex;flex-direction:column;gap:16px;
+}
+.topbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px}
+.title{font-size:20px;font-weight:700;color:#222;display:flex;align-items:center;gap:8px;}
+.title svg{width:24px;height:24px;}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+button{border:0;padding:12px 16px;border-radius:12px;font-weight:600;cursor:pointer;font-size:14px;transition:all 0.16s ease;}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-primary:active{background:#2980b9;transform:scale(0.97);}
+.btn-secondary{background:var(--secondary);color:#fff;}
+.btn-secondary:active{background:#5a0fba;transform:scale(0.97);}
+.btn-ghost{background:transparent;color:#222;border:1px solid rgba(0,0,0,0.08);}
+.btn-ghost:active{background:rgba(0,0,0,0.03);transform:scale(0.97);}
+.btn-success{background:var(--success);color:#fff;}
+.btn-warning{background:var(--warning);color:#fff;}
+.meta{font-size:14px;color:#666;line-height:1.4;}
+
+.game-wrap{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;}
+.board-card{width:100%;height:100%;max-height:640px;background:var(--card);border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:space-between;box-shadow:var(--shadow);}
+
+.board{
+  width:100%;max-width:360px;
+  aspect-ratio:4/5;
+  background:linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0.01));
+  position:relative;border-radius:10px;padding:8px;display:block;
+  touch-action:none; overflow:hidden;
+}
+.grid-cell{position:absolute;pointer-events:none;border:1px dashed rgba(0,0,0,0.05);box-sizing:border-box}
+
+.block{
+  position:absolute;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;user-select:none;touch-action:none;transition:transform 160ms cubic-bezier(.2,.9,.2,1);
+  box-shadow: 0 4px 10px rgba(20,20,40,0.15);text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+.block.small{background:#2ecc71}
+.block.medium{background:#f39c12}
+.block.large{background:#e74c3c}
+.target{background:linear-gradient(135deg,#ff6b6b,#ff3b3b);font-size:16px}
+.block.dragging{z-index:20;transition:none;box-shadow:0 8px 24px rgba(0,0,0,0.25);}
+
+.hud{display:flex;align-items:center;gap:12px;width:100%;}
+.counter{background:rgba(0,0,0,0.03);padding:10px 14px;border-radius:12px;font-weight:700;font-size:15px;flex-shrink:0;}
+.instructions{font-size:13px;color:#666;text-align:center;line-height:1.4;}
+
+.overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);z-index:999;backdrop-filter:blur(4px);}
+.overlay.active{display:flex;flex-direction:column;gap:20px;}
+.spinner{width:56px;height:56px;border-radius:999px;border:6px solid rgba(255,255,255,0.15);border-top-color:#fff;animation:spin 900ms linear infinite}
+.overlay-message{color:white;font-size:20px;font-weight:600;text-align:center;max-width:300px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:white;padding:12px 20px;border-radius:50px;font-weight:600;z-index:1000;opacity:0;transition:opacity 0.3s ease;pointer-events:none;}
+.toast.show{opacity:1;}
+
+.volume-control {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.volume-control svg {
+  width: 20px;
+  height: 20px;
+  fill: white;
+}
+
+.volume-control.muted svg {
+  fill: #ccc;
+}
+
+.audio-permission {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.audio-permission button {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+@media (max-width: 480px) {
+  .app{gap:12px;}
+  .topbar{flex-direction:column;align-items:stretch;}
+  .title{font-size:18px;justify-content:center;}
+  .controls{justify-content:center;}
+  .board-card{padding:12px;border-radius:16px;}
+  .counter{padding:8px 12px;font-size:14px;}
+  .instructions{font-size:12px;}
+  button{padding:10px 14px;font-size:13px;}
+  .hud{flex-direction:column;gap:8px;}
+  .volume-control {
+    top: 5px;
+    right: 5px;
+    width: 28px;
+    height: 28px;
+  }
+  .audio-permission {
+    bottom: 10px;
+    right: 10px;
+    left: 10px;
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+@media (max-height: 700px) {
+  .board{max-width:300px;}
+  .board-card{gap:8px;}
+}
+
+.no-select{-webkit-touch-callout:none;-webkit-user-select:none;-khtml-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;}
+
+  </style>
+</head>
+<body class="no-select">
+  <div class="app">
+    <div class="topbar">
+      <div class="card" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px">
+        <div class="title">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M2 4C2 2.89543 2.89543 2 4 2H8C9.10457 2 10 2.89543 10 4V8C10 9.10457 9.10457 10 8 10H4C2.89543 10 2 9.10457 2 8V4Z" />
+            <path d="M14 4C14 2.89543 14.8954 2 16 2H20C21.1046 2 22 2.89543 22 4V8C22 9.10457 21.1046 10 20 10H16C14.8954 10 14 9.10457 14 8V4Z" />
+            <path d="M14 16C14 14.8954 14.8954 14 16 14H20C21.1046 14 22 14.8954 22 16V20C22 21.1046 21.1046 22 20 22H16C14.8954 22 14 21.1046 14 20V16Z" />
+            <path d="M2 16C2 14.8954 2.89543 14 4 14H8C9.10457 14 10 14.8954 10 16V20C10 21.1046 9.10457 22 8 22H4C2.89543 22 2 21.1046 2 20V16Z" />
+          </svg>
+          Klotski — Huarong Dao
+        </div>
+        <div class="meta" style="margin-left:6px">Slide the red 2×2 to the exit ↓</div>
+      </div>
+
+      <div class="controls">
+        <button class="btn-ghost" id="undoBtn">Undo</button>
+        <button class="btn-warning" id="hintBtn">Hint</button>
+        <button class="btn-primary" id="autoBtn">Auto Solve</button>
+        <button class="btn-secondary" id="resetBtn">Reset</button>
+      </div>
+    </div>
+
+    <div class="game-wrap">
+      <div class="board-card">
+        <div class="hud">
+          <div class="counter card" id="moves">Moves: 0</div>
+          <div class="instructions">Drag blocks. Hint uses BFS; Auto Solve plays shortest solution.</div>
+        </div>
+
+        <div id="board" class="board" aria-label="Klotski board" role="application"></div>
+
+        <div style="display:flex;gap:8px;width:100%;justify-content:center;flex-wrap:wrap;">
+          <button class="btn-ghost" id="keyboardBtn">Keyboard Help</button>
+          <button class="btn-ghost" id="selectDefaultBtn">Select Target</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="overlay" class="overlay">
+    <div class="spinner"></div>
+    <div class="overlay-message" id="overlayMessage">Solving puzzle...</div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Volume control button -->
+  <div class="volume-control" id="volumeControl">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+      <path d="M14,3.23V5.29C16.89,6.15 19,8.83 19,12C19,15.17 16.89,17.84 14,18.7V20.77C18,19.86 21,16.28 21,12C21,7.72 18,4.14 14,3.23M16.5,12C16.5,10.23 15.5,8.71 14,7.97V16C15.5,15.29 16.5,13.76 16.5,12M3,9V15H7L12,20V4L7,9H3Z"/>
+    </svg>
+  </div>
+
+  <!-- Audio permission prompt -->
+  <div class="audio-permission" id="audioPermission">
+    <span>Enable sound effects for better experience</span>
+    <button id="enableAudioBtn">Enable Sound</button>
+  </div>
+
+  <!-- JS section goes below -->
+  <script>
+    /* Klotski (Huarong Dao) with embedded BFS solver
+   - Standard 4x5 Huarong Dao initial layout
+   - BFS finds shortest solution; cached per-state
+   - Hint: shows next move from BFS path
+   - Auto Solve: plays the whole BFS path
+*/
+
+const BOARD_COLS=4, BOARD_ROWS=5;
+const boardEl=document.getElementById('board');
+const movesEl=document.getElementById('moves');
+const overlay=document.getElementById('overlay');
+const overlayMessage=document.getElementById('overlayMessage');
+const toastEl=document.getElementById('toast');
+const volumeControl = document.getElementById('volumeControl');
+const audioPermission = document.getElementById('audioPermission');
+const enableAudioBtn = document.getElementById('enableAudioBtn');
+
+let cellSize=0, boardRect=null;
+let blocks=[], undoStack=[], moves=0;
+let solutionCache = new Map(); // cache: stateKey -> move array
+let isAutoSolving = false;
+let selectedId = 'A'; // default selected (target)
+let soundEnabled = false; // Start with sound disabled until user enables it
+let audioContext = null; // Will be initialized after user interaction
+
+// --------- Sound Effects ---------
+// Function to initialize audio context
+function initAudioContext() {
+  if (audioContext) return; // Already initialized
+  
+  try {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    console.log('Audio context initialized successfully');
+    
+    // Hide the permission prompt
+    audioPermission.style.display = 'none';
+    
+    // Show toast notification
+    showToast("Sound enabled 🎵");
+    
+    // Set sound enabled
+    soundEnabled = true;
+    volumeControl.classList.remove('muted');
+  } catch (e) {
+    console.error('Error initializing audio context:', e);
+    showToast("Could not initialize audio");
+  }
+}
+
+// Function to play a sound with specified frequency and duration
+function playSound(frequency, duration, type = 'sine', volume = 0.2) {
+  if (!soundEnabled || !audioContext) return;
+  
+  try {
+    // Ensure audio context is resumed
+    if (audioContext.state === 'suspended') {
+      audioContext.resume().then(() => {
+        console.log('AudioContext resumed successfully');
+      });
+    }
+    
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.type = type;
+    oscillator.frequency.value = frequency;
+    
+    gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + duration);
+  } catch (e) {
+    console.error('Error playing sound:', e);
+  }
+}
+
+// Specific sound effects
+function playDragStartSound() {
+  playSound(523.25, 0.1, 'sine', 0.15); // C5 note
+}
+
+function playDropSound() {
+  playSound(392.00, 0.15, 'sine', 0.1); // G4 note
+}
+
+function playMoveSound() {
+  playSound(659.25, 0.08, 'sine', 0.1); // E5 note
+}
+
+function playWinSound() {
+  // Play a little victory melody
+  playSound(523.25, 0.15, 'sine', 0.2); // C5
+  setTimeout(() => playSound(659.25, 0.15, 'sine', 0.2), 150); // E5
+  setTimeout(() => playSound(783.99, 0.3, 'sine', 0.25), 300); // G5
+}
+
+function playErrorSound() {
+  playSound(311.13, 0.3, 'sawtooth', 0.15); // D#4
+}
+
+function playClickSound() {
+  playSound(392.00, 0.05, 'sine', 0.1); // G4
+}
+
+// Toggle sound on/off
+volumeControl.addEventListener('click', function() {
+  if (!audioContext) {
+    initAudioContext();
+    return;
+  }
+  
+  soundEnabled = !soundEnabled;
+  this.classList.toggle('muted', !soundEnabled);
+  playClickSound();
+  showToast(soundEnabled ? "Sound enabled" : "Sound muted");
+});
+
+// Enable audio button
+enableAudioBtn.addEventListener('click', function() {
+  initAudioContext();
+});
+
+// Also initialize audio on any user interaction with the game
+document.addEventListener('click', function initOnClick() {
+  if (!audioContext) {
+    initAudioContext();
+  }
+  document.removeEventListener('click', initOnClick);
+}, { once: true });
+
+// --------- Standard Huarong Dao initial layout (classic) ---------
+// We'll use IDs that are stable and sorted for serialization.
+const INITIAL_BLOCKS = [
+  {id:'A', w:2,h:2,x:1,y:0, type:'target', label:'YOU'}, // target 2x2 at top center
+  {id:'B', w:1,h:2,x:0,y:0, type:'medium', label:'B'},
+  {id:'C', w:1,h:2,x:3,y:0, type:'medium', label:'C'},
+  {id:'D', w:1,h:2,x:0,y:2, type:'medium', label:'D'},
+  {id:'E', w:1,h:2,x:3,y:2, type:'medium', label:'E'},
+  {id:'F', w:2,h:1,x:1,y:2, type:'small', label:'F'},
+  {id:'G', w:1,h:1,x:1,y:3, type:'small', label:'G'},
+  {id:'H', w:1,h:1,x:2,y:3, type:'small', label:'H'}
+];
+
+// ----------------- Initialization -----------------
+function init(){
+  blocks = INITIAL_BLOCKS.map(b=>Object.assign({},b));
+  undoStack = [];
+  moves = 0;
+  solutionCache.clear();
+  updateMoves();
+  render();
+  showToast("Classic Huarong Dao loaded. Hint & Auto Solve use BFS.");
+  selectedId = 'A';
+}
+
+function updateMoves(){ movesEl.textContent = 'Moves: '+moves; }
+
+// Draw grid and exit marker
+function renderGridCells(){
+  boardEl.innerHTML='';
+  boardRect = boardEl.getBoundingClientRect();
+  const w=boardRect.width, h=boardRect.height;
+  cellSize = Math.min((w-16)/BOARD_COLS, (h-16)/BOARD_ROWS);
+  for(let r=0;r<BOARD_ROWS;r++){
+    for(let c=0;c<BOARD_COLS;c++){
+      const g=document.createElement('div'); g.className='grid-cell';
+      g.style.width = (cellSize)+'px'; g.style.height=(cellSize)+'px';
+      g.style.left = (8 + c*cellSize)+'px'; g.style.top = (8 + r*cellSize)+'px';
+      boardEl.appendChild(g);
+    }
+  }
+  // exit bar at bottom center (underneath cells)
+  const exit = document.createElement('div');
+  exit.style.position = 'absolute';
+  exit.style.bottom = '0';
+  exit.style.left = `${8 + cellSize}px`;
+  exit.style.width = `${cellSize * 2}px`;
+  exit.style.height = '4px';
+  exit.style.backgroundColor = '#ff3b3b';
+  exit.style.borderRadius = '2px 2px 0 0';
+  boardEl.appendChild(exit);
+}
+
+// Render blocks (create elements if needed)
+function render(){
+  renderGridCells();
+  for(const b of blocks){
+    let el = document.getElementById('block-'+b.id);
+    if(!el){
+      el = document.createElement('div');
+      el.className = 'block';
+      el.id='block-'+b.id;
+      el.dataset.id = b.id;
+      boardEl.appendChild(el);
+      attachPointerHandlers(el);
+    }
+    el.classList.toggle('target', b.type==='target');
+    el.classList.toggle('small', b.w===1 && b.h===1);
+    el.classList.toggle('medium', (b.w===1&&b.h===2)||(b.w===2&&b.h===1));
+    el.classList.toggle('large', (b.w===2&&b.h===2) && b.type!=='target');
+    el.textContent = b.label || b.id;
+    positionElement(el,b.x,b.y,b.w,b.h);
+  }
+}
+
+function positionElement(el,x,y,w,h){
+  const left = 8 + x*cellSize;
+  const top = 8 + y*cellSize;
+  el.style.width = (w*cellSize - 10) + 'px';
+  el.style.height = (h*cellSize - 10) + 'px';
+  el.style.transform = `translate(${left}px, ${top}px)`;
+}
+
+// ---------- Pointer & Dragging (touch + mouse) ----------
+function attachPointerHandlers(el){
+  let pointerId=null, startX=0,startY=0, startPx=0,startPy=0, movableAxis=null, dragging=false;
+  const id = el.dataset.id;
+  const getBlock = ()=>blocks.find(b=>b.id===id);
+
+  el.addEventListener('pointerdown', e=>{
+    // Initialize audio on first interaction if not already done
+    if (!audioContext) {
+      initAudioContext();
+    }
+    
+    e.preventDefault();
+    el.setPointerCapture(e.pointerId);
+    pointerId = e.pointerId;
+    startX = e.clientX; startY = e.clientY;
+    dragging = true;
+    startPx = getBlock().x; startPy = getBlock().y;
+    movableAxis = null;
+    el.classList.add('dragging');
+    boardEl.classList.add('dragging');
+    
+    // Play drag start sound
+    playDragStartSound();
+  });
+
+  el.addEventListener('pointermove', e=>{
+    if(!dragging || pointerId !== e.pointerId) return;
+    const dx = e.clientX - startX; const dy = e.clientY - startY;
+    if(!movableAxis) movableAxis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+    const deltaCells = movableAxis==='x' ? Math.round(dx / cellSize) : Math.round(dy / cellSize);
+    const b = getBlock();
+    const intendedX = movableAxis==='x' ? clamp(startPx + deltaCells, 0, BOARD_COLS - b.w) : startPx;
+    const intendedY = movableAxis==='y' ? clamp(startPy + deltaCells, 0, BOARD_ROWS - b.h) : startPy;
+    positionElement(el, intendedX, intendedY, b.w, b.h);
+  });
+
+  el.addEventListener('pointerup', e=>{
+    if(!dragging) return;
+    dragging = false;
+    el.releasePointerCapture(e.pointerId);
+    el.classList.remove('dragging');
+    boardEl.classList.remove('dragging');
+    const dx = e.clientX - startX; const dy = e.clientY - startY;
+    if(!movableAxis) movableAxis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+    const deltaCells = movableAxis==='x' ? Math.round(dx / cellSize) : Math.round(dy / cellSize);
+    
+    // Play drop sound
+    playDropSound();
+    
+    attemptMove(id, movableAxis, deltaCells);
+  });
+
+  el.addEventListener('pointercancel', e=>{
+    dragging=false;
+    if(pointerId) el.releasePointerCapture(pointerId);
+    el.classList.remove('dragging');
+    
+    // Play cancel sound (same as drop)
+    playDropSound();
+    
+    render();
+  });
+
+  // clicking selects for keyboard control
+  el.addEventListener('click', e=>{
+    selectedId = id;
+    flashBlock(id);
+    playClickSound();
+    showToast(`Selected ${id} (use arrows)`);
+  });
+}
+
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+// ---------- Core move logic ----------
+function attemptMove(id, axis, delta){
+  if(!delta){ render(); return; }
+  const idx = blocks.findIndex(x=>x.id===id);
+  if(idx<0){ render(); return; }
+  const b = blocks[idx];
+
+  let maxNeg=0, maxPos=0;
+  // measure negative
+  for(let step=1; step<= (axis==='x'?BOARD_COLS:BOARD_ROWS); step++){
+    const nx = axis==='x' ? b.x - step : b.x;
+    const ny = axis==='y' ? b.y - step : b.y;
+    if(nx < 0 || ny < 0) break;
+    if(isAreaFreeFor(blocks, b.id, nx, ny, b.w, b.h)) maxNeg = step;
+  }
+  // measure positive
+  for(let step=1; step<= (axis==='x'?BOARD_COLS:BOARD_ROWS); step++){
+    const nx = axis==='x' ? b.x + step : b.x;
+    const ny = axis==='y' ? b.y + step : b.y;
+    if(nx + (axis==='x'?b.w:0) > BOARD_COLS || ny + (axis==='y'?b.h:0) > BOARD_ROWS) break;
+    if(isAreaFreeFor(blocks, b.id, nx, ny, b.w, b.h)) maxPos = step;
+  }
+
+  const desired = delta > 0 ? Math.min(delta, maxPos) : Math.max(delta, -maxNeg);
+  if(desired === 0){ 
+    // Play error sound if movement is not possible
+    playErrorSound();
+    render(); 
+    return; 
+  }
+
+  // Play move sound for successful movement
+  playMoveSound();
+  
+  // record undo only if not auto-solving
+  if(!isAutoSolving) pushUndo();
+  if(axis === 'x') b.x += desired; else b.y += desired;
+  moves++; updateMoves(); render(); checkWin();
+}
+
+function isAreaFreeFor(blocksArr, ignoreId, x, y, w, h){
+  if(x < 0 || y < 0 || x + w > BOARD_COLS || y + h > BOARD_ROWS) return false;
+  for(const other of blocksArr){
+    if(other.id === ignoreId) continue;
+    if(rectsOverlap(x,y,w,h, other.x, other.y, other.w, other.h)) return false;
+  }
+  return true;
+}
+function rectsOverlap(x1,y1,w1,h1,x2,y2,w2,h2){
+  return !(x1+w1 <= x2 || x2+w2 <= x1 || y1+h1 <= y2 || y2+h2 <= y1);
+}
+
+function pushUndo(){ undoStack.push(JSON.parse(JSON.stringify(blocks))); if(undoStack.length>200) undoStack.shift(); }
+function undo(){ 
+  if(undoStack.length===0) { 
+    playErrorSound();
+    showToast("Nothing to undo"); 
+    return; 
+  } 
+  playClickSound();
+  blocks = undoStack.pop(); 
+  moves++; 
+  updateMoves(); 
+  render(); 
+  solutionCache.clear(); 
+}
+
+function reset(){ 
+  pushUndo(); 
+  blocks = INITIAL_BLOCKS.map(b=>Object.assign({},b)); 
+  moves=0; 
+  updateMoves(); 
+  render(); 
+  solutionCache.clear(); 
+  playClickSound();
+  showToast("Reset to classic layout"); 
+}
+
+// ---------- Win check ----------
+function checkWin(){
+  const t = blocks.find(b=>b.type==='target');
+  if(t && t.x===1 && t.y===3){
+    // reached exit (x=1,y=3)
+    playWinSound();
+    showOverlayMessage('You won! 🎉', true);
+  }
+}
+
+function showOverlayMessage(msg, isWin=false){
+  overlayMessage.textContent = msg;
+  overlay.classList.add('active');
+  if(isWin) overlayMessage.style.color = '#2ecc71'; else overlayMessage.style.color = '#fff';
+  setTimeout(()=> overlay.classList.remove('active'), isWin ? 2200 : 900);
+}
+
+// ---------- Toast ----------
+function showToast(msg, duration=2200){
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  setTimeout(()=> toastEl.classList.remove('show'), duration);
+}
+
+// ---------- BFS Solver (shortest path) ----------
+function serializeState(blks){
+  // sort by id to generate canonical string (IDs are stable)
+  const arr = blks.slice().sort((a,b)=> a.id.localeCompare(b.id));
+  return arr.map(b=>`${b.id},${b.x},${b.y}`).join('|');
+}
+function cloneBlocks(blks){ return JSON.parse(JSON.stringify(blks)); }
+function isSolvedState(blks){
+  const t = blks.find(b=>b.type==='target');
+  return !!(t && t.x===1 && t.y===3);
+}
+
+// Generate every possible (legal) single-slide move from a state
+// Each move is {blocks:newBlocks, move: {id, axis, delta}}
+function nextStatesFrom(blks){
+  const results = [];
+  for(const b of blks){
+    // try four directions; allow sliding 1..max steps
+    for(const [axis, stepSign] of [['x',1],['x',-1],['y',1],['y',-1]]){
+      let step=1;
+      while(true){
+        const nx = axis==='x' ? b.x + (stepSign * step) : b.x;
+        const ny = axis==='y' ? b.y + (stepSign * step) : b.y;
+        if(!isAreaFreeFor(blks, b.id, nx, ny, b.w, b.h)) break;
+        const newBlocks = cloneBlocks(blks);
+        const nb = newBlocks.find(x=>x.id===b.id);
+        nb.x = nx; nb.y = ny;
+        results.push({blocks:newBlocks, move:{id:b.id, axis:axis, delta: stepSign * step}});
+        step++;
+      }
+    }
+  }
+  return results;
+}
+
+// BFS returns array of moves {id,axis,delta} from startBlocks to goal, or null if no solution
+function bfsSolve(startBlocks){
+  const startKey = serializeState(startBlocks);
+  if(solutionCache.has(startKey)) return solutionCache.get(startKey); // cached
+
+  const queue = [];
+  const seen = new Set();
+  queue.push({blocks: cloneBlocks(startBlocks), moves: []});
+  seen.add(startKey);
+
+  while(queue.length){
+    const node = queue.shift();
+    if(isSolvedState(node.blocks)){
+      solutionCache.set(startKey, node.moves);
+      return node.moves;
+    }
+    const nexts = nextStatesFrom(node.blocks);
+    for(const n of nexts){
+      const key = serializeState(n.blocks);
+      if(seen.has(key)) continue;
+      seen.add(key);
+      queue.push({blocks: n.blocks, moves: [...node.moves, n.move]});
+    }
+  }
+  solutionCache.set(startKey, null);
+  return null;
+}
+
+// ---------- Applying moves from BFS (used by Hint & Auto Solve) ----------
+function applyMoveObj(moveObj, recordUndo=true){
+  // moveObj: {id, axis, delta}
+  const b = blocks.find(x=>x.id===moveObj.id);
+  if(!b) return false;
+  // commit undo if desired
+  if(recordUndo && !isAutoSolving) pushUndo();
+  if(moveObj.axis === 'x') b.x += moveObj.delta; else b.y += moveObj.delta;
+  moves++; updateMoves(); render(); checkWin();
+  
+  // Play move sound for auto moves
+  playMoveSound();
+  
+  return true;
+}
+
+// Hint: perform only next move from BFS path
+async function doHint(){
+  playClickSound();
+  const key = serializeState(blocks);
+  overlayMessage.textContent = "Computing hint...";
+  overlay.classList.add('active');
+  await sleep(80);
+  const path = bfsSolve(blocks);
+  overlay.classList.remove('active');
+  if(!path || path.length === 0){ 
+    playErrorSound();
+    showToast("No solution found from current state"); 
+    return; 
+  }
+  const next = path[0];
+  // animate quick (flash) then apply
+  flashBlock(next.id);
+  await sleep(250);
+  applyMoveObj(next, true);
+  showToast(`Moved ${next.id} ${next.axis==='x' ? (next.delta>0 ? 'right' : 'left') : (next.delta>0 ? 'down' : 'up')}`);
+  // clear caches since board changed
+  solutionCache.clear();
+}
+
+// Auto Solve: find path and animate through all moves
+async function doAutoSolve(){
+  playClickSound();
+  overlayMessage.textContent = "Finding shortest solution...";
+  overlay.classList.add('active');
+  await sleep(80);
+  const path = bfsSolve(blocks);
+  overlay.classList.remove('active');
+  if(!path){ 
+    playErrorSound();
+    showToast("No solution found"); 
+    return; 
+  }
+  if(path.length === 0){ 
+    showToast("Already solved!"); 
+    return; 
+  }
+
+  isAutoSolving = true;
+  showToast(`Auto solve: ${path.length} moves`, 1600);
+
+  // small safety: push a single undo snapshot before auto-solve so user can undo whole auto-solve if desired
+  pushUndo();
+
+  for(const step of path){
+    // highlight then move
+    flashBlock(step.id);
+    await sleep(200);
+    applyMoveObj(step, false); // during autosolve, don't create per-step undos
+    await sleep(280);
+  }
+  isAutoSolving = false;
+  solutionCache.clear();
+  checkWin();
+}
+
+// ---------- Utilities ----------
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+function flashBlock(id){
+  const el = document.getElementById('block-'+id);
+  if(!el) return;
+  const orig = el.style.boxShadow;
+  el.style.boxShadow = '0 0 0 6px rgba(52,152,219,0.4)';
+  setTimeout(()=> el.style.boxShadow = orig, 700);
+}
+
+// ---------- UI bindings ----------
+document.getElementById('undoBtn').addEventListener('click', ()=> undo());
+document.getElementById('resetBtn').addEventListener('click', ()=> reset());
+document.getElementById('hintBtn').addEventListener('click', ()=> { doHint(); });
+document.getElementById('autoBtn').addEventListener('click', ()=> { doAutoSolve(); });
+document.getElementById('keyboardBtn').addEventListener('click', ()=> {
+  playClickSound();
+  showToast("Arrow keys move selected block. Click a block to select it.",4000);
+});
+document.getElementById('selectDefaultBtn').addEventListener('click', ()=> { 
+  selectedId = 'A'; 
+  playClickSound();
+  showToast('Selected target block'); 
+});
+
+// keyboard controls
+window.addEventListener('keydown', e=>{
+  if(e.key.startsWith('Arrow')){
+    e.preventDefault();
+    const dir = e.key;
+    const axis = (dir==='ArrowLeft' || dir==='ArrowRight') ? 'x' : 'y';
+    const delta = (dir==='ArrowLeft' || dir==='ArrowUp') ? -1 : 1;
+    attemptMove(selectedId, axis, delta);
+    // clear solution cache on manual change
+    solutionCache.clear();
+  }
+});
+
+// click on board selects block if clicked target area not on block; handled in attachPointerHandlers
+boardEl.addEventListener('click', (e)=> {
+  const blockEl = e.target.closest('.block');
+  if(blockEl){
+    selectedId = blockEl.dataset.id;
+    flashBlock(selectedId);
+    playClickSound();
+    showToast(`Selected ${selectedId}. Use arrows to move.`, 1600);
+  }
+});
+
+// on resize, re-render for correct sizes
+window.addEventListener('resize', ()=> render());
+
+// prevent multi-touch zoom/scroll
+document.addEventListener('touchmove', function(e) {
+  if (e.touches.length > 1) e.preventDefault();
+}, { passive: false });
+
+// initialize the game
+init();
+
+  </script>
+</body>
+</html>
