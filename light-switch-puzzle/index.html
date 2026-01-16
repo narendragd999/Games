@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Light Switch Puzzle</title>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+.container {
+  width: 100%;
+  max-width: 500px;
+  padding: 15px;
+}
+
+.header {
+  text-align: center;
+  color: white;
+  margin-bottom: 15px;
+}
+
+.header h1 {
+  font-size: 24px;
+  margin-bottom: 5px;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.level {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.game-board {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 15px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  margin-bottom: 15px;
+}
+
+.grid {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 15px;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-4 { grid-template-columns: repeat(4, 1fr); }
+.grid-5 { grid-template-columns: repeat(5, 1fr); }
+
+.light {
+  aspect-ratio: 1;
+  border: 3px solid #333;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.light:active {
+  transform: scale(0.95);
+}
+
+.light.on {
+  background: linear-gradient(135deg, #ffd700, #ffed4e);
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.8), inset 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+.light.off {
+  background: linear-gradient(135deg, #2c3e50, #34495e);
+  box-shadow: inset 0 2px 5px rgba(0,0,0,0.3);
+}
+
+.moves {
+  text-align: center;
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.btn {
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+}
+
+.btn-success {
+  background: linear-gradient(135deg, #56ab2f, #a8e063);
+}
+
+.btn-warning {
+  background: linear-gradient(135deg, #f093fb, #f5576c);
+}
+
+.btn-info {
+  background: linear-gradient(135deg, #4facfe, #00f2fe);
+  grid-column: 1 / -1;
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.7);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.modal.active {
+  display: flex;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 15px;
+  padding: 25px;
+  max-width: 400px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+
+.modal-content h2 {
+  color: #667eea;
+  margin-bottom: 15px;
+  font-size: 22px;
+}
+
+.modal-content p {
+  line-height: 1.6;
+  margin-bottom: 12px;
+  color: #333;
+}
+
+.modal-content ul {
+  margin-left: 20px;
+  margin-bottom: 15px;
+  line-height: 1.8;
+}
+
+.close-modal {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  padding: 10px 25px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.victory {
+  text-align: center;
+  padding: 20px;
+}
+
+.victory h2 {
+  color: #56ab2f;
+  font-size: 28px;
+  margin-bottom: 10px;
+}
+
+.victory p {
+  font-size: 18px;
+  color: #333;
+  margin-bottom: 15px;
+}
+
+@media (max-width: 400px) {
+  .header h1 {
+    font-size: 20px;
+  }
+  
+  .btn {
+    font-size: 12px;
+    padding: 10px;
+  }
+  
+  .grid {
+    gap: 6px;
+  }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>💡 Light Switch Puzzle</h1>
+    <div class="level">Level <span id="level">1</span></div>
+  </div>
+  
+  <div class="game-board">
+    <div id="grid" class="grid grid-3"></div>
+    <div class="moves">Moves: <span id="moves">0</span></div>
+    
+    <div class="controls">
+      <button class="btn btn-success" onclick="checkSolution()">✓ Check</button>
+      <button class="btn btn-warning" onclick="getHint()">💡 Hint</button>
+      <button class="btn btn-primary" onclick="newPuzzle()">🔄 New</button>
+      <button class="btn btn-primary" onclick="autoSolve()">🤖 Solve</button>
+      <button class="btn btn-info" onclick="showInstructions()">❓ How to Play</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal" class="modal">
+  <div class="modal-content">
+    <div id="modalBody"></div>
+    <button class="close-modal" onclick="closeModal()">Close</button>
+  </div>
+</div>
+
+<script>
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playSound(freq, duration, type = 'sine') {
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  
+  osc.frequency.value = freq;
+  osc.type = type;
+  
+  gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+  
+  osc.start(audioCtx.currentTime);
+  osc.stop(audioCtx.currentTime + duration);
+}
+
+let level = 1;
+let moves = 0;
+let gridSize = 3;
+let lights = [];
+let solution = [];
+
+function initGame() {
+  level = 1;
+  gridSize = 3;
+  newPuzzle();
+}
+
+function newPuzzle() {
+  moves = 0;
+  updateMoves();
+  
+  const size = gridSize;
+  lights = Array(size * size).fill(false);
+  solution = [];
+  
+  // Generate random clicks to create puzzle
+  const numClicks = Math.floor(Math.random() * (size + 2)) + size;
+  const clickedSet = new Set();
+  
+  for (let i = 0; i < numClicks; i++) {
+    const pos = Math.floor(Math.random() * (size * size));
+    clickedSet.add(pos);
+  }
+  
+  clickedSet.forEach(pos => {
+    toggleLights(pos, false);
+  });
+  
+  // Store solution
+  solution = Array.from(clickedSet);
+  
+  renderGrid();
+}
+
+function toggleLights(index, countMove = true) {
+  const size = gridSize;
+  const row = Math.floor(index / size);
+  const col = index % size;
+  
+  // Toggle clicked light
+  lights[index] = !lights[index];
+  
+  // Toggle adjacent lights
+  const adjacent = [
+    [row - 1, col], // up
+    [row + 1, col], // down
+    [row, col - 1], // left
+    [row, col + 1]  // right
+  ];
+  
+  adjacent.forEach(([r, c]) => {
+    if (r >= 0 && r < size && c >= 0 && c < size) {
+      const i = r * size + c;
+      lights[i] = !lights[i];
+    }
+  });
+  
+  if (countMove) {
+    moves++;
+    updateMoves();
+    playSound(400 + index * 50, 0.1);
+  }
+  
+  renderGrid();
+  
+  if (countMove && checkWin()) {
+    setTimeout(showVictory, 300);
+  }
+}
+
+function renderGrid() {
+  const grid = document.getElementById('grid');
+  grid.className = `grid grid-${gridSize}`;
+  grid.innerHTML = '';
+  
+  lights.forEach((isOn, i) => {
+    const light = document.createElement('div');
+    light.className = `light ${isOn ? 'on' : 'off'}`;
+    light.onclick = () => toggleLights(i);
+    grid.appendChild(light);
+  });
+}
+
+function updateMoves() {
+  document.getElementById('moves').textContent = moves;
+}
+
+function checkWin() {
+  return lights.every(light => light === false);
+}
+
+function checkSolution() {
+  if (checkWin()) {
+    playSound(800, 0.3);
+    showModal(`
+      <div class="victory">
+        <h2>🎉 Correct!</h2>
+        <p>All lights are off!</p>
+        <p>Moves: ${moves}</p>
+      </div>
+    `);
+  } else {
+    playSound(200, 0.2, 'square');
+    showModal(`
+      <div style="text-align: center;">
+        <h2>Not quite!</h2>
+        <p>Some lights are still on. Keep trying!</p>
+      </div>
+    `);
+  }
+}
+
+function getHint() {
+  if (solution.length === 0) {
+    showModal('<h2>Hint</h2><p>Try clicking lights to turn all lights off. Each click toggles the clicked light and its neighbors.</p>');
+    return;
+  }
+  
+  const hintPos = solution[Math.floor(Math.random() * solution.length)];
+  const row = Math.floor(hintPos / gridSize);
+  const col = hintPos % gridSize;
+  
+  playSound(600, 0.2);
+  
+  showModal(`
+    <h2>💡 Hint</h2>
+    <p>Try clicking the light at row ${row + 1}, column ${col + 1}.</p>
+    <p style="font-size: 12px; color: #666; margin-top: 10px;">(Counting from top-left as 1,1)</p>
+  `);
+}
+
+function autoSolve() {
+  playSound(500, 0.1);
+  
+  moves = 0;
+  updateMoves();
+  
+  // Reset to all off
+  lights = Array(gridSize * gridSize).fill(false);
+  renderGrid();
+  
+  showModal(`
+    <div class="victory">
+      <h2>✨ Solved!</h2>
+      <p>All lights turned off.</p>
+    </div>
+  `);
+  
+  setTimeout(() => {
+    closeModal();
+    nextLevel();
+  }, 1500);
+}
+
+function nextLevel() {
+  level++;
+  document.getElementById('level').textContent = level;
+  
+  // Increase grid size every 3 levels
+  if (level % 3 === 1 && gridSize < 5) {
+    gridSize++;
+  }
+  
+  playSound(700, 0.3);
+  newPuzzle();
+}
+
+function showVictory() {
+  playSound(800, 0.5);
+  
+  showModal(`
+    <div class="victory">
+      <h2>🎉 Victory!</h2>
+      <p>You solved the puzzle!</p>
+      <p>Moves: ${moves}</p>
+      <p style="font-size: 14px; margin-top: 10px;">Loading next level...</p>
+    </div>
+  `);
+  
+  setTimeout(() => {
+    closeModal();
+    nextLevel();
+  }, 2000);
+}
+
+function showInstructions() {
+  showModal(`
+    <h2>How to Play</h2>
+    <p><strong>Goal:</strong> Turn off all the lights on the grid.</p>
+    
+    <p><strong>Rules:</strong></p>
+    <ul>
+      <li>Click any light to toggle it</li>
+      <li>Clicking also toggles all adjacent lights (up, down, left, right)</li>
+      <li>Plan your moves carefully!</li>
+    </ul>
+    
+    <p><strong>Controls:</strong></p>
+    <ul>
+      <li><strong>Check:</strong> Verify if puzzle is solved</li>
+      <li><strong>Hint:</strong> Get a helpful suggestion</li>
+      <li><strong>New:</strong> Generate a new puzzle</li>
+      <li><strong>Solve:</strong> Auto-solve and move to next level</li>
+    </ul>
+    
+    <p style="font-size: 12px; color: #666; margin-top: 15px;">The grid grows larger as you progress through levels!</p>
+  `);
+}
+
+function showModal(content) {
+  document.getElementById('modalBody').innerHTML = content;
+  document.getElementById('modal').classList.add('active');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('active');
+}
+
+// Initialize game on load
+initGame();
+</script>
+</body>
+</html>
