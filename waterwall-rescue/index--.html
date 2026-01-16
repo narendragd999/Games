@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waterwall Rescue</title>
+    <style>
+        :root {
+            --primary-blue: #3498db;
+            --primary-purple: #6a11cb;
+            --dark-text: #333;
+            --light-text: #fff;
+            --card-bg: #ffffff;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --gold: #FFD700;
+            --silver: #C0C0C0;
+            --bronze: #CD7F32;
+            --royal-blue: #4169E1;
+            --royal-purple: #9370DB;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(to bottom, #6a11cb, #fff);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        .game-container {
+            width: 100%;
+            max-width: 500px;
+            height: 100vh;
+            max-height: 800px;
+            display: flex;
+            flex-direction: column;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Header with Royal Match style */
+        .header {
+            padding: 10px 15px;
+            background: var(--royal-blue);
+            color: var(--light-text);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 10;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(to right, var(--gold), var(--silver), var(--bronze));
+            border-radius: 0 0 5px 5px;
+        }
+
+        .header h1 {
+            font-size: clamp(1.2rem, 4vw, 1.5rem);
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            background: var(--royal-blue);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: var(--shadow);
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+        }
+
+        .btn-secondary {
+            background: var(--royal-purple);
+        }
+
+        .game-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%234169E1" opacity="0.1"/><path d="M0,0 L100,100 M100,0 L0,100" stroke="%239370DB" stroke-width="1" opacity="0.1"/></svg>');
+        }
+
+        .threat-area {
+            height: 30%;
+            position: relative;
+            background: linear-gradient(to right, #8B4513, #A0522D);
+            overflow: hidden;
+            border-bottom: 3px solid #654321;
+        }
+
+        .monster {
+            position: absolute;
+            left: 10px;
+            bottom: 10px;
+            width: 80px;
+            height: 80px;
+            background: #8B0000;
+            border-radius: 50% 40% 50% 40%;
+            transform-origin: center;
+            transition: transform 0.3s ease;
+            z-index: 2;
+            box-shadow: 0 0 10px rgba(139, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .monster-eye {
+            width: 20px;
+            height: 20px;
+            background: #FF6347;
+            border-radius: 50%;
+            position: absolute;
+            top: 25px;
+            box-shadow: 0 0 5px rgba(255, 99, 71, 0.7);
+        }
+
+        .monster-eye.left {
+            left: 20px;
+        }
+
+        .monster-eye.right {
+            right: 20px;
+        }
+
+        .monster-mouth {
+            width: 40px;
+            height: 20px;
+            background: #FF4500;
+            border-radius: 0 0 20px 20px;
+            position: absolute;
+            bottom: 15px;
+        }
+
+        .character {
+            position: absolute;
+            right: 20%;
+            bottom: 10px;
+            width: 50px;
+            height: 70px;
+            z-index: 3;
+            transition: all 0.5s ease;
+        }
+
+        .character-body {
+            width: 40px;
+            height: 50px;
+            background: #4169E1;
+            border-radius: 40% 40% 0 0;
+            position: absolute;
+            bottom: 0;
+            left: 5px;
+            box-shadow: 0 0 10px rgba(65, 105, 225, 0.7);
+        }
+
+        .character-head {
+            width: 30px;
+            height: 30px;
+            background: #FFEBCD;
+            border-radius: 50%;
+            position: absolute;
+            bottom: 45px;
+            left: 10px;
+            box-shadow: 0 0 5px rgba(255, 235, 205, 0.7);
+        }
+
+        .character-face {
+            width: 20px;
+            height: 10px;
+            background: #FFD700;
+            border-radius: 50%;
+            position: absolute;
+            top: 10px;
+            left: 5px;
+        }
+
+        .water-container {
+            position: absolute;
+            right: 20px;
+            top: 10px;
+            bottom: 10px;
+            width: 40px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .water {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(30, 144, 255, 0.9), rgba(135, 206, 250, 0.9));
+            transition: height 0.5s ease;
+            border-radius: 5px 5px 0 0;
+        }
+
+        .water::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 10px;
+            background: rgba(135, 206, 250, 0.8);
+            animation: waterSurface 2s infinite ease-in-out;
+        }
+
+        @keyframes waterSurface {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(3px); }
+        }
+
+        .puzzle-area {
+            height: 70%;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%234169E1" opacity="0.05"/></svg>');
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+
+        .stats div {
+            background: var(--card-bg);
+            padding: 8px 15px;
+            border-radius: 20px;
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: bold;
+        }
+
+        .stats div::before {
+            font-size: 1.2rem;
+        }
+
+        .level::before {
+            content: '🏆';
+        }
+
+        .water::before {
+            content: '💧';
+        }
+
+        .score::before {
+            content: '⭐';
+        }
+
+        .game-board {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            grid-template-rows: repeat(6, 1fr);
+            gap: 5px;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 5px;
+            border-radius: 8px;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+            touch-action: manipulation;
+        }
+
+        .gem {
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
+            z-index: 2;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .gem::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 50%);
+            transform: rotate(30deg);
+        }
+
+        .gem.selected {
+            transform: scale(0.9);
+            box-shadow: 0 0 0 3px white, 0 0 10px 3px var(--gold);
+        }
+
+        .gem.empty {
+            background: rgba(0, 0, 0, 0.05);
+            cursor: default;
+            box-shadow: none;
+        }
+
+        .drain-hole {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .drain-hole::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 0;
+            background: rgba(30, 144, 255, 0.5);
+            transition: height 0.5s ease;
+            border-radius: 0 0 8px 8px;
+        }
+
+        .drain-hole.active::after {
+            height: 100%;
+            animation: drainFlow 1.5s infinite;
+        }
+
+        @keyframes drainFlow {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            padding: 10px;
+        }
+
+        .control-btn {
+            background: var(--royal-blue);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            box-shadow: var(--shadow);
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .control-btn.secondary {
+            background: var(--royal-purple);
+        }
+
+        .modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .modal-content {
+            background: white;
+            color: var(--dark-text);
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 90%;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        .modal-content::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(to right, var(--gold), var(--silver), var(--bronze));
+            border-radius: 15px 15px 0 0;
+        }
+
+        .modal h2 {
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+            color: var(--royal-blue);
+        }
+
+        .modal p {
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .modal-btn {
+            background: var(--royal-blue);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            box-shadow: var(--shadow);
+            transition: all 0.2s ease;
+            font-weight: bold;
+        }
+
+        .modal-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .loader {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .hint {
+            animation: hintBlink 0.5s 3;
+        }
+
+        @keyframes hintBlink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .particle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: rgba(135, 206, 250, 0.8);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .progress-container {
+            width: 80%;
+            height: 10px;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 5px;
+            margin: 10px auto;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(to right, var(--royal-blue), var(--royal-purple));
+            border-radius: 5px;
+            transition: width 0.3s ease;
+        }
+
+        .water-drop {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: rgba(30, 144, 255, 0.8);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        @media (max-height: 700px) {
+            .threat-area {
+                height: 25%;
+            }
+            
+            .puzzle-area {
+                height: 75%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <h1>Waterwall Rescue</h1>
+            <div class="header-controls">
+                <button class="btn" id="restartBtn">🔄</button>
+                <button class="btn" id="soundBtn">🔊</button>
+                <button class="btn" id="pauseBtn">⏸️</button>
+                <button class="btn btn-secondary" id="hintBtn">💡</button>
+            </div>
+        </div>
+        
+        <div class="game-area">
+            <div class="threat-area">
+                <div class="monster" id="monster">
+                    <div class="monster-eye left"></div>
+                    <div class="monster-eye right"></div>
+                    <div class="monster-mouth"></div>
+                </div>
+                <div class="character" id="character">
+                    <div class="character-head">
+                        <div class="character-face"></div>
+                    </div>
+                    <div class="character-body"></div>
+                </div>
+                <div class="water-container">
+                    <div class="water" id="water" style="height: 0%"></div>
+                </div>
+            </div>
+            
+            <div class="puzzle-area">
+                <div class="stats">
+                    <div class="level">Level: <span id="level">1</span></div>
+                    <div class="water">Water: <span id="waterLevel">0%</span></div>
+                    <div class="score">Score: <span id="score">0</span></div>
+                </div>
+                
+                <div class="progress-container">
+                    <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+                </div>
+                
+                <div class="game-board" id="gameBoard"></div>
+                
+                <div class="controls">
+                    <button class="control-btn secondary" id="hintControlBtn">
+                        <span>💡</span> Hint
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="modal" id="startModal">
+            <div class="modal-content">
+                <div class="loader"></div>
+                <h2>Waterwall Rescue</h2>
+                <p>Match gems to drain water and push back the monster!</p>
+                <p>Clear vertical paths for big water releases.</p>
+                <button class="modal-btn" id="startBtn">Start Game</button>
+            </div>
+        </div>
+        
+        <div class="modal hidden" id="gameOverModal">
+            <div class="modal-content">
+                <h2>Game Over</h2>
+                <p>The monster reached you!</p>
+                <p>Your score: <span id="finalScore">0</span></p>
+                <button class="modal-btn" id="restartModalBtn">Play Again</button>
+            </div>
+        </div>
+        
+        <div class="modal hidden" id="levelCompleteModal">
+            <div class="modal-content">
+                <h2>Level Complete!</h2>
+                <p>You survived the monster's advance.</p>
+                <p>Score: <span id="levelScore">0</span></p>
+                <button class="modal-btn" id="nextLevelBtn">Next Level</button>
+            </div>
+        </div>
+        
+        <div class="modal hidden" id="pauseModal">
+            <div class="modal-content">
+                <h2>Game Paused</h2>
+                <button class="modal-btn" id="resumeBtn">Resume</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game configuration
+        const config = {
+            boardSize: 6,
+            initialWaterLevel: 0,
+            maxWaterLevel: 100,
+            waterIncreaseRate: 0.5, // % per second
+            waterDrainPerMatch: 5,
+            monsterGrowthRate: 0.3, // % per second
+            monsterThreshold: 80, // % when game over occurs
+            levelDuration: 60, // seconds
+            levelWaterIncrease: 0.1, // additional % per level
+            colors: ['#FF5252', '#4CAF50', '#2196F3', '#FFC107', '#9C27B0', '#FF9800'],
+            symbols: ['♦', '♠', '♥', '♣', '★', '●']
+        };
+
+        // Game state
+        let gameState = {
+            level: 1,
+            score: 0,
+            waterLevel: config.initialWaterLevel,
+            monsterSize: 1,
+            isPaused: false,
+            isGameOver: false,
+            selectedGem: null,
+            board: [],
+            hints: 3,
+            soundEnabled: true,
+            gameTime: 0,
+            lastTime: 0,
+            comboCount: 0,
+            lastMatchTime: 0,
+            drainHoles: [],
+            touchEnabled: 'ontouchstart' in window
+        };
+
+        // DOM elements
+        const gameBoard = document.getElementById('gameBoard');
+        const waterLevelElement = document.getElementById('waterLevel');
+        const levelElement = document.getElementById('level');
+        const scoreElement = document.getElementById('score');
+        const monsterElement = document.getElementById('monster');
+        const characterElement = document.getElementById('character');
+        const waterElement = document.getElementById('water');
+        const progressBar = document.getElementById('progressBar');
+        const startModal = document.getElementById('startModal');
+        const gameOverModal = document.getElementById('gameOverModal');
+        const levelCompleteModal = document.getElementById('levelCompleteModal');
+        const pauseModal = document.getElementById('pauseModal');
+        const startBtn = document.getElementById('startBtn');
+        const restartBtn = document.getElementById('restartBtn');
+        const restartModalBtn = document.getElementById('restartModalBtn');
+        const nextLevelBtn = document.getElementById('nextLevelBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const resumeBtn = document.getElementById('resumeBtn');
+        const soundBtn = document.getElementById('soundBtn');
+        const hintBtn = document.getElementById('hintBtn');
+        const hintControlBtn = document.getElementById('hintControlBtn');
+        const finalScoreElement = document.getElementById('finalScore');
+        const levelScoreElement = document.getElementById('levelScore');
+
+        // Initialize the game
+        function init() {
+            createBoard();
+            setupEventListeners();
+            updateUI();
+            
+            // Start the game loop
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Create the game board
+        function createBoard() {
+            gameBoard.innerHTML = '';
+            gameState.board = [];
+            gameState.drainHoles = [];
+            
+            for (let row = 0; row < config.boardSize; row++) {
+                gameState.board[row] = [];
+                for (let col = 0; col < config.boardSize; col++) {
+                    const gemType = Math.floor(Math.random() * config.colors.length);
+                    gameState.board[row][col] = {
+                        type: gemType,
+                        element: null,
+                        isEmpty: false
+                    };
+                    
+                    const gem = document.createElement('div');
+                    gem.className = 'gem';
+                    gem.style.backgroundColor = config.colors[gemType];
+                    gem.textContent = config.symbols[gemType];
+                    gem.dataset.row = row;
+                    gem.dataset.col = col;
+                    
+                    gameState.board[row][col].element = gem;
+                    gameBoard.appendChild(gem);
+                }
+            }
+            
+            // Ensure the board is solvable
+            if (!checkSolvability()) {
+                reshuffleBoard();
+            }
+        }
+
+        // Check if the board has at least one possible match
+        function checkSolvability() {
+            for (let row = 0; row < config.boardSize; row++) {
+                for (let col = 0; col < config.boardSize; col++) {
+                    // Check horizontal matches
+                    if (col < config.boardSize - 2) {
+                        if (gameState.board[row][col].type === gameState.board[row][col + 1].type) {
+                            // Check if swapping with the third gem would create a match
+                            if (row > 0 && gameState.board[row - 1][col + 2].type === gameState.board[row][col].type) return true;
+                            if (row < config.boardSize - 1 && gameState.board[row + 1][col + 2].type === gameState.board[row][col].type) return true;
+                            if (col < config.boardSize - 3 && gameState.board[row][col + 3].type === gameState.board[row][col].type) return true;
+                        }
+                    }
+                    
+                    // Check vertical matches
+                    if (row < config.boardSize - 2) {
+                        if (gameState.board[row][col].type === gameState.board[row + 1][col].type) {
+                            // Check if swapping with the third gem would create a match
+                            if (col > 0 && gameState.board[row + 2][col - 1].type === gameState.board[row][col].type) return true;
+                            if (col < config.boardSize - 1 && gameState.board[row + 2][col + 1].type === gameState.board[row][col].type) return true;
+                            if (row < config.boardSize - 3 && gameState.board[row + 3][col].type === gameState.board[row][col].type) return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        // Reshuffle the board until it's solvable
+        function reshuffleBoard() {
+            do {
+                for (let row = 0; row < config.boardSize; row++) {
+                    for (let col = 0; col < config.boardSize; col++) {
+                        const gemType = Math.floor(Math.random() * config.colors.length);
+                        gameState.board[row][col].type = gemType;
+                        gameState.board[row][col].element.style.backgroundColor = config.colors[gemType];
+                        gameState.board[row][col].element.textContent = config.symbols[gemType];
+                    }
+                }
+            } while (!checkSolvability());
+        }
+
+        // Set up event listeners
+        function setupEventListeners() {
+            // Game board interactions
+            gameBoard.addEventListener('click', handleGemClick);
+            
+            // Control buttons
+            startBtn.addEventListener('click', startGame);
+            restartBtn.addEventListener('click', restartGame);
+            restartModalBtn.addEventListener('click', restartGame);
+            nextLevelBtn.addEventListener('click', nextLevel);
+            pauseBtn.addEventListener('click', togglePause);
+            resumeBtn.addEventListener('click', togglePause);
+            soundBtn.addEventListener('click', toggleSound);
+            hintBtn.addEventListener('click', useHint);
+            hintControlBtn.addEventListener('click', useHint);
+            
+            // Touch events for mobile
+            let touchStartX, touchStartY, touchStartElement;
+            
+            gameBoard.addEventListener('touchstart', (e) => {
+                if (gameState.isPaused || gameState.isGameOver) return;
+                
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+                touchStartElement = document.elementFromPoint(touchStartX, touchStartY);
+                
+                e.preventDefault();
+            }, { passive: false });
+            
+            gameBoard.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+            }, { passive: false });
+            
+            gameBoard.addEventListener('touchend', (e) => {
+                if (!touchStartX || !touchStartY || !touchStartElement) return;
+                
+                const touchEndX = e.changedTouches[0].clientX;
+                const touchEndY = e.changedTouches[0].clientY;
+                
+                const diffX = touchEndX - touchStartX;
+                const diffY = touchEndY - touchStartY;
+                
+                // If it's a significant swipe
+                if (Math.abs(diffX) > 20 || Math.abs(diffY) > 20) {
+                    // Find the gem at the touch start position
+                    if (touchStartElement && touchStartElement.classList.contains('gem') && !touchStartElement.classList.contains('empty')) {
+                        const row = parseInt(touchStartElement.dataset.row);
+                        const col = parseInt(touchStartElement.dataset.col);
+                        
+                        let targetRow = row;
+                        let targetCol = col;
+                        
+                        // Determine swipe direction
+                        if (Math.abs(diffX) > Math.abs(diffY)) {
+                            // Horizontal swipe
+                            targetCol = diffX > 0 ? col + 1 : col - 1;
+                        } else {
+                            // Vertical swipe
+                            targetRow = diffY > 0 ? row + 1 : row - 1;
+                        }
+                        
+                        // Ensure the target is within bounds
+                        if (targetRow >= 0 && targetRow < config.boardSize && 
+                            targetCol >= 0 && targetCol < config.boardSize) {
+                            swapGems(row, col, targetRow, targetCol);
+                        }
+                    }
+                } else {
+                    // It's a tap, handle as click
+                    if (touchStartElement && touchStartElement.classList.contains('gem') && !touchStartElement.classList.contains('empty')) {
+                        handleGemClick({ target: touchStartElement });
+                    }
+                }
+                
+                touchStartX = null;
+                touchStartY = null;
+                touchStartElement = null;
+                e.preventDefault();
+            }, { passive: false });
+        }
+
+        // Handle gem clicks
+        function handleGemClick(e) {
+            if (gameState.isPaused || gameState.isGameOver) return;
+            
+            const gem = e.target;
+            if (!gem.classList.contains('gem') || gem.classList.contains('empty')) return;
+            
+            const row = parseInt(gem.dataset.row);
+            const col = parseInt(gem.dataset.col);
+            
+            if (gameState.selectedGem === null) {
+                // First gem selected
+                gameState.selectedGem = { row, col };
+                gem.classList.add('selected');
+            } else {
+                // Second gem selected - try to swap
+                const firstGem = gameState.selectedGem;
+                
+                // Check if gems are adjacent
+                const isAdjacent = 
+                    (Math.abs(firstGem.row - row) === 1 && firstGem.col === col) ||
+                    (Math.abs(firstGem.col - col) === 1 && firstGem.row === row);
+                
+                if (isAdjacent) {
+                    swapGems(firstGem.row, firstGem.col, row, col);
+                }
+                
+                // Deselect regardless of whether swap happened
+                document.querySelector('.gem.selected')?.classList.remove('selected');
+                gameState.selectedGem = null;
+            }
+        }
+
+        // Swap two gems
+        function swapGems(row1, col1, row2, col2) {
+            // Swap in the game state
+            const temp = gameState.board[row1][col1].type;
+            gameState.board[row1][col1].type = gameState.board[row2][col2].type;
+            gameState.board[row2][col2].type = temp;
+            
+            // Update the visual representation
+            gameState.board[row1][col1].element.style.backgroundColor = config.colors[gameState.board[row1][col1].type];
+            gameState.board[row1][col1].element.textContent = config.symbols[gameState.board[row1][col1].type];
+            
+            gameState.board[row2][col2].element.style.backgroundColor = config.colors[gameState.board[row2][col2].type];
+            gameState.board[row2][col2].element.textContent = config.symbols[gameState.board[row2][col2].type];
+            
+            // Check for matches
+            const matches = findMatches();
+            if (matches.length > 0) {
+                processMatches(matches);
+            } else {
+                // Swap back if no matches
+                const temp = gameState.board[row1][col1].type;
+                gameState.board[row1][col1].type = gameState.board[row2][col2].type;
+                gameState.board[row2][col2].type = temp;
+                
+                gameState.board[row1][col1].element.style.backgroundColor = config.colors[gameState.board[row1][col1].type];
+                gameState.board[row1][col1].element.textContent = config.symbols[gameState.board[row1][col1].type];
+                
+                gameState.board[row2][col2].element.style.backgroundColor = config.colors[gameState.board[row2][col2].type];
+                gameState.board[row2][col2].element.textContent = config.symbols[gameState.board[row2][col2].type];
+            }
+        }
+
+        // Find all matches on the board
+        function findMatches() {
+            const matches = [];
+            
+            // Check horizontal matches
+            for (let row = 0; row < config.boardSize; row++) {
+                for (let col = 0; col < config.boardSize - 2; col++) {
+                    const type = gameState.board[row][col].type;
+                    if (type === gameState.board[row][col + 1].type && 
+                        type === gameState.board[row][col + 2].type) {
+                        // Found a match of 3
+                        const match = [{ row, col }, { row, col: col + 1 }, { row, col: col + 2 }];
+                        
+                        // Check for longer matches
+                        let extendCol = col + 3;
+                        while (extendCol < config.boardSize && gameState.board[row][extendCol].type === type) {
+                            match.push({ row, col: extendCol });
+                            extendCol++;
+                        }
+                        
+                        matches.push(match);
+                        col = extendCol - 1; // Skip already matched gems
+                    }
+                }
+            }
+            
+            // Check vertical matches
+            for (let col = 0; col < config.boardSize; col++) {
+                for (let row = 0; row < config.boardSize - 2; row++) {
+                    const type = gameState.board[row][col].type;
+                    if (type === gameState.board[row + 1][col].type && 
+                        type === gameState.board[row + 2][col].type) {
+                        // Found a match of 3
+                        const match = [{ row, col }, { row: row + 1, col }, { row: row + 2, col }];
+                        
+                        // Check for longer matches
+                        let extendRow = row + 3;
+                        while (extendRow < config.boardSize && gameState.board[extendRow][col].type === type) {
+                            match.push({ row: extendRow, col });
+                            extendRow++;
+                        }
+                        
+                        matches.push(match);
+                        row = extendRow - 1; // Skip already matched gems
+                    }
+                }
+            }
+            
+            return matches;
+        }
+
+        // Process matches and update game state
+        function processMatches(matches) {
+            if (matches.length === 0) return;
+            
+            // Calculate combo multiplier
+            const currentTime = Date.now();
+            if (currentTime - gameState.lastMatchTime < 5000) {
+                gameState.comboCount++;
+            } else {
+                gameState.comboCount = 1;
+            }
+            gameState.lastMatchTime = currentTime;
+            
+            const comboMultiplier = Math.min(1 + gameState.comboCount * 0.2, 3);
+            
+            // Calculate total water drain
+            let totalDrain = 0;
+            const clearedCells = new Set();
+            
+            matches.forEach(match => {
+                match.forEach(({ row, col }) => {
+                    const key = `${row},${col}`;
+                    if (!clearedCells.has(key)) {
+                        clearedCells.add(key);
+                        totalDrain += config.waterDrainPerMatch;
+                        
+                        // Visual effect for matched gem
+                        const gem = gameState.board[row][col].element;
+                        gem.style.opacity = '0.5';
+                        
+                        // Create drain hole
+                        createDrainHole(row, col);
+                        
+                        setTimeout(() => {
+                            gem.style.opacity = '1';
+                            gem.classList.add('empty');
+                            gem.style.backgroundColor = 'transparent';
+                            gem.textContent = '';
+                            gameState.board[row][col].isEmpty = true;
+                        }, 300);
+                        
+                        // Create particle effect
+                        createParticles(gem);
+                    }
+                });
+            });
+            
+            // Apply combo multiplier
+            totalDrain = Math.floor(totalDrain * comboMultiplier);
+            
+            // Update water level
+            gameState.waterLevel = Math.max(0, gameState.waterLevel - totalDrain);
+            
+            // Update score
+            gameState.score += Math.floor(totalDrain * 10 * comboMultiplier);
+            
+            // Check for vertical drain paths
+            checkVerticalDrains();
+            
+            // Update UI
+            updateUI();
+            
+            // Refill the board after a delay
+            setTimeout(refillBoard, 500);
+        }
+
+        // Create drain hole for water to flow through
+        function createDrainHole(row, col) {
+            const gem = gameState.board[row][col].element;
+            gem.classList.add('drain-hole');
+            
+            // Add to drain holes array
+            gameState.drainHoles.push({ row, col, element: gem });
+            
+            // Activate the drain hole after a short delay
+            setTimeout(() => {
+                gem.classList.add('active');
+                
+                // Create water drop animation
+                createWaterDrops(gem);
+            }, 300);
+        }
+
+        // Create water drops flowing through drain holes
+        function createWaterDrops(sourceElement) {
+            const rect = sourceElement.getBoundingClientRect();
+            const containerRect = document.querySelector('.water-container').getBoundingClientRect();
+            
+            // Create multiple drops
+            for (let i = 0; i < 3; i++) {
+                setTimeout(() => {
+                    const drop = document.createElement('div');
+                    drop.className = 'water-drop';
+                    
+                    // Position at the drain hole
+                    drop.style.left = `${rect.left + rect.width/2}px`;
+                    drop.style.top = `${rect.top}px`;
+                    
+                    document.body.appendChild(drop);
+                    
+                    // Animate to the water container
+                    const targetX = containerRect.left + containerRect.width/2;
+                    const targetY = containerRect.top + containerRect.height * (1 - gameState.waterLevel/100);
+                    
+                    drop.animate([
+                        { 
+                            transform: 'translate(0, 0) scale(1)', 
+                            opacity: 1 
+                        },
+                        { 
+                            transform: `translate(${targetX - rect.left - rect.width/2}px, ${targetY - rect.top}px) scale(0.5)`, 
+                            opacity: 0 
+                        }
+                    ], {
+                        duration: 1000,
+                        easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+                        fill: 'forwards'
+                    });
+                    
+                    // Remove drop after animation
+                    setTimeout(() => {
+                        drop.remove();
+                    }, 1000);
+                }, i * 200);
+            }
+        }
+
+        // Create particle effects
+        function createParticles(sourceElement) {
+            const rect = sourceElement.getBoundingClientRect();
+            const count = 5;
+            
+            for (let i = 0; i < count; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                
+                const size = Math.random() * 8 + 4;
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+                
+                const x = rect.left + rect.width / 2;
+                const y = rect.top + rect.height / 2;
+                
+                particle.style.left = `${x}px`;
+                particle.style.top = `${y}px`;
+                
+                document.body.appendChild(particle);
+                
+                // Animate the particle
+                const angle = Math.random() * Math.PI * 2;
+                const distance = Math.random() * 50 + 30;
+                const targetX = x + Math.cos(angle) * distance;
+                const targetY = y + Math.sin(angle) * distance;
+                
+                const duration = Math.random() * 500 + 500;
+                
+                particle.animate([
+                    { transform: 'translate(0, 0)', opacity: 1 },
+                    { transform: `translate(${targetX - x}px, ${targetY - y}px)`, opacity: 0 }
+                ], {
+                    duration: duration,
+                    easing: 'cubic-bezier(0, .9, .57, 1)',
+                    fill: 'forwards'
+                });
+                
+                // Remove particle after animation
+                setTimeout(() => {
+                    particle.remove();
+                }, duration);
+            }
+        }
+
+        // Check for vertical drain paths
+        function checkVerticalDrains() {
+            let bigDrain = false;
+            
+            for (let col = 0; col < config.boardSize; col++) {
+                let isCompletePath = true;
+                
+                for (let row = 0; row < config.boardSize; row++) {
+                    if (!gameState.board[row][col].isEmpty) {
+                        isCompletePath = false;
+                        break;
+                    }
+                }
+                
+                if (isCompletePath) {
+                    // Big drain - clear the entire column
+                    bigDrain = true;
+                    
+                    // Mark the column as a drain path
+                    for (let row = 0; row < config.boardSize; row++) {
+                        gameState.board[row][col].element.classList.add('drain-hole', 'active');
+                    }
+                    
+                    // Big water reduction
+                    gameState.waterLevel = Math.max(0, gameState.waterLevel - 30);
+                    gameState.score += 500;
+                }
+            }
+            
+            if (bigDrain) {
+                updateUI();
+            }
+        }
+
+        // Refill the board after matches
+        function refillBoard() {
+            // Move gems down to fill empty spaces
+            for (let col = 0; col < config.boardSize; col++) {
+                let emptySpots = 0;
+                
+                for (let row = config.boardSize - 1; row >= 0; row--) {
+                    if (gameState.board[row][col].isEmpty) {
+                        emptySpots++;
+                    } else if (emptySpots > 0) {
+                        // Move gem down
+                        const targetRow = row + emptySpots;
+                        gameState.board[targetRow][col].type = gameState.board[row][col].type;
+                        gameState.board[targetRow][col].isEmpty = false;
+                        gameState.board[targetRow][col].element.style.backgroundColor = config.colors[gameState.board[targetRow][col].type];
+                        gameState.board[targetRow][col].element.textContent = config.symbols[gameState.board[targetRow][col].type];
+                        gameState.board[targetRow][col].element.classList.remove('empty', 'drain-hole', 'active');
+                        
+                        // Mark original position as empty
+                        gameState.board[row][col].isEmpty = true;
+                        gameState.board[row][col].element.classList.add('empty');
+                        gameState.board[row][col].element.style.backgroundColor = 'transparent';
+                        gameState.board[row][col].element.textContent = '';
+                    }
+                }
+                
+                // Fill top empty spots with new gems
+                for (let row = 0; row < emptySpots; row++) {
+                    const gemType = Math.floor(Math.random() * config.colors.length);
+                    gameState.board[row][col].type = gemType;
+                    gameState.board[row][col].isEmpty = false;
+                    gameState.board[row][col].element.style.backgroundColor = config.colors[gemType];
+                    gameState.board[row][col].element.textContent = config.symbols[gemType];
+                    gameState.board[row][col].element.classList.remove('empty', 'drain-hole', 'active');
+                }
+            }
+            
+            // Clear drain holes array
+            gameState.drainHoles = [];
+            
+            // Check for new matches after refill
+            const newMatches = findMatches();
+            if (newMatches.length > 0) {
+                setTimeout(() => processMatches(newMatches), 300);
+            } else if (!checkSolvability()) {
+                reshuffleBoard();
+            }
+        }
+
+        // Use a hint
+        function useHint() {
+            if (gameState.hints <= 0 || gameState.isPaused || gameState.isGameOver) return;
+            
+            // Find a possible match
+            for (let row = 0; row < config.boardSize; row++) {
+                for (let col = 0; col < config.boardSize; col++) {
+                    // Check right swap
+                    if (col < config.boardSize - 1) {
+                        // Swap temporarily
+                        const temp = gameState.board[row][col].type;
+                        gameState.board[row][col].type = gameState.board[row][col + 1].type;
+                        gameState.board[row][col + 1].type = temp;
+                        
+                        // Check for matches
+                        const matches = findMatches();
+                        
+                        // Swap back
+                        gameState.board[row][col + 1].type = gameState.board[row][col].type;
+                        gameState.board[row][col].type = temp;
+                        
+                        if (matches.length > 0) {
+                            // Highlight the gems
+                            gameState.board[row][col].element.classList.add('hint');
+                            gameState.board[row][col + 1].element.classList.add('hint');
+                            
+                            setTimeout(() => {
+                                gameState.board[row][col].element.classList.remove('hint');
+                                gameState.board[row][col + 1].element.classList.remove('hint');
+                            }, 1000);
+                            
+                            gameState.hints--;
+                            updateUI();
+                            return;
+                        }
+                    }
+                    
+                    // Check down swap
+                    if (row < config.boardSize - 1) {
+                        // Swap temporarily
+                        const temp = gameState.board[row][col].type;
+                        gameState.board[row][col].type = gameState.board[row + 1][col].type;
+                        gameState.board[row + 1][col].type = temp;
+                        
+                        // Check for matches
+                        const matches = findMatches();
+                        
+                        // Swap back
+                        gameState.board[row + 1][col].type = gameState.board[row][col].type;
+                        gameState.board[row][col].type = temp;
+                        
+                        if (matches.length > 0) {
+                            // Highlight the gems
+                            gameState.board[row][col].element.classList.add('hint');
+                            gameState.board[row + 1][col].element.classList.add('hint');
+                            
+                            setTimeout(() => {
+                                gameState.board[row][col].element.classList.remove('hint');
+                                gameState.board[row + 1][col].element.classList.remove('hint');
+                            }, 1000);
+                            
+                            gameState.hints--;
+                            updateUI();
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Update the UI based on game state
+        function updateUI() {
+            waterLevelElement.textContent = `${Math.floor(gameState.waterLevel)}%`;
+            levelElement.textContent = gameState.level;
+            scoreElement.textContent = gameState.score;
+            
+            // Update water container
+            waterElement.style.height = `${gameState.waterLevel}%`;
+            
+            // Update progress bar
+            progressBar.style.width = `${(gameState.gameTime / config.levelDuration) * 100}%`;
+            
+            // Update character position and animation
+            const characterPosition = 100 - (gameState.waterLevel / config.maxWaterLevel) * 60;
+            characterElement.style.right = `${characterPosition}%`;
+            
+            // Add strain animation if water level is high
+            if (gameState.waterLevel > 70) {
+                characterElement.style.animation = 'strain 0.5s infinite alternate';
+            } else {
+                characterElement.style.animation = 'breathe 2s infinite ease-in-out';
+            }
+            
+            // Update monster size
+            const monsterScale = 0.8 + (gameState.monsterSize * 0.4);
+            monsterElement.style.transform = `scale(${monsterScale})`;
+            
+            // Update hint button state
+            hintBtn.disabled = gameState.hints <= 0;
+            hintControlBtn.disabled = gameState.hints <= 0;
+        }
+
+        // Game loop
+        function gameLoop(timestamp) {
+            if (gameState.isPaused || gameState.isGameOver) {
+                requestAnimationFrame(gameLoop);
+                return;
+            }
+            
+            // Calculate delta time
+            const deltaTime = timestamp - gameState.lastTime || 0;
+            gameState.lastTime = timestamp;
+            
+            // Update game time
+            gameState.gameTime += deltaTime / 1000;
+            
+            // Increase water level over time
+            const waterIncrease = (config.waterIncreaseRate + (gameState.level - 1) * config.levelWaterIncrease) * (deltaTime / 1000);
+            gameState.waterLevel = Math.min(config.maxWaterLevel, gameState.waterLevel + waterIncrease);
+            
+            // Increase monster size based on water level
+            const monsterGrowth = config.monsterGrowthRate * (deltaTime / 1000) * (gameState.waterLevel / config.maxWaterLevel);
+            gameState.monsterSize = Math.min(2, gameState.monsterSize + monsterGrowth);
+            
+            // Check for game over condition
+            if (gameState.waterLevel >= config.maxWaterLevel || gameState.monsterSize >= 2) {
+                gameOver();
+            }
+            
+            // Check for level completion
+            if (gameState.gameTime >= config.levelDuration) {
+                levelComplete();
+            }
+            
+            // Update UI
+            updateUI();
+            
+            // Continue the game loop
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start the game
+        function startGame() {
+            startModal.classList.add('hidden');
+            gameState.isPaused = false;
+            gameState.isGameOver = false;
+            gameState.lastTime = performance.now();
+        }
+
+        // Restart the game
+        function restartGame() {
+            gameState = {
+                level: 1,
+                score: 0,
+                waterLevel: config.initialWaterLevel,
+                monsterSize: 1,
+                isPaused: false,
+                isGameOver: false,
+                selectedGem: null,
+                board: [],
+                hints: 3,
+                soundEnabled: gameState.soundEnabled,
+                gameTime: 0,
+                lastTime: 0,
+                comboCount: 0,
+                lastMatchTime: 0,
+                drainHoles: [],
+                touchEnabled: 'ontouchstart' in window
+            };
+            
+            createBoard();
+            updateUI();
+            
+            gameOverModal.classList.add('hidden');
+            levelCompleteModal.classList.add('hidden');
+            pauseModal.classList.add('hidden');
+            
+            gameState.lastTime = performance.now();
+        }
+
+        // Go to next level
+        function nextLevel() {
+            gameState.level++;
+            gameState.waterLevel = config.initialWaterLevel;
+            gameState.monsterSize = 1;
+            gameState.gameTime = 0;
+            gameState.hints = 3;
+            gameState.isPaused = false;
+            
+            createBoard();
+            updateUI();
+            
+            levelCompleteModal.classList.add('hidden');
+            gameState.lastTime = performance.now();
+        }
+
+        // Game over
+        function gameOver() {
+            gameState.isGameOver = true;
+            finalScoreElement.textContent = gameState.score;
+            gameOverModal.classList.remove('hidden');
+        }
+
+        // Level complete
+        function levelComplete() {
+            gameState.isPaused = true;
+            levelScoreElement.textContent = gameState.score;
+            levelCompleteModal.classList.remove('hidden');
+        }
+
+        // Toggle pause
+        function togglePause() {
+            gameState.isPaused = !gameState.isPaused;
+            
+            if (gameState.isPaused) {
+                pauseModal.classList.remove('hidden');
+            } else {
+                pauseModal.classList.add('hidden');
+                gameState.lastTime = performance.now();
+            }
+        }
+
+        // Toggle sound
+        function toggleSound() {
+            gameState.soundEnabled = !gameState.soundEnabled;
+            soundBtn.textContent = gameState.soundEnabled ? '🔊' : '🔇';
+        }
+
+        // Initialize the game when the page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
