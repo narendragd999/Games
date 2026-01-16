@@ -1,0 +1,1331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Crossword Puzzle – Classic Word Game</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    html, body {
+      height: 100%;
+      padding: 0;
+      margin: 0;
+      font-family: 'Inter', Arial, sans-serif;
+      background: linear-gradient(160deg, #6a11cb 0%, #fff 100%);
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #app {
+      width: 100vw;
+      min-height: 100vh;
+      max-width: 480px;
+      background: transparent;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 0;
+      position: relative;
+      overflow: hidden;
+    }
+    .crossword-card {
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: 0 4px 20px rgba(106,17,203,0.12);
+      padding: 12px 6px 14px 6px;
+      width: 98vw;
+      max-width: 370px;
+      margin-bottom: 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      margin-bottom: 4px;
+    }
+    .puzzle-counter {
+      background: #f0ebff;
+      border: 1px solid #d4c5ff;
+      border-radius: 8px;
+      padding: 4px 8px;
+      font-size: 0.8rem;
+      color: #6a11cb;
+      font-weight: 600;
+      min-width: 60px;
+      text-align: center;
+    }
+    .game-title {
+      font-size: 1.1rem;
+      color: #2f2f2f;
+      font-weight: 700;
+      text-align: center;
+      letter-spacing: 0.02em;
+      flex: 1;
+    }
+    .icon-btn {
+      background: none;
+      border: none;
+      padding: 6px;
+      cursor: pointer;
+      outline: none;
+      display: flex;
+      align-items: center;
+      border-radius: 50%;
+      transition: background 0.16s;
+    }
+    .icon-btn:active {
+      background: #efefff;
+    }
+    .svg-icon { width: 20px; height: 20px; }
+    .crossword-board {
+      width: 100%;
+      max-width: 300px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      grid-gap: 2px;
+      margin: 8px auto 6px auto;
+      justify-items: center;
+      align-items: center;
+    }
+    .cell {
+      width: 32px;
+      height: 32px;
+      position: relative;
+      border-radius: 6px;
+      background: #faf9fb;
+      box-shadow: 0 1px 4px #eee;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      color: #222;
+      font-weight: 600;
+      transition: box-shadow 0.18s;
+    }
+    .cell input {
+      width: 100%;
+      height: 100%;
+      text-align: center;
+      font-size: 0.95rem;
+      border: none;
+      background: transparent;
+      font-family: inherit;
+      font-weight: 600;
+      color: #2d2d2d;
+      outline: none;
+      padding: 0;
+      caret-color: #6a11cb;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+    .cell.blocked {
+      background: #bbb6cb;
+      box-shadow: none;
+      pointer-events: none;
+    }
+    .cell-label {
+      position: absolute;
+      top: 2px;
+      left: 4px;
+      font-size: 0.5rem;
+      color: #8c70c4;
+      font-weight: 700;
+      opacity: 0.8;
+      pointer-events: none;
+    }
+    .cell.correct input {
+      background: #c8fde6;
+    }
+    .cell.wrong input {
+      background: #fde4e4;
+    }
+    .cell.selected input {
+      border: 2px solid #3498db;
+    }
+    .clues-row {
+      display: flex;
+      flex-direction: row;
+      width: 100%;
+      justify-content: space-between;
+      gap: 4px;
+      margin: 4px 2px 6px 2px;
+    }
+    .clues-col {
+      flex: 1;
+      background: #f8f6ff;
+      border-radius: 8px;
+      padding: 6px 4px 4px 6px;
+      min-width: 0;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+    .clues-title {
+      font-size: 0.9rem;
+      color: #6a11cb;
+      font-weight: 600;
+      margin-bottom: 2px;
+      letter-spacing: 0.04em;
+    }
+    .clue-line {
+      font-size: 0.8rem;
+      color: #32323d;
+      margin-bottom: 1px;
+      font-weight: 500;
+      line-height: 1.2;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .controls-row {
+      display: flex;
+      width: 100%;
+      gap: 5px;
+      justify-content: center;
+      margin: 4px 0 6px 0;
+      flex-wrap: wrap;
+    }
+    .btn-primary, .btn-secondary {
+      min-width: 0;
+      padding: 6px 12px;
+      font-size: 0.85rem;
+      border-radius: 10px;
+      border: none;
+      font-family: inherit;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      margin: 2px 1px;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      transition: all 0.18s;
+    }
+    .btn-primary {
+      background: #3498db;
+      color: #fff;
+    }
+    .btn-primary:active { 
+      background: #2471a3; 
+      transform: translateY(1px);
+    }
+    .btn-secondary {
+      background: #6a11cb;
+      color: #fff;
+    }
+    .btn-secondary:active { 
+      background: #4e0a8c;
+      transform: translateY(1px);
+    }
+    .popup-modal {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(55,25,80,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1022;
+      backdrop-filter: blur(2px);
+    }
+    .popup-content {
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: 0 8px 32px rgba(106,17,203,0.2);
+      width: 85vw; max-width: 320px;
+      padding: 24px 16px 16px 16px;
+      text-align: center;
+      font-size: 1rem;
+      color: #2f2f2f;
+      font-weight: 500;
+      position: relative;
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+    .modal-close {
+      position: absolute;
+      top: 6px; right: 10px;
+      background: none;
+      border: none;
+      color: #6a11cb;
+      font-size: 1.3rem;
+      cursor: pointer;
+      font-weight: bold;
+      padding: 4px;
+    }
+    .loader-overlay {
+      position: fixed;
+      z-index: 9999;
+      left: 0; top: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(20,11,39,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(1px);
+    }
+    .spinner {
+      border: 4px solid #eee;
+      border-top: 4px solid #fff;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      animation: spin 0.8s linear infinite;
+      margin: 5px auto;
+    }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+    .info-bar {
+      width: 100%;
+      text-align: center;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #3498db;
+      text-shadow: 0 1px 3px rgba(255,255,255,0.8);
+      pointer-events: none;
+      min-height: 20px;
+      margin-bottom: 4px;
+    }
+    @media screen and (max-width: 400px) {
+      #app { padding: 4px 0; }
+      .crossword-card { padding: 8px 4px 10px 4px; }
+      .crossword-board { max-width: 280px; }
+      .cell { width: 28px; height: 28px; }
+      .btn-primary, .btn-secondary { padding: 5px 10px; font-size: 0.8rem; }
+    }
+    ::selection { background: #b6e1fe; }
+    .clues-col::-webkit-scrollbar { width: 3px; }
+    .clues-col::-webkit-scrollbar-thumb { background: #d4c5ff; border-radius: 2px; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="crossword-card">
+    <div class="header-row">
+      <div class="puzzle-counter" id="puzzle-counter">1/25</div>
+      <span class="game-title">CROSSWORD</span>
+      <button class="icon-btn" id="info-btn" title="Instructions">
+        <svg class="svg-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
+          <circle cx="10" cy="10" r="9" stroke="#6a11cb" stroke-width="2" fill="#f8f6ff"/>
+          <path d="M10 14V10M10 6h.01" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+    <div class="info-bar" id="info-bar"></div>
+    <div class="crossword-board" id="cw-board"></div>
+    <div class="clues-row">
+      <div class="clues-col">
+        <div class="clues-title">📍 Across</div>
+        <div id="across-clues"></div>
+      </div>
+      <div class="clues-col">
+        <div class="clues-title">📍 Down</div>
+        <div id="down-clues"></div>
+      </div>
+    </div>
+    <div class="controls-row">
+      <button class="btn-primary" id="check-btn">✓ Check</button>
+      <button class="btn-secondary" id="solve-btn">🔮 Solve</button>
+      <button class="btn-primary" id="newgame-btn">🎲 Next</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modals/Loader -->
+<div style="display:none" id="popup-modal" class="popup-modal">
+  <div class="popup-content" id="popup-content">
+    <button class="modal-close" id="modal-close">&times;</button>
+    <div id="popup-text"></div>
+  </div>
+</div>
+<div style="display:none" id="loader" class="loader-overlay">
+  <div class="spinner"></div>
+</div>
+
+<script>
+/**
+ * Static Crossword Puzzle Game with 25 Complete Puzzles
+ * Professional mobile-optimized design with all features
+ */
+
+// 25 Complete Static Crossword Puzzles
+const crosswordPuzzles = [
+  {
+    name: "Animals #1", size: 5,
+    grid: [
+      [{letter:'C',n:1},{letter:'A'},{letter:'T'},{blocked:true},{letter:'D',n:2}],
+      [{letter:'O'},{blocked:true},{letter:'O'},{blocked:true},{letter:'O'}],
+      [{letter:'W',n:3},{letter:'E'},{letter:'B',n:4},{letter:'S'},{letter:'E'}],
+      [{blocked:true},{letter:'R'},{blocked:true},{letter:'E'},{blocked:true}],
+      [{letter:'S',n:5},{letter:'E'},{letter:'T'},{blocked:true},{letter:'S',n:6}]
+    ],
+    clues: {
+      across: [
+        {num:1, clue:"1. Feline companion"},
+        {num:2, clue:"2. Man's best friend"},
+        {num:3, clue:"3. Spider's creation"},
+        {num:4, clue:"4. Arachnid creature"},
+        {num:5, clue:"5. Collection or group"},
+        {num:6, clue:"6. Plural of 'yes'"}
+      ],
+      down: [
+        {num:1, clue:"1. Bovine animal"},
+        {num:2, clue:"2. Canine bark sound"},
+        {num:3, clue:"3. Soft animal fur"},
+        {num:4, clue:"4. Educational place"},
+        {num:5, clue:"5. Musical note"}
+      ]
+    },
+    answers: [['C','A','T','','D'],['O','','O','','O'],['W','E','B','S','E'],['','R','','E',''],['S','E','T','','S']]
+  },
+
+  {
+    name: "Food #2", size: 5,
+    grid: [
+      [{letter:'P',n:1},{letter:'I'},{letter:'E'},{blocked:true},{letter:'B',n:2}],
+      [{letter:'A'},{blocked:true},{letter:'G'},{blocked:true},{letter:'U'}],
+      [{letter:'S',n:3},{letter:'A'},{letter:'G',n:4},{letter:'E'},{letter:'N'}],
+      [{blocked:true},{letter:'P'},{blocked:true},{letter:'L'},{blocked:true}],
+      [{letter:'T',n:5},{letter:'E'},{letter:'A'},{blocked:true},{letter:'S',n:6}]
+    ],
+    clues: {
+      across: [
+        {num:1, clue:"1. Baked dessert"},
+        {num:2, clue:"2. Breakfast bread"},
+        {num:3, clue:"3. Wise herb"},
+        {num:4, clue:"4. Breakfast items"},
+        {num:5, clue:"5. Hot beverage"},
+        {num:6, clue:"6. Plural of 'yes'"}
+      ],
+      down: [
+        {num:1, clue:"1. Cooked noodles"},
+        {num:2, clue:"2. Insect that buzzes"},
+        {num:3, clue:"3. Sweet fruit juice"},
+        {num:4, clue:"4. Breakfast cereal"},
+        {num:5, clue:"5. Dried grape"}
+      ]
+    },
+    answers: [['P','I','E','','B'],['A','','G','','U'],['S','A','G','E','N'],['','P','','L',''],['T','E','A','','S']]
+  },
+
+  {
+    name: "Nature #3", size: 5,
+    grid: [
+      [{letter:'T',n:1},{letter:'R'},{letter:'E'},{letter:'E'},{blocked:true}],
+      [{letter:'I'},{blocked:true},{letter:'A'},{blocked:true},{letter:'S',n:2}],
+      [{letter:'M',n:3},{letter:'O'},{letter:'R',n:4},{letter:'N'},{letter:'U'}],
+      [{letter:'E'},{blocked:true},{letter:'T'},{blocked:true},{letter:'N'}],
+      [{blocked:true},{letter:'W',n:5},{letter:'H'},{letter:'Y'},{blocked:true}]
+    ],
+    clues: {
+      across: [
+        {num:1, clue:"1. Tall woody plant"},
+        {num:2, clue:"2. Bright star"},
+        {num:3, clue:"3. Early part of day"},
+        {num:4, clue:"4. Ocean water"},
+        {num:5, clue:"5. Question word"}
+      ],
+      down: [
+        {num:1, clue:"1. Duration period"},
+        {num:2, clue:"2. Sandy shore"},
+        {num:3, clue:"3. Dawn period"},
+        {num:4, clue:"4. Tree branch"},
+        {num:5, clue:"5. Moisture from sky"}
+      ]
+    },
+    answers: [['T','R','E','E',''],['I','','A','','S'],['M','O','R','N','U'],['E','','T','','N'],['','W','H','Y','']]
+  },
+
+  {
+    name: "Sports #4", size: 5,
+    grid: [
+      [{letter:'R',n:1},{letter:'U'},{letter:'N'},{blocked:true},{letter:'B',n:2}],
+      [{letter:'A'},{blocked:true},{letter:'E'},{blocked:true},{letter:'A'}],
+      [{letter:'C',n:3},{letter:'A'},{letter:'T',n:4},{letter:'S'},{letter:'L'}],
+      [{letter:'E'},{blocked:true},{blocked:true},{letter:'W'},{letter:'L'}],
+      [{blocked:true},{letter:'G',n:5},{letter:'O'},{letter:'A'},{letter:'L'}]
+    ],
+    clues: {
+      across: [
+        {num:1, clue:"1. Sprint or jog"},
+        {num:2, clue:"2. Spherical sports object"},
+        {num:3, clue:"3. Feline animal"},
+        {num:4, clue:"4. Baseball equipment"},
+        {num:5, clue:"5. Soccer target"}
+      ],
+      down: [
+        {num:1, clue:"1. Competition event"},
+        {num:2, clue:"2. Flying mammal"},
+        {num:3, clue:"3. Vehicle for transport"},
+        {num:4, clue:"4. Swimming activity"},
+        {num:5, clue:"5. Golf target"}
+      ]
+    },
+    answers: [['R','U','N','','B'],['A','','E','','A'],['C','A','T','S','L'],['E','','','W','L'],['','G','O','A','L']]
+  },
+
+  {
+    name: "Music #5", size: 5,
+    grid: [
+      [{letter:'S',n:1},{letter:'O'},{letter:'N'},{letter:'G'},{blocked:true}],
+      [{letter:'I'},{blocked:true},{letter:'O'},{blocked:true},{letter:'B',n:2}],
+      [{letter:'N',n:3},{letter:'O'},{letter:'T',n:4},{letter:'E'},{letter:'A'}],
+      [{letter:'G'},{blocked:true},{letter:'U'},{blocked:true},{letter:'T'}],
+      [{blocked:true},{letter:'D',n:5},{letter:'R'},{letter:'U'},{letter:'M'}]
+    ],
+    clues: {
+      across: [
+        {num:1, clue:"1. Musical composition"},
+        {num:2, clue:"2. Musical rhythm"},
+        {num:3, clue:"3. Musical sound"},
+        {num:4, clue:"4. String instrument"},
+        {num:5, clue:"5. Percussion instrument"}
+      ],
+      down: [
+        {num:1, clue:"1. Vocal performance"},
+        {num:2, clue:"2. Music group"},
+        {num:3, clue:"3. Musical pitch"},
+        {num:4, clue:"4. Melodic sequence"},
+        {num:5, clue:"5. Dance moves"}
+      ]
+    },
+    answers: [['S','O','N','G',''],['I','','O','','B'],['N','O','T','E','A'],['G','','U','','T'],['','D','R','U','M']]
+  },
+
+  {
+    name: "Colors #6", size: 5,
+    grid: [
+      [{letter:'R',n:1},{letter:'E'},{letter:'D'},{blocked:true},{letter:'B',n:2}],
+      [{letter:'O'},{blocked:true},{letter:'A'},{blocked:true},{letter:'L'}],
+      [{letter:'S',n:3},{letter:'I'},{letter:'L',n:4},{letter:'V'},{letter:'U'}],
+      [{letter:'E'},{blocked:true},{letter:'L'},{blocked:true},{letter:'E'}],
+      [{blocked:true},{letter:'G',n:5},{letter:'O'},{letter:'L'},{letter:'D'}]
+    ],
+    clues: {
+      across: [
+        {num:1, clue:"1. Color of roses"},
+        {num:2, clue:"2. Dark color"},
+        {num:3, clue:"3. Flower color"},
+        {num:4, clue:"4. Shiny metal color"},
+        {num:5, clue:"5. Precious metal color"}
+      ],
+      down: [
+        {num:1, clue:"1. Pink flower"},
+        {num:2, clue:"2. Night sky color"},
+        {num:3, clue:"3. Sick feeling"},
+        {num:4, clue:"4. Bright color"},
+        {num:5, clue:"5. Envious feeling"}
+      ]
+    },
+    answers: [['R','E','D','','B'],['O','','A','','L'],['S','I','L','V','U'],['E','','L','','E'],['','G','O','L','D']]
+  },
+
+  {
+    name: "School #7", size: 5,
+    grid: [
+      [{letter:'P',n:1},{letter:'E'},{letter:'N'},{blocked:true},{letter:'M',n:2}],
+      [{letter:'A'},{blocked:true},{letter:'O'},{blocked:true},{letter:'A'}],
+      [{letter:'P',n:3},{letter:'E'},{letter:'R',n:4},{letter:'E'},{letter:'T'}],
+      [{letter:'E'},{blocked:true},{blocked:true},{letter:'A'},{letter:'H'}],
+      [{letter:'R'},{letter:'U',n:5},{letter:'L'},{letter:'E'},{letter:'R'}]
+    ],
+    clues: {
+      across: [
+        {num:1, clue:"1. Writing instrument"},
+        {num:2, clue:"2. Subject with numbers"},
+        {num:3, clue:"3. Writing material"},
+        {num:4, clue:"4. To peruse text"},
+        {num:5, clue:"5. Measurement tool"}
+      ],
+      down: [
+        {num:1, clue:"1. Blank sheets"},
+        {num:2, clue:"2. Gym or hall"},
+        {num:3, clue:"3. Student's writing"},
+        {num:4, clue:"4. Learning subject"},
+        {num:5, clue:"5. Teacher's tool"}
+      ]
+    },
+    answers: [['P','E','N','','M'],['A','','O','','A'],['P','E','R','E','T'],['E','','','A','H'],['R','U','L','E','R']]
+  },
+
+  {
+    name: "Weather #8", size: 5,
+    grid: [
+      [{letter:'R',n:1},{letter:'A'},{letter:'I'},{letter:'N'},{blocked:true}],
+      [{letter:'I'},{blocked:true},{letter:'C'},{blocked:true},{letter:'S',n:2}],
+      [{letter:'V',n:3},{letter:'E'},{letter:'R',n:4},{letter:'Y'},{letter:'U'}],
+      [{letter:'E'},{blocked:true},{blocked:true},{letter:'E'},{letter:'N'}],
+      [{letter:'R'},{letter:'W',n:5},{letter:'I'},{letter:'N'},{letter:'D'}]
+    ],
+    clues: {
+      across: [
+        {num:1, clue:"1. Water from clouds"},
+        {num:2, clue:"2. Bright star"},
+        {num:3, clue:"3. Flowing water"},
+        {num:4, clue:"4. Extremely"},
+        {num:5, clue:"5. Moving air"}
+      ],
+      down: [
+        {num:1, clue:"1. Flowing stream"},
+        {num:2, clue:"2. Frozen water"},
+        {num:3, clue:"3. Purple color"},
+        {num:4, clue:"4. Affirmative"},
+        {num:5, clue:"5. Wet moisture"}
+      ]
+    },
+    answers: [['R','A','I','N',''],['I','','C','','S'],['V','E','R','Y','U'],['E','','','E','N'],['R','W','I','N','D']]
+  },
+
+  {
+    name: "Transportation #9", size: 5,
+    grid: [
+      [{letter:'C',n:1},{letter:'A'},{letter:'R'},{blocked:true},{letter:'B',n:2}],
+      [{letter:'A'},{blocked:true},{letter:'O'},{blocked:true},{letter:'U'}],
+      [{letter:'B',n:3},{letter:'O'},{letter:'A',n:4},{letter:'T'},{letter:'S'}],
+      [{blocked:true},{letter:'A'},{blocked:true},{letter:'R'},{blocked:true}],
+      [{letter:'J',n:5},{letter:'E'},{letter:'T'},{blocked:true},{letter:'S',n:6}]
+    ],
+    clues: {
+      across: [
+        {num:1, clue:"1. Motor vehicle"},
+        {num:2, clue:"2. Public transport"},
+        {num:3, clue:"3. Water vessel"},
+        {num:4, clue:"4. Yellow vehicle"},
+        {num:5, clue:"5. Fast aircraft"},
+        {num:6, clue:"6. Ship or vessel"}
+      ],
+      down: [
+        {num:1, clue:"1. Taxi vehicle"},
+        {num:2, clue:"2. Large vehicle"},
+        {num:3, clue:"3. Floating vessel"},
+        {num:4, clue:"4. Long vehicle"},
+        {num:5, clue:"5. Public transport"}
+      ]
+    },
+    answers: [['C','A','R','','B'],['A','','O','','U'],['B','O','A','T','S'],['','A','','R',''],['J','E','T','','S']]
+  },
+
+  {
+    name: "Body Parts #10", size: 5,
+    grid: [
+      [{letter:'H',n:1},{letter:'E'},{letter:'A'},{letter:'D'},{blocked:true}],
+      [{letter:'A'},{blocked:true},{letter:'R'},{blocked:true},{letter:'E',n:2}],
+      [{letter:'N',n:3},{letter:'O'},{letter:'S',n:4},{letter:'E'},{letter:'Y'}],
+      [{letter:'D'},{blocked:true},{letter:'E'},{blocked:true},{letter:'E'}],
+      [{blocked:true},{letter:'F',n:5},{letter:'O'},{letter:'O'},{letter:'T'}]
+    ],
+    clues: {
+      across: [
+        {num:1, clue:"1. Top of body"},
+        {num:2, clue:"2. Organ of sight"},
+        {num:3, clue:"3. Smelling organ"},
+        {num:4, clue:"4. Facial feature"},
+        {num:5, clue:"5. Walking appendage"}
+      ],
+      down: [
+        {num:1, clue:"1. Grasping appendage"},
+        {num:2, clue:"2. Hearing organ"},
+        {num:3, clue:"3. Neck part"},
+        {num:4, clue:"4. Seeing organs"},
+        {num:5, clue:"5. Lower extremity"}
+      ]
+    },
+    answers: [['H','E','A','D',''],['A','','R','','E'],['N','O','S','E','Y'],['D','','E','','E'],['','F','O','O','T']]
+  },
+
+  {
+    name: "Home #11", size: 5,
+    grid: [
+      [{letter:'H',n:1},{letter:'O'},{letter:'M'},{letter:'E'},{blocked:true}],
+      [{letter:'A'},{blocked:true},{letter:'A'},{blocked:true},{letter:'B',n:2}],
+      [{letter:'L',n:3},{letter:'I'},{letter:'T',n:4},{letter:'C'},{letter:'E'}],
+      [{letter:'L'},{blocked:true},{blocked:true},{letter:'H'},{letter:'D'}],
+      [{blocked:true},{letter:'R',n:5},{letter:'O'},{letter:'O'},{letter:'M'}]
+    ],
+    clues: {
+      across: [
+        {num:1, clue:"1. Place of residence"},
+        {num:2, clue:"2. Sleeping furniture"},
+        {num:3, clue:"3. Corridor"},
+        {num:4, clue:"4. Cooking area"},
+        {num:5, clue:"5. Living space"}
+      ],
+      down: [
+        {num:1, clue:"1. Building entrance"},
+        {num:2, clue:"2. Bathing room"},
+        {num:3, clue:"3. Bright illumination"},
+        {num:4, clue:"4. Electrical switch"},
+        {num:5, clue:"5. Floor covering"}
+      ]
+    },
+    answers: [['H','O','M','E',''],['A','','A','','B'],['L','I','T','C','E'],['L','','','H','D'],['','R','O','O','M']]
+  },
+
+  {
+    name: "Tools #12", size: 5,
+    grid: [
+      [{letter:'H',n:1},{letter:'A'},{letter:'M'},{blocked:true},{letter:'S',n:2}],
+      [{letter:'A'},{blocked:true},{letter:'A'},{blocked:true},{letter:'A'}],
+      [{letter:'T',n:3},{letter:'O'},{letter:'O',n:4},{letter:'L'},{letter:'W'}],
+      [{blocked:true},{letter:'P'},{blocked:true},{letter:'E'},{blocked:true}],
+      [{letter:'N',n:5},{letter:'A'},{letter:'I'},{letter:'L'},{blocked:true}]
+    ],
+    clues: {
+      across: [
+        {num:1, clue:"1. Pounding tool"},
+        {num:2, clue:"2. Cutting tool"},
+        {num:3, clue:"3. Work implement"},
+        {num:4, clue:"4. Fastening device"},
+        {num:5, clue:"5. Metal fastener"}
+      ],
+      down: [
+        {num:1, clue:"1. Head covering"},
+        {num:2, clue:"2. Tree fluid"},
+        {num:3, clue:"3. Measuring device"},
+        {num:4, clue:"4. Opening device"},
+        {num:5, clue:"5. Sharp point"}
+      ]
+    },
+    answers: [['H','A','M','','S'],['A','','A','','A'],['T','O','O','L','W'],['','P','','E',''],['N','A','I','L','']]
+  },
+
+  {
+    name: "Kitchen #13", size: 5,
+    grid: [
+      [{letter:'O',n:1},{letter:'V'},{letter:'E'},{letter:'N'},{blocked:true}],
+      [{letter:'I'},{blocked:true},{letter:'G'},{blocked:true},{letter:'P',n:2}],
+      [{letter:'L',n:3},{letter:'I'},{letter:'D',n:4},{letter:'S'},{letter:'O'}],
+      [{blocked:true},{letter:'C'},{blocked:true},{letter:'P'},{letter:'T'}],
+      [{letter:'P',n:5},{letter:'E'},{letter:'A'},{letter:'R'},{blocked:true}]
+    ],
+    clues: {
+      across: [
+        {num:1, clue:"1. Baking appliance"},
+        {num:2, clue:"2. Cooking vessel"},
+        {num:3, clue:"3. Container cover"},
+        {num:4, clue:"4. Dishware item"},
+        {num:5, clue:"5. Green fruit"}
+      ],
+      down: [
+        {num:1, clue:"1. Cooking fat"},
+        {num:2, clue:"2. Ice cream serving"},
+        {num:3, clue:"3. Bright illumination"},
+        {num:4, clue:"4. Cooking container"},
+        {num:5, clue:"5. Cooking utensil"}
+      ]
+    },
+    answers: [['O','V','E','N',''],['I','','G','','P'],['L','I','D','S','O'],['','C','','P','T'],['P','E','A','R','']]
+  },
+
+  {
+    name: "Garden #14", size: 5,
+    grid: [
+      [{letter:'R',n:1},{letter:'O'},{letter:'S'},{letter:'E'},{blocked:true}],
+      [{letter:'O'},{blocked:true},{letter:'E'},{blocked:true},{letter:'B',n:2}],
+      [{letter:'O',n:3},{letter:'T'},{letter:'S',n:4},{letter:'E'},{letter:'E'}],
+      [{letter:'T'},{blocked:true},{blocked:true},{letter:'E'},{blocked:true}],
+      [{blocked:true},{letter:'T',n:5},{letter:'R'},{letter:'E'},{letter:'E'}]
+    ],
+    clues: {
+      across: [
+        {num:1, clue:"1. Red flower"},
+        {num:2, clue:"2. Buzzing insect"},
+        {num:3, clue:"3. Plant part"},
+        {num:4, clue:"4. Garden grain"},
+        {num:5, clue:"5. Tall plant"}
+      ],
+      down: [
+        {num:1, clue:"1. Plant part"},
+        {num:2, clue:"2. Garden tool"},
+        {num:3, clue:"3. Soil mixture"},
+        {num:4, clue:"4. Plant beginning"},
+        {num:5, clue:"5. Garden bed"}
+      ]
+    },
+    answers: [['R','O','S','E',''],['O','','E','','B'],['O','T','S','E','E'],['T','','','E',''],['','T','R','E','E']]
+  },
+
+  {
+    name: "Time #15", size: 5,
+    grid: [
+      [{letter:'T',n:1},{letter:'I'},{letter:'M'},{letter:'E'},{blocked:true}],
+      [{letter:'O'},{blocked:true},{letter:'O'},{blocked:true},{letter:'D',n:2}],
+      [{letter:'D',n:3},{letter:'A'},{letter:'Y',n:4},{letter:'S'},{letter:'A'}],
+      [{letter:'A'},{blocked:true},{blocked:true},{letter:'E'},{letter:'Y'}],
+      [{letter:'Y'},{letter:'E',n:5},{letter:'A'},{letter:'R'},{blocked:true}]
+    ],
+    clues: {
+      across: [
+        {num:1, clue:"1. Duration measure"},
+        {num:2, clue:"2. 24-hour period"},
+        {num:3, clue:"3. Current date"},
+        {num:4, clue:"4. Time periods"},
+        {num:5, clue:"5. 12-month period"}
+      ],
+      down: [
+        {num:1, clue:"1. Present moment"},
+        {num:2, clue:"2. Morning period"},
+        {num:3, clue:"3. Yesterday"},
+        {num:4, clue:"4. Time measurement"},
+        {num:5, clue:"5. Evening time"}
+      ]
+    },
+    answers: [['T','I','M','E',''],['O','','O','','D'],['D','A','Y','S','A'],['A','','','E','Y'],['Y','E','A','R','']]
+  },
+
+  {
+    name: "Clothes #16", size: 5,
+    grid: [
+      [{letter:'H',n:1},{letter:'A'},{letter:'T'},{blocked:true},{letter:'T',n:2}],
+      [{letter:'A'},{blocked:true},{letter:'I'},{blocked:true},{letter:'I'}],
+      [{letter:'T',n:3},{letter:'S'},{letter:'E',n:4},{letter:'S'},{letter:'E'}],
+      [{blocked:true},{letter:'O'},{blocked:true},{letter:'H'},{blocked:true}],
+      [{letter:'C',n:5},{letter:'A'},{letter:'P'},{blocked:true},{letter:'S',n:6}]
+    ],
+    clues: {
+      across: [
+        {num:1, clue:"1. Head covering"},
+        {num:2, clue:"2. Neck wear"},
+        {num:3, clue:"3. Footwear"},
+        {num:4, clue:"4. Clothing items"},
+        {num:5, clue:"5. Baseball hat"},
+        {num:6, clue:"6. Footwear"}
+      ],
+      down: [
+        {num:1, clue:"1. Hair covering"},
+        {num:2, clue:"2. Shirt top"},
+        {num:3, clue:"3. Clothing material"},
+        {num:4, clue:"4. Shoe covering"},
+        {num:5, clue:"5. Head covering"}
+      ]
+    },
+    answers: [['H','A','T','','T'],['A','','I','','I'],['T','S','E','S','E'],['','O','','H',''],['C','A','P','','S']]
+  },
+
+  {
+    name: "Numbers #17", size: 5,
+    grid: [
+      [{letter:'O',n:1},{letter:'N'},{letter:'E'},{blocked:true},{letter:'T',n:2}],
+      [{letter:'N'},{blocked:true},{letter:'I'},{blocked:true},{letter:'W'}],
+      [{letter:'E',n:3},{letter:'I'},{letter:'G',n:4},{letter:'H'},{letter:'O'}],
+      [{blocked:true},{letter:'N'},{blocked:true},{letter:'R'},{blocked:true}],
+      [{letter:'S',n:5},{letter:'E'},{letter:'V'},{letter:'E'},{letter:'N'}]
+    ],
+    clues: {
+      across: [
+        {num:1, clue:"1. Single unit"},
+        {num:2, clue:"2. Pair number"},
+        {num:3, clue:"3. After seven"},
+        {num:4, clue:"4. After seven"},
+        {num:5, clue:"5. Lucky number"}
+      ],
+      down: [
+        {num:1, clue:"1. Single digit"},
+        {num:2, clue:"2. Double digit"},
+        {num:3, clue:"3. After eight"},
+        {num:4, clue:"4. After two"},
+        {num:5, clue:"5. After five"}
+      ]
+    },
+    answers: [['O','N','E','','T'],['N','','I','','W'],['E','I','G','H','O'],['','N','','R',''],['S','E','V','E','N']]
+  },
+
+  {
+    name: "Ocean #18", size: 5,
+    grid: [
+      [{letter:'W',n:1},{letter:'A'},{letter:'V'},{letter:'E'},{blocked:true}],
+      [{letter:'A'},{blocked:true},{letter:'I'},{blocked:true},{letter:'F',n:2}],
+      [{letter:'T',n:3},{letter:'I'},{letter:'D',n:4},{letter:'E'},{letter:'I'}],
+      [{letter:'E'},{blocked:true},{blocked:true},{letter:'A'},{letter:'S'}],
+      [{letter:'R'},{letter:'S',n:5},{letter:'A'},{letter:'N'},{letter:'D'}]
+    ],
+    clues: {
+      across: [
+        {num:1, clue:"1. Ocean movement"},
+        {num:2, clue:"2. Swimming appendage"},
+        {num:3, clue:"3. Ocean liquid"},
+        {num:4, clue:"4. Ocean rhythm"},
+        {num:5, clue:"5. Beach material"}
+      ],
+      down: [
+        {num:1, clue:"1. Ocean liquid"},
+        {num:2, clue:"2. Ocean creature"},
+        {num:3, clue:"3. Ocean movement"},
+        {num:4, clue:"4. Ocean depth"},
+        {num:5, clue:"5. Beach area"}
+      ]
+    },
+    answers: [['W','A','V','E',''],['A','','I','','F'],['T','I','D','E','I'],['E','','','A','S'],['R','S','A','N','D']]
+  },
+
+  {
+    name: "Space #19", size: 5,
+    grid: [
+      [{letter:'S',n:1},{letter:'T'},{letter:'A'},{letter:'R'},{blocked:true}],
+      [{letter:'U'},{blocked:true},{letter:'T'},{blocked:true},{letter:'M',n:2}],
+      [{letter:'N',n:3},{letter:'A'},{letter:'S',n:4},{letter:'A'},{letter:'O'}],
+      [{blocked:true},{letter:'R'},{blocked:true},{letter:'R'},{letter:'O'}],
+      [{letter:'S',n:5},{letter:'T'},{letter:'H'},{blocked:true},{letter:'N'}]
+    ],
+    clues: {
+      across: [
+        {num:1, clue:"1. Celestial light"},
+        {num:2, clue:"2. Lunar body"},
+        {num:3, clue:"3. Space agency"},
+        {num:4, clue:"4. Planet name"},
+        {num:5, clue:"5. Earth satellite"}
+      ],
+      down: [
+        {num:1, clue:"1. Bright star"},
+        {num:2, clue:"2. Red planet"},
+        {num:3, clue:"3. Night sky"},
+        {num:4, clue:"4. Space travel"},
+        {num:5, clue:"5. Moon phase"}
+      ]
+    },
+    answers: [['S','T','A','R',''],['U','','T','','M'],['N','A','S','A','O'],['','R','','R','O'],['S','T','H','','N']]
+  },
+
+  {
+    name: "Fruits #20", size: 5,
+    grid: [
+      [{letter:'A',n:1},{letter:'P'},{letter:'P'},{letter:'L'},{letter:'E'}],
+      [{letter:'R'},{blocked:true},{letter:'E'},{blocked:true},{letter:'A'}],
+      [{letter:'A',n:2},{letter:'N'},{letter:'A',n:3},{letter:'N'},{letter:'R'}],
+      [{blocked:true},{letter:'A'},{blocked:true},{letter:'U'},{blocked:true}],
+      [{letter:'G',n:4},{letter:'R'},{letter:'A'},{letter:'P'},{letter:'E'}]
+    ],
+    clues: {
+      across: [
+        {num:1, clue:"1. Red or green fruit"},
+        {num:2, clue:"2. Curved yellow fruit"},
+        {num:3, clue:"3. Tropical yellow fruit"},
+        {num:4, clue:"4. Purple cluster fruit"}
+      ],
+      down: [
+        {num:1, clue:"1. Orange citrus"},
+        {num:2, clue:"2. Yellow citrus"},
+        {num:3, clue:"3. Fuzzy fruit"},
+        {num:4, clue:"4. Green melon"}
+      ]
+    },
+    answers: [['A','P','P','L','E'],['R','','E','','A'],['A','N','A','N','R'],['','A','','U',''],['G','R','A','P','E']]
+  },
+
+  {
+    name: "Shapes #21", size: 5,
+    grid: [
+      [{letter:'S',n:1},{letter:'Q'},{letter:'U'},{blocked:true},{letter:'C',n:2}],
+      [{letter:'T'},{blocked:true},{letter:'A'},{blocked:true},{letter:'I'}],
+      [{letter:'A',n:3},{letter:'R'},{letter:'R',n:4},{letter:'O'},{letter:'R'}],
+      [{letter:'R'},{blocked:true},{blocked:true},{letter:'V'},{blocked:true}],
+      [{blocked:true},{letter:'L',n:5},{letter:'I'},{letter:'N'},{letter:'E'}]
+    ],
+    clues: {
+      across: [
+        {num:1, clue:"1. Four equal sides"},
+        {num:2, clue:"2. Round shape"},
+        {num:3, clue:"3. Celestial shape"},
+        {num:4, clue:"4. Curved shape"},
+        {num:5, clue:"5. Straight mark"}
+      ],
+      down: [
+        {num:1, clue:"1. Pointed shape"},
+        {num:2, clue:"2. Corner angle"},
+        {num:3, clue:"3. Pointed weapon"},
+        {num:4, clue:"4. Circular path"},
+        {num:5, clue:"5. Extended mark"}
+      ]
+    },
+    answers: [['S','Q','U','','C'],['T','','A','','I'],['A','R','R','O','R'],['R','','','V',''],['','L','I','N','E']]
+  },
+
+  {
+    name: "Family #22", size: 5,
+    grid: [
+      [{letter:'M',n:1},{letter:'O'},{letter:'M'},{blocked:true},{letter:'D',n:2}],
+      [{letter:'A'},{blocked:true},{letter:'A'},{blocked:true},{letter:'A'}],
+      [{letter:'D',n:3},{letter:'A'},{letter:'D',n:4},{letter:'S'},{letter:'D'}],
+      [{blocked:true},{letter:'U'},{blocked:true},{letter:'I'},{blocked:true}],
+      [{letter:'S',n:5},{letter:'O'},{letter:'N'},{blocked:true},{letter:'S',n:6}]
+    ],
+    clues: {
+      across: [
+        {num:1, clue:"1. Female parent"},
+        {num:2, clue:"2. Male parent"},
+        {num:3, clue:"3. Male parent"},
+        {num:4, clue:"4. Female siblings"},
+        {num:5, clue:"5. Male child"},
+        {num:6, clue:"6. Plural offspring"}
+      ],
+      down: [
+        {num:1, clue:"1. Crazy person"},
+        {num:2, clue:"2. Father figure"},
+        {num:3, clue:"3. Daily period"},
+        {num:4, clue:"4. Sitting furniture"},
+        {num:5, clue:"5. Sibling"}
+      ]
+    },
+    answers: [['M','O','M','','D'],['A','','A','','A'],['D','A','D','S','D'],['','U','','I',''],['S','O','N','','S']]
+  },
+
+  {
+    name: "Jobs #23", size: 5,
+    grid: [
+      [{letter:'N',n:1},{letter:'U'},{letter:'R'},{letter:'S'},{letter:'E'}],
+      [{letter:'U'},{blocked:true},{letter:'O'},{blocked:true},{letter:'N'}],
+      [{letter:'R',n:2},{letter:'S'},{letter:'E',n:3},{letter:'R'},{letter:'G'}],
+      [{blocked:true},{letter:'E'},{blocked:true},{letter:'T'},{blocked:true}],
+      [{letter:'C',n:4},{letter:'H'},{letter:'E'},{letter:'F'},{blocked:true}]
+    ],
+    clues: {
+      across: [
+        {num:1, clue:"1. Medical caregiver"},
+        {num:2, clue:"2. Building designer"},
+        {num:3, clue:"3. Medical professional"},
+        {num:4, clue:"4. Kitchen professional"}
+      ],
+      down: [
+        {num:1, clue:"1. Female religious"},
+        {num:2, clue:"2. Medical helper"},
+        {num:3, clue:"3. Power source"},
+        {num:4, clue:"4. Food preparer"}
+      ]
+    },
+    answers: [['N','U','R','S','E'],['U','','O','','N'],['R','S','E','R','G'],['','E','','T',''],['C','H','E','F','']]
+  },
+
+  {
+    name: "Vehicles #24", size: 5,
+    grid: [
+      [{letter:'T',n:1},{letter:'R'},{letter:'U'},{letter:'C'},{letter:'K'}],
+      [{letter:'R'},{blocked:true},{letter:'A'},{blocked:true},{letter:'A'}],
+      [{letter:'A',n:2},{letter:'I'},{letter:'N',n:3},{letter:'S'},{letter:'R'}],
+      [{blocked:true},{letter:'R'},{blocked:true},{letter:'H'},{blocked:true}],
+      [{letter:'B',n:4},{letter:'I'},{letter:'K'},{letter:'E'},{blocked:true}]
+    ],
+    clues: {
+      across: [
+        {num:1, clue:"1. Large vehicle"},
+        {num:2, clue:"2. Fast transport"},
+        {num:3, clue:"3. Rail transport"},
+        {num:4, clue:"4. Two-wheel vehicle"}
+      ],
+      down: [
+        {num:1, clue:"1. Express service"},
+        {num:2, clue:"2. Flying vehicle"},
+        {num:3, clue:"3. Public transport"},
+        {num:4, clue:"4. Water transport"}
+      ]
+    },
+    answers: [['T','R','U','C','K'],['R','','A','','A'],['A','I','N','S','R'],['','R','','H',''],['B','I','K','E','']]
+  },
+
+  {
+    name: "Final #25", size: 5,
+    grid: [
+      [{letter:'F',n:1},{letter:'I'},{letter:'N'},{letter:'A'},{letter:'L'}],
+      [{letter:'I'},{blocked:true},{letter:'I'},{blocked:true},{letter:'A'}],
+      [{letter:'N',n:2},{letter:'A'},{letter:'M',n:3},{letter:'E'},{letter:'S'}],
+      [{letter:'I'},{blocked:true},{blocked:true},{letter:'N'},{letter:'T'}],
+      [{letter:'S'},{letter:'H',n:4},{letter:'A'},{letter:'P'},{letter:'P'},{letter:'Y'}]
+    ],
+    clues: {
+      across: [
+        {num:1, clue:"1. Last or ultimate"},
+        {num:2, clue:"2. Person's title"},
+        {num:3, clue:"3. Personal labels"},
+        {num:4, clue:"4. Joyful feeling"}
+      ],
+      down: [
+        {num:1, clue:"1. Complete or done"},
+        {num:2, clue:"2. Nine digits"},
+        {num:3, clue:"3. Center part"},
+        {num:4, clue:"4. Positive emotion"}
+      ]
+    },
+    answers: [['F','I','N','A','L'],['I','','I','','A'],['N','A','M','E','S'],['I','','','N','T'],['S','H','A','P','P','Y']]
+  }
+];
+
+// Game Logic Variables
+let currentPuzzle = null;
+let currentPuzzleIndex = 0;
+let boardInputs = [];
+let selectedRow = 0, selectedCol = 0;
+let infoBarTimeout = null;
+
+// Utility Functions
+function showLoader(show) {
+  document.getElementById('loader').style.display = show ? 'flex' : 'none';
+}
+
+function showPopup(text) {
+  document.getElementById('popup-text').innerHTML = text;
+  document.getElementById('popup-modal').style.display = 'flex';
+}
+
+function closePopup() {
+  document.getElementById('popup-modal').style.display = 'none';
+}
+
+function showInfo(msg = '', time = 1500) {
+  clearTimeout(infoBarTimeout);
+  let bar = document.getElementById('info-bar');
+  bar.textContent = msg || '';
+  if (msg) infoBarTimeout = setTimeout(() => { bar.textContent = ''; }, time);
+}
+
+function updatePuzzleCounter() {
+  document.getElementById('puzzle-counter').textContent = `${currentPuzzleIndex + 1}/25`;
+}
+
+function clearBoard() {
+  let board = document.getElementById('cw-board');
+  while (board.firstChild) board.removeChild(board.firstChild);
+}
+
+function renderClues(clues) {
+  let acrossDiv = document.getElementById('across-clues');
+  let downDiv = document.getElementById('down-clues');
+  acrossDiv.innerHTML = clues.across.map(cl => `<div class="clue-line">${cl.clue}</div>`).join('');
+  downDiv.innerHTML = clues.down.map(cl => `<div class="clue-line">${cl.clue}</div>`).join('');
+}
+
+function renderBoard(puzzle) {
+  clearBoard();
+  boardInputs = [];
+  
+  for (let r = 0; r < puzzle.size; r++) {
+    let row = [];
+    for (let c = 0; c < puzzle.size; c++) {
+      let cell = puzzle.grid[r][c];
+      let cellDiv = document.createElement('div');
+      cellDiv.className = 'cell';
+      
+      if (cell && cell.blocked) {
+        cellDiv.classList.add('blocked');
+        cellDiv.tabIndex = -1;
+        row.push(null);
+      } else {
+        let inp = document.createElement('input');
+        inp.maxLength = 1;
+        inp.autocapitalize = 'characters';
+        inp.spellcheck = false;
+        inp.autocomplete = 'off';
+        inp.inputMode = 'text';
+        inp.pattern = '[A-Za-z]';
+        
+        inp.addEventListener('input', function(e) {
+          if (e.target.value.length > 1)
+            e.target.value = e.target.value.slice(0, 1);
+          e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '').toUpperCase();
+          moveFocus(r, c, 1);
+        });
+        
+        inp.addEventListener('focus', function() { selectCell(r, c); });
+        inp.addEventListener('keydown', function(e) {
+          if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Tab'].includes(e.key)) {
+            e.preventDefault();
+            if (e.key == 'ArrowLeft') moveFocus(r, c, -1, 0);
+            if (e.key == 'ArrowRight') moveFocus(r, c, 1, 0);
+            if (e.key == 'ArrowUp') moveFocus(r, c, 0, -1);
+            if (e.key == 'ArrowDown') moveFocus(r, c, 0, 1);
+            if (e.key == 'Tab') moveFocus(r, c, 1, 0);
+          } else if (e.key == 'Backspace' && !inp.value) {
+            moveFocus(r, c, -1);
+          }
+        });
+        
+        cellDiv.appendChild(inp);
+        row.push(inp);
+        
+        if (cell && (cell.n || cell.n === 0)) {
+          let numDiv = document.createElement('div');
+          numDiv.className = 'cell-label';
+          numDiv.textContent = cell.n;
+          cellDiv.appendChild(numDiv);
+        }
+      }
+      
+      cellDiv.dataset.row = r;
+      cellDiv.dataset.col = c;
+      document.getElementById('cw-board').appendChild(cellDiv);
+    }
+    boardInputs.push(row);
+  }
+}
+
+function resetInputs() {
+  for (let r = 0; r < boardInputs.length; r++) {
+    for (let c = 0; c < boardInputs[0].length; c++) {
+      if (boardInputs[r][c]) {
+        boardInputs[r][c].value = '';
+        boardInputs[r][c].className = '';
+        let parcell = boardInputs[r][c].parentNode;
+        parcell.classList.remove('correct', 'wrong', 'selected');
+      }
+    }
+  }
+}
+
+function fillSolution(ans) {
+  for (let r = 0; r < boardInputs.length; r++) {
+    for (let c = 0; c < boardInputs[0].length; c++) {
+      if (boardInputs[r][c] && ans[r][c]) {
+        boardInputs[r][c].value = ans[r][c];
+      }
+    }
+  }
+}
+
+function checkSolution(ans) {
+  let correct = true, some = false;
+  for (let r = 0; r < boardInputs.length; r++) {
+    for (let c = 0; c < boardInputs[0].length; c++) {
+      if (boardInputs[r][c] && ans[r][c]) {
+        let parcell = boardInputs[r][c].parentNode;
+        let val = (boardInputs[r][c].value || '').toUpperCase();
+        if (!val) {
+          parcell.classList.remove('correct', 'wrong');
+          correct = false;
+          continue;
+        }
+        if (val == ans[r][c]) {
+          parcell.classList.add('correct');
+          parcell.classList.remove('wrong');
+          some = true;
+        } else {
+          parcell.classList.add('wrong');
+          parcell.classList.remove('correct');
+          correct = false;
+          some = true;
+        }
+      }
+    }
+  }
+  return correct && some;
+}
+
+function moveFocus(row, col, dr = 0, dc = 0) {
+  let r = row, c = col, n = 5, maxT = 12;
+  while (maxT--) {
+    r = (r + dr + n) % n;
+    c = (c + dc + n) % n;
+    if (boardInputs[r] && boardInputs[r][c]) {
+      boardInputs[r][c].focus();
+      selectCell(r, c);
+      break;
+    }
+  }
+}
+
+function selectCell(r, c) {
+  selectedRow = r;
+  selectedCol = c;
+  for (let rr = 0; rr < boardInputs.length; rr++) {
+    for (let cc = 0; cc < boardInputs[0].length; cc++) {
+      if (boardInputs[rr][cc]) {
+        let parcell = boardInputs[rr][cc].parentNode;
+        if (rr == r && cc == c) parcell.classList.add('selected');
+        else parcell.classList.remove('selected');
+      }
+    }
+  }
+}
+
+// Game Functions
+function loadPuzzle(index) {
+  currentPuzzleIndex = index;
+  currentPuzzle = crosswordPuzzles[index];
+  updatePuzzleCounter();
+  resetInputs();
+  renderBoard(currentPuzzle);
+  renderClues(currentPuzzle.clues);
+  
+  setTimeout(() => {
+    if (boardInputs[0] && boardInputs[0][0]) {
+      boardInputs[0][0].focus();
+      selectCell(0, 0);
+    }
+  }, 100);
+  
+  showInfo(`📝 ${currentPuzzle.name} loaded!`, 1400);
+}
+
+function nextPuzzle() {
+  showLoader(true);
+  setTimeout(() => {
+    currentPuzzleIndex = (currentPuzzleIndex + 1) % crosswordPuzzles.length;
+    loadPuzzle(currentPuzzleIndex);
+    showLoader(false);
+  }, 300);
+}
+
+// Event Listeners
+document.getElementById('newgame-btn').onclick = nextPuzzle;
+
+document.getElementById('solve-btn').onclick = function() {
+  showLoader(true);
+  setTimeout(() => {
+    fillSolution(currentPuzzle.answers);
+    showLoader(false);
+    showInfo('🎉 Puzzle auto-solved!', 1500);
+  }, 400);
+};
+
+document.getElementById('check-btn').onclick = function() {
+  let solved = checkSolution(currentPuzzle.answers);
+  if (solved) {
+    showInfo('🏆 Perfect! Puzzle complete!', 1800);
+  } else {
+    showInfo('❌ Check red marked entries', 1400);
+  }
+};
+
+document.getElementById('info-btn').onclick = function() {
+  showPopup(`
+    <b>🎯 How to Play Crossword:</b><br>
+    <ul style="text-align:left;font-size:0.95rem;margin:12px auto 8px auto;line-height:1.4;padding-left:20px;">
+      <li>✏️ <b>Fill squares</b> using across/down clues</li>
+      <li>🎯 <b>Tap cells</b> and type one letter per box</li>
+      <li>✅ <b>Check button</b> verifies answers (wrong = red)</li>
+      <li>🔮 <b>Auto Solve</b> reveals all correct answers</li>
+      <li>🎲 <b>Next button</b> loads the next puzzle (1-25)</li>
+      <li>🔄 <b>Navigate</b> with arrow keys or touch</li>
+      <li>📱 <b>Mobile optimized</b> - no scrolling needed!</li>
+    </ul>
+    <div style="background:#f8f6ff;padding:8px;border-radius:8px;margin-top:8px;font-size:0.9rem;color:#6a11cb;">
+      <b>✨ Features:</b> 25 complete puzzles covering animals, food, nature, sports, music, and more themes!
+    </div>
+  `);
+};
+
+document.getElementById('modal-close').onclick = closePopup;
+document.getElementById('popup-modal').onclick = function(e) {
+  if (e.target === this) closePopup();
+};
+
+// Initialize game
+window.onload = () => {
+  showInfo('🎮 Welcome to Crossword Puzzles!', 2000);
+  loadPuzzle(0);
+};
+
+// Touch optimizations for mobile
+document.addEventListener('touchstart', function() {}, { passive: true });
+document.addEventListener('touchmove', function(e) {
+  e.preventDefault();
+}, { passive: false });
+
+</script>
+</body>
+</html>
