@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Shape Puzzle</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            height: 100dvh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+        
+        .game {
+            width: 100%;
+            max-width: 100%;
+            height: 100%;
+            max-height: 100%;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            padding: 5px;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            border-bottom: 2px solid #f0f0f0;
+            flex-shrink: 0;
+        }
+        
+        h1 {
+            color: #333;
+            font-size: 18px;
+            white-space: nowrap;
+        }
+        
+        .puzzle-info {
+            background: #f8f9fa;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            color: #666;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        
+        .difficulty {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 5px;
+            border-bottom: 1px solid #f0f0f0;
+            flex-shrink: 0;
+        }
+        
+        .diff-btn {
+            padding: 6px 12px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            cursor: pointer;
+            flex: 1;
+            max-width: 80px;
+        }
+        
+        .diff-btn.active {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+        
+        .equations {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 5px 10px;
+            min-height: 0;
+            overflow: hidden;
+        }
+        
+        .equation {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 10px;
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        
+        .shape {
+            font-size: 20px;
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .circle { color: #e74c3c; }
+        .diamond { color: #3498db; }
+        .triangle { color: #2ecc71; }
+        
+        .operator {
+            font-size: 16px;
+            color: #666;
+            margin: 0 3px;
+        }
+        
+        .equals {
+            font-size: 16px;
+            color: #333;
+            margin: 0 8px;
+            font-weight: bold;
+        }
+        
+        .result {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            min-width: 30px;
+        }
+        
+        .inputs {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            padding: 10px;
+            flex-shrink: 0;
+        }
+        
+        .input-group {
+            text-align: center;
+        }
+        
+        .input-group span {
+            display: block;
+            font-size: 22px;
+            margin-bottom: 5px;
+            height: 30px;
+        }
+        
+        .input-value {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            text-align: center;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: all 0.3s;
+            min-height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            background: white;
+        }
+        
+        .input-value.correct {
+            border-color: #2ecc71;
+            background: #f0fff4;
+        }
+        
+        .input-value.wrong {
+            border-color: #e74c3c;
+            background: #fff0f0;
+        }
+        
+        .buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            padding: 10px;
+            flex-shrink: 0;
+        }
+        
+        button {
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        button:active {
+            transform: scale(0.98);
+        }
+        
+        .check {
+            background: #2ecc71;
+            color: white;
+        }
+        
+        .next {
+            background: #9b59b6;
+            color: white;
+        }
+        
+        .reset {
+            background: #e74c3c;
+            color: white;
+            grid-column: span 2;
+        }
+        
+        .message {
+            margin: 5px 10px;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            text-align: center;
+            display: none;
+            flex-shrink: 0;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #2ecc71;
+            display: block;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #e74c3c;
+            display: block;
+        }
+        
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 2px solid #bee5eb;
+            display: block;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            border-top: 2px solid #f0f0f0;
+            flex-shrink: 0;
+        }
+        
+        .stat-item {
+            text-align: center;
+            flex: 1;
+        }
+        
+        .stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .stat-label {
+            font-size: 10px;
+            color: #666;
+            margin-top: 3px;
+            font-weight: 600;
+        }
+        
+        /* Custom Keyboard */
+        .keyboard {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 15px;
+            border-top: 2px solid #ddd;
+            display: none;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            z-index: 1000;
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .keyboard.active {
+            display: grid;
+            animation: slideUp 0.3s ease-out;
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        
+        .key {
+            padding: 15px;
+            font-size: 20px;
+            border: none;
+            background: #f8f9fa;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+        
+        .key:active {
+            background: #e9ecef;
+            transform: scale(0.95);
+        }
+        
+        .key-zero {
+            grid-column: span 2;
+        }
+        
+        .key-decimal {
+            background: #e9ecef;
+        }
+        
+        .key-backspace {
+            background: #ff6b6b;
+            color: white;
+        }
+        
+        .key-backspace:active {
+            background: #ff5252;
+        }
+        
+        .key-done {
+            background: #4CAF50;
+            color: white;
+            grid-column: span 3;
+            font-size: 18px;
+            padding: 12px;
+        }
+        
+        .key-done:active {
+            background: #45a049;
+        }
+        
+        .keyboard-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.3);
+            z-index: 999;
+            display: none;
+        }
+        
+        .keyboard-overlay.active {
+            display: block;
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        /* Landscape orientation */
+        @media (orientation: landscape) {
+            .game {
+                max-width: 500px;
+                max-height: 95vh;
+                border-radius: 15px;
+                overflow: hidden;
+            }
+            
+            .equations {
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 5px;
+            }
+            
+            .equation {
+                flex: 1;
+                min-width: 30%;
+                margin: 2px;
+                padding: 8px;
+            }
+            
+            .inputs {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 15px;
+                padding: 15px;
+            }
+            
+            .buttons {
+                grid-template-columns: repeat(3, 1fr);
+                padding: 15px;
+            }
+            
+            .reset {
+                grid-column: span 3;
+            }
+            
+            .keyboard {
+                max-width: 500px;
+                left: 50%;
+                transform: translateX(-50%);
+                bottom: 10px;
+                border-radius: 15px;
+            }
+        }
+        
+        /* Very small screens */
+        @media (max-height: 600px) {
+            .header {
+                padding: 8px 12px;
+            }
+            
+            .equation {
+                padding: 8px;
+                margin: 3px 0;
+            }
+            
+            .shape {
+                font-size: 18px;
+                width: 25px;
+                height: 25px;
+            }
+            
+            .inputs {
+                padding: 8px;
+                gap: 8px;
+            }
+            
+            .input-group span {
+                font-size: 20px;
+                margin-bottom: 3px;
+                height: 25px;
+            }
+            
+            .input-value {
+                padding: 8px;
+                font-size: 14px;
+                min-height: 40px;
+            }
+            
+            .buttons {
+                padding: 8px;
+            }
+            
+            button {
+                padding: 10px;
+                font-size: 13px;
+            }
+            
+            .stats {
+                padding: 8px;
+            }
+            
+            .stat-value {
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game">
+        <div class="header">
+            <h1>Shape Puzzle</h1>
+            <div class="puzzle-info">Puzzle: <span id="puzzleNum">1</span>/<span id="totalPuzzles">10</span></div>
+        </div>
+        
+        <div class="difficulty">
+            <button class="diff-btn active" data-level="easy">Easy</button>
+            <button class="diff-btn" data-level="medium">Medium</button>
+            <button class="diff-btn" data-level="hard">Hard</button>
+        </div>
+        
+        <div class="equations" id="equations">
+            <!-- Equations will be generated here -->
+        </div>
+        
+        <div class="inputs">
+            <div class="input-group">
+                <span class="shape circle">●</span>
+                <div class="input-value" data-shape="circle" id="circleValue">?</div>
+            </div>
+            
+            <div class="input-group">
+                <span class="shape diamond">◆</span>
+                <div class="input-value" data-shape="diamond" id="diamondValue">?</div>
+            </div>
+            
+            <div class="input-group">
+                <span class="shape triangle">▲</span>
+                <div class="input-value" data-shape="triangle" id="triangleValue">?</div>
+            </div>
+        </div>
+        
+        <div class="message" id="message"></div>
+        
+        <div class="buttons">
+            <button class="check" id="checkBtn">Check</button>
+            <button class="next" id="nextBtn">Next</button>
+            <button class="reset" id="resetBtn">Reset All</button>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-value" id="score">0</div>
+                <div class="stat-label">SCORE</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="solved">0</div>
+                <div class="stat-label">SOLVED</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="faults">0</div>
+                <div class="stat-label">FAULTS</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Custom Keyboard -->
+    <div class="keyboard-overlay" id="keyboardOverlay"></div>
+    <div class="keyboard" id="keyboard">
+        <button class="key" data-value="1">1</button>
+        <button class="key" data-value="2">2</button>
+        <button class="key" data-value="3">3</button>
+        <button class="key" data-value="4">4</button>
+        <button class="key" data-value="5">5</button>
+        <button class="key" data-value="6">6</button>
+        <button class="key" data-value="7">7</button>
+        <button class="key" data-value="8">8</button>
+        <button class="key" data-value="9">9</button>
+        <button class="key key-zero" data-value="0">0</button>
+        <button class="key key-decimal" data-value=".">.</button>
+        <button class="key key-backspace" id="backspace">⌫</button>
+        <button class="key key-done" id="keyboardDone">Done ✓</button>
+    </div>
+
+    <script>
+        // Game configuration
+        const DIFFICULTY_CONFIG = {
+            easy: { min: 1, max: 10, decimal: false, puzzles: 10 },
+            medium: { min: 1, max: 20, decimal: false, puzzles: 8 },
+            hard: { min: 0.5, max: 15, decimal: true, puzzles: 6 }
+        };
+        
+        // Game state
+        let currentPuzzle = 1;
+        let totalPuzzles = 10;
+        let score = 0;
+        let solved = 0;
+        let faults = 0;
+        let currentDifficulty = 'easy';
+        let currentSolution = {};
+        let isCurrentSolved = false;
+        let currentInput = null;
+        
+        // DOM elements
+        const equationsDiv = document.getElementById('equations');
+        const circleValue = document.getElementById('circleValue');
+        const diamondValue = document.getElementById('diamondValue');
+        const triangleValue = document.getElementById('triangleValue');
+        const checkBtn = document.getElementById('checkBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const messageDiv = document.getElementById('message');
+        const puzzleNumSpan = document.getElementById('puzzleNum');
+        const totalPuzzlesSpan = document.getElementById('totalPuzzles');
+        const scoreSpan = document.getElementById('score');
+        const solvedSpan = document.getElementById('solved');
+        const faultsSpan = document.getElementById('faults');
+        const diffBtns = document.querySelectorAll('.diff-btn');
+        const keyboard = document.getElementById('keyboard');
+        const keyboardOverlay = document.getElementById('keyboardOverlay');
+        const backspaceBtn = document.getElementById('backspace');
+        const keyboardDoneBtn = document.getElementById('keyboardDone');
+        const keyButtons = document.querySelectorAll('.key[data-value]');
+        
+        // Generate random number
+        function randomNumber(min, max, allowDecimal) {
+            if (allowDecimal) {
+                const value = Math.random() * (max - min) + min;
+                return Math.round(value * 2) / 2;
+            }
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+        
+        // Generate new puzzle
+        function generatePuzzle() {
+            const config = DIFFICULTY_CONFIG[currentDifficulty];
+            
+            // Generate unique values
+            let circle, diamond, triangle;
+            let attempts = 0;
+            
+            do {
+                circle = randomNumber(config.min, config.max, config.decimal);
+                diamond = randomNumber(config.min, config.max, config.decimal);
+                triangle = randomNumber(config.min, config.max, config.decimal);
+                attempts++;
+            } while (
+                (circle === diamond || diamond === triangle || circle === triangle) && 
+                attempts < 10
+            );
+            
+            // Store solution
+            currentSolution = { circle, diamond, triangle };
+            
+            // Calculate equations
+            const eq1 = circle * 3;
+            const eq2 = diamond + circle;
+            const eq3 = triangle * 2 + diamond;
+            
+            // Update total puzzles
+            totalPuzzles = config.puzzles;
+            totalPuzzlesSpan.textContent = totalPuzzles;
+            
+            // Generate equation HTML
+            equationsDiv.innerHTML = `
+                <div class="equation">
+                    <span class="shape circle">●</span>
+                    <span class="operator">+</span>
+                    <span class="shape circle">●</span>
+                    <span class="operator">+</span>
+                    <span class="shape circle">●</span>
+                    <span class="equals">=</span>
+                    <span class="result">${eq1}</span>
+                </div>
+                
+                <div class="equation">
+                    <span class="shape diamond">◆</span>
+                    <span class="operator">+</span>
+                    <span class="shape circle">●</span>
+                    <span class="equals">=</span>
+                    <span class="result">${eq2}</span>
+                </div>
+                
+                <div class="equation">
+                    <span class="shape triangle">▲</span>
+                    <span class="operator">+</span>
+                    <span class="shape diamond">◆</span>
+                    <span class="operator">+</span>
+                    <span class="shape triangle">▲</span>
+                    <span class="equals">=</span>
+                    <span class="result">${eq3}</span>
+                </div>
+            `;
+            
+            // Reset inputs
+            resetInputs();
+            isCurrentSolved = false;
+            
+            // Update puzzle number
+            puzzleNumSpan.textContent = currentPuzzle;
+            
+            // Show puzzle info
+            showMessage(`Puzzle ${currentPuzzle} of ${totalPuzzles}`, 'info');
+        }
+        
+        // Reset input fields
+        function resetInputs() {
+            circleValue.textContent = '?';
+            diamondValue.textContent = '?';
+            triangleValue.textContent = '?';
+            
+            circleValue.classList.remove('correct', 'wrong');
+            diamondValue.classList.remove('correct', 'wrong');
+            triangleValue.classList.remove('correct', 'wrong');
+            
+            // Hide keyboard if open
+            hideKeyboard();
+        }
+        
+        // Show custom keyboard
+        function showKeyboard(inputElement) {
+            currentInput = inputElement;
+            keyboard.classList.add('active');
+            keyboardOverlay.classList.add('active');
+            
+            // Highlight the active input
+            [circleValue, diamondValue, triangleValue].forEach(input => {
+                input.style.boxShadow = input === inputElement ? '0 0 0 2px #3498db' : 'none';
+            });
+        }
+        
+        // Hide custom keyboard - FIXED
+        function hideKeyboard() {
+            keyboard.classList.remove('active');
+            keyboardOverlay.classList.remove('active');
+            
+            // Remove highlight from all inputs
+            [circleValue, diamondValue, triangleValue].forEach(input => {
+                input.style.boxShadow = 'none';
+            });
+            
+            currentInput = null;
+        }
+        
+        // Update input value
+        function updateInputValue(value) {
+            if (!currentInput) return;
+            
+            let current = currentInput.textContent;
+            
+            if (current === '?') {
+                currentInput.textContent = value;
+            } else if (value === '.') {
+                if (!current.includes('.')) {
+                    currentInput.textContent += value;
+                }
+            } else {
+                currentInput.textContent += value;
+            }
+            
+            // Validate input as user types
+            validateInput(currentInput);
+        }
+        
+        // Backspace
+        function handleBackspace() {
+            if (!currentInput) return;
+            
+            let current = currentInput.textContent;
+            if (current.length > 1) {
+                currentInput.textContent = current.slice(0, -1);
+            } else {
+                currentInput.textContent = '?';
+            }
+            
+            validateInput(currentInput);
+        }
+        
+        // Validate input
+        function validateInput(input) {
+            input.classList.remove('correct', 'wrong');
+            
+            if (input.textContent === '?') return false;
+            
+            const shape = input.dataset.shape;
+            const expected = currentSolution[shape];
+            const userValue = parseFloat(input.textContent);
+            
+            if (isNaN(userValue)) return false;
+            
+            const isCorrect = Math.abs(userValue - expected) < 0.01;
+            
+            if (isCorrect) {
+                input.classList.add('correct');
+            } else {
+                input.classList.add('wrong');
+            }
+            
+            return isCorrect;
+        }
+        
+        // Check answers
+        function checkAnswers() {
+            if (isCurrentSolved) {
+                showMessage('Already solved! Try next puzzle.', 'info');
+                return;
+            }
+            
+            hideKeyboard();
+            
+            const circleCorrect = validateInput(circleValue);
+            const diamondCorrect = validateInput(diamondValue);
+            const triangleCorrect = validateInput(triangleValue);
+            
+            if (circleCorrect && diamondCorrect && triangleCorrect) {
+                // All correct
+                score += currentDifficulty === 'easy' ? 10 : 
+                        currentDifficulty === 'medium' ? 15 : 20;
+                solved++;
+                isCurrentSolved = true;
+                
+                showMessage(
+                    `✅ Correct! ● = ${currentSolution.circle}, ◆ = ${currentSolution.diamond}, ▲ = ${currentSolution.triangle}`,
+                    'success'
+                );
+                
+                updateStats();
+            } else {
+                // Some wrong
+                faults++;
+                showMessage('❌ Some answers are incorrect. Try again!', 'error');
+                updateStats();
+            }
+        }
+        
+        // Go to next puzzle
+        function nextPuzzle() {
+            hideKeyboard();
+            
+            if (currentPuzzle < totalPuzzles) {
+                currentPuzzle++;
+                generatePuzzle();
+            } else {
+                // Completed all puzzles
+                showMessage('🎉 Congratulations! You completed all puzzles!', 'success');
+                nextBtn.disabled = true;
+                
+                // Restart from beginning
+                setTimeout(() => {
+                    currentPuzzle = 1;
+                    generatePuzzle();
+                    nextBtn.disabled = false;
+                }, 2000);
+            }
+        }
+        
+        // Reset entire game
+        function resetGame() {
+            hideKeyboard();
+            
+            currentPuzzle = 1;
+            score = 0;
+            solved = 0;
+            faults = 0;
+            
+            generatePuzzle();
+            updateStats();
+            nextBtn.disabled = false;
+        }
+        
+        // Change difficulty
+        function changeDifficulty(level) {
+            currentDifficulty = level;
+            
+            // Update button states
+            diffBtns.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.level === level);
+            });
+            
+            // Reset game with new difficulty
+            resetGame();
+        }
+        
+        // Update stats display
+        function updateStats() {
+            scoreSpan.textContent = score;
+            solvedSpan.textContent = solved;
+            faultsSpan.textContent = faults;
+        }
+        
+        // Show message
+        function showMessage(text, type) {
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type}`;
+            
+            // Auto-hide after 3 seconds
+            setTimeout(() => {
+                if (messageDiv.textContent === text) {
+                    messageDiv.className = 'message';
+                }
+            }, 3000);
+        }
+        
+        // Initialize event listeners - FIXED
+        function initEventListeners() {
+            // Input click handlers
+            [circleValue, diamondValue, triangleValue].forEach(input => {
+                input.addEventListener('click', function(e) {
+                    e.stopPropagation(); // Prevent event bubbling
+                    showKeyboard(this);
+                });
+            });
+            
+            // Keyboard buttons
+            keyButtons.forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    updateInputValue(this.dataset.value);
+                });
+            });
+            
+            // Backspace button
+            backspaceBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                handleBackspace();
+            });
+            
+            // Done button - FIXED: Now properly closes keyboard
+            keyboardDoneBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                hideKeyboard();
+            });
+            
+            // Overlay click to hide keyboard
+            keyboardOverlay.addEventListener('click', function(e) {
+                e.stopPropagation();
+                hideKeyboard();
+            });
+            
+            // Game control buttons
+            [checkBtn, nextBtn, resetBtn].forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                });
+            });
+            
+            checkBtn.addEventListener('click', checkAnswers);
+            nextBtn.addEventListener('click', nextPuzzle);
+            resetBtn.addEventListener('click', resetGame);
+            
+            // Difficulty buttons
+            diffBtns.forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    changeDifficulty(this.dataset.level);
+                });
+            });
+            
+            // Close keyboard when clicking outside (except on keyboard buttons)
+            document.addEventListener('click', function(e) {
+                if (keyboard.classList.contains('active') && 
+                    !keyboard.contains(e.target) && 
+                    !e.target.classList.contains('input-value')) {
+                    hideKeyboard();
+                }
+            });
+            
+            // Also close keyboard on escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && keyboard.classList.contains('active')) {
+                    hideKeyboard();
+                }
+            });
+            
+            // Touch events for better mobile
+            document.addEventListener('touchstart', function(e) {
+                if (keyboard.classList.contains('active') && 
+                    !keyboard.contains(e.target) && 
+                    !e.target.classList.contains('input-value')) {
+                    hideKeyboard();
+                }
+            }, { passive: true });
+        }
+        
+        // Initialize game
+        generatePuzzle();
+        updateStats();
+        initEventListeners();
+        
+        // Debug helper
+        console.log('Game loaded. Keyboard should close when Done is clicked.');
+    </script>
+</body>
+</html>
