@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover,user-scalable=no" />
+  <title>Gem Match 3 — Responsive (Portrait & Landscape)</title>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
+  <style>
+    /* Reset & mobile friendly */
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;touch-action:manipulation;}
+    html,body{height:100%;width:100%;font-family:Inter,Segoe UI,Roboto,system-ui,-apple-system,Arial,sans-serif;background:linear-gradient(180deg,#6a11cb,#fff);color:#111;}
+    #game-container{position:fixed;inset:0;z-index:1;display:flex;align-items:center;justify-content:center;overflow:hidden}
+    /* Mobile UI overlay */
+    .mobile-ui{position:fixed;inset:0;z-index:2;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:10px 12px;gap:8px}
+    /* Top header / card */
+    .header{width:100%;pointer-events:auto;background:linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.9));border-radius:12px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 6px 18px rgba(16,16,40,0.12);backdrop-filter:blur(6px)}
+    .game-title{font-weight:700;font-size:1rem;color:#3b2b6b;background:linear-gradient(45deg,#6a11cb,#3498db);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .stats{display:flex;gap:8px;align-items:center}
+    .stat{background:#fff;padding:6px 8px;border-radius:10px;box-shadow:0 4px 10px rgba(16,16,40,0.06);text-align:center;min-width:56px}
+    .stat .label{font-size:0.64rem;color:#666}
+    .stat .value{font-weight:700;color:#111;font-size:0.9rem}
+    /* Controls row */
+    .controls{width:100%;display:flex;gap:8px;pointer-events:auto;justify-content:center;align-items:center}
+    .btn{flex:1;max-width:120px;padding:8px 10px;border-radius:12px;border:none;font-weight:700;font-size:0.85rem;cursor:pointer;box-shadow:0 6px 14px rgba(52,152,219,0.18);display:inline-flex;align-items:center;justify-content:center;gap:8px}
+    .btn.primary{background:#3498db;color:#fff}
+    .btn.secondary{background:#6a11cb;color:#fff;box-shadow:0 6px 14px rgba(106,17,203,0.16)}
+    .btn.ghost{background:transparent;border:1px solid rgba(0,0,0,0.06);color:#111}
+    .icon{width:18px;height:18px;display:inline-block;flex-shrink:0}
+    /* Popups (white cards) */
+    .popup{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:10;padding:16px;visibility:hidden;opacity:0;transition:all .18s ease}
+    .popup.active{visibility:visible;opacity:1}
+    .card{background:#fff;color:#111;border-radius:14px;padding:14px;width:min(520px,94%);box-shadow:0 18px 40px rgba(16,16,40,0.12);pointer-events:auto}
+    .card h2{margin-bottom:8px;font-size:1.1rem}
+    .card p{font-size:0.95rem;color:#333;line-height:1.35;margin-bottom:10px}
+    .close-x{position:absolute;right:18px;top:14px;background:#6a11cb;color:#fff;border-radius:8px;padding:6px 8px;cursor:pointer;box-shadow:0 6px 14px rgba(106,17,203,0.12)}
+    /* Game over small card */
+    .game-over-card{text-align:center}
+    /* Toast */
+    .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;background:rgba(16,16,40,0.9);color:#fff;padding:8px 12px;border-radius:12px;font-weight:600;z-index:20;opacity:0;pointer-events:none;transition:opacity .14s}
+    .toast.show{opacity:1;pointer-events:auto}
+    /* Responsive tweaks */
+    @media (max-width:420px){
+      .game-title{font-size:0.95rem}
+      .stat{min-width:48px;padding:6px 6px}
+      .btn{max-width:110px;padding:7px 8px;font-size:0.82rem;border-radius:10px}
+    }
+    /* Keep UI always visible in landscape or portrait; board will resize to fit */
+  </style>
+</head>
+<body>
+  <div id="game-container"></div>
+
+  <div class="mobile-ui" id="mobile-ui">
+    <div class="header" role="region" aria-label="game header">
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="game-title">Gem Match 3</div>
+        <button id="menu-btn" class="btn ghost" style="margin-left:6px">☰</button>
+      </div>
+      <div class="stats" aria-hidden="false">
+        <div class="stat"><div class="label">SCORE</div><div id="score" class="value">0</div></div>
+        <div class="stat"><div class="label">LEVEL</div><div id="level" class="value">1</div></div>
+        <div class="stat"><div class="label">MOVES</div><div id="moves" class="value">30</div></div>
+      </div>
+    </div>
+
+    <div class="controls" role="toolbar" aria-label="game controls">
+      <button id="restart-btn" class="btn primary" title="New Game">New</button>
+      <button id="hint-btn" class="btn secondary" title="Hint">Hint</button>
+      <button id="check-btn" class="btn ghost" title="Check if any move exists">Check</button>
+      <button id="autosolve-btn" class="btn secondary" title="Auto-solve">Auto</button>
+    </div>
+  </div>
+
+  <!-- Instructions popup -->
+  <div id="instructions-popup" class="popup">
+    <div class="card" style="position:relative">
+      <div class="close-x" id="close-instructions">×</div>
+      <h2>How to Play</h2>
+      <p><strong>Swap adjacent gems</strong> by tapping one gem and tapping an adjacent gem, or drag to swap. Create rows/cols of <strong>3+</strong> matching gems to clear them. Longer matches score bonuses.</p>
+      <p>Use <strong>Hint</strong> to highlight a possible move, <strong>Auto</strong> to play available moves automatically (up to a sequence), and <strong>Check</strong> to validate if any move exists.</p>
+      <button id="start-playing" class="btn primary" style="width:100%">Start</button>
+    </div>
+  </div>
+
+  <!-- Game over popup -->
+  <div id="game-over-popup" class="popup">
+    <div class="card game-over-card">
+      <h2>Game Over</h2>
+      <p>Final Score: <strong id="final-score">0</strong></p>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button id="play-again" class="btn primary" style="flex:1">Play Again</button>
+        <button id="close-gameover" class="btn ghost" style="flex:1">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+<script>
+/* ============================
+   Gem Match 3 — Phaser 3
+   Responsive for portrait & landscape
+   Features: Hint, Auto-solve, Check, Energetic pop sounds (WebAudio)
+   ============================ */
+
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+// Save some global state across scene restarts so resizing doesn't wipe score unintentionally
+const GLOBAL_STATE = { score: 0, level: 1, movesLeft: 30, targetScore: 1000 };
+
+let game;
+let currentSceneRef;
+
+// Phaser config uses RESIZE so the canvas follows container size
+const config = {
+  type: Phaser.AUTO,
+  parent: 'game-container',
+  backgroundColor: 0x000000,
+  scale: {
+    mode: Phaser.Scale.RESIZE,
+    width: window.innerWidth,
+    height: window.innerHeight,
+    autoCenter: Phaser.Scale.CENTER_BOTH
+  },
+  scene: {
+    preload: preload,
+    create: create,
+    update: update
+  }
+};
+
+// Game variables (kept scoped to scene but some preserved in GLOBAL_STATE)
+let board, gemSize, boardSize, offsetX, offsetY, selectedGem, canMove, dragStartGem, dragStartPosition, gemTypes;
+let audioCtx, masterGain;
+
+// Utility: show a small toast message
+function showToast(text, ms=1200){
+  const t = document.getElementById('toast');
+  t.textContent = text;
+  t.classList.add('show');
+  clearTimeout(t._hide);
+  t._hide = setTimeout(()=> t.classList.remove('show'), ms);
+}
+
+/* ============================
+   Sound: energetic pop / blast using WebAudio (dynamic)
+   Generates two short pops (like candy crush)
+   ============================ */
+function initAudio(){
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.9;
+    masterGain.connect(audioCtx.destination);
+  } catch(e){
+    audioCtx = null;
+  }
+}
+function playPop(type='small'){ // type: 'small' | 'big' | 'level'
+  if(!audioCtx) return;
+  const now = audioCtx.currentTime;
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(0.0001, now);
+  g.connect(masterGain);
+
+  // small pop: short freq burst
+  const o = audioCtx.createOscillator();
+  o.type = 'sawtooth';
+  o.frequency.setValueAtTime(type==='big'? 520 : 720, now);
+  o.connect(g);
+  g.gain.exponentialRampToValueAtTime(type==='big'?0.35:0.28, now + 0.005);
+  g.gain.exponentialRampToValueAtTime(0.001, now + (type==='big'?0.22:0.12));
+  o.start(now);
+  o.stop(now + (type==='big'?0.22:0.12));
+
+  // small sub-bass thump for big
+  if(type==='big' || type==='level'){
+    const o2 = audioCtx.createOscillator();
+    const g2 = audioCtx.createGain();
+    o2.type='sine';
+    o2.frequency.setValueAtTime(120, now);
+    g2.gain.setValueAtTime(0.0001, now);
+    g2.gain.exponentialRampToValueAtTime(0.25, now+0.01);
+    g2.gain.exponentialRampToValueAtTime(0.001, now+0.25);
+    o2.connect(g2);
+    g2.connect(masterGain);
+    o2.start(now);
+    o2.stop(now+0.25);
+  }
+}
+
+/* ============================
+   Preload: create textures dynamically based on gemSize
+   But since gemSize depends on screen, we'll compute it here using window size.
+   ============================ */
+function preload(){
+  currentSceneRef = this;
+  // compute board size and gem size based on window dimensions
+  boardSize = 8; // default grid
+  // reserve UI space estimate (header + controls)
+  const uiReserve = Math.min(window.innerHeight * 0.22, 140);
+  const availableH = Math.max(window.innerHeight - uiReserve - 24, 160);
+  const availableW = Math.max(window.innerWidth - 20, 160);
+  gemSize = Math.max(34, Math.floor(Math.min(availableW / (boardSize + 0.8), availableH / (boardSize + 0.4))));
+  offsetX = Math.round((this.scale.width - boardSize * gemSize) / 2);
+  offsetY = Math.round((this.scale.height - boardSize * gemSize) / 2);
+
+  // Define gem types (icons & colors)
+  gemTypes = [
+    { key:'red', color:0xff6b6b, value:50, icon:'♦' },
+    { key:'blue', color:0x4ecdc4, value:60, icon:'♠' },
+    { key:'green', color:0x1dd1a1, value:70, icon:'♣' },
+    { key:'yellow', color:0xffcc00, value:80, icon:'★' },
+    { key:'purple', color:0x9b59b6, value:90, icon:'♥' },
+    { key:'orange', color:0xff9f43, value:100, icon:'●' }
+  ];
+
+  // Draw gem textures programmatically
+  gemTypes.forEach(gem=>{
+    const g = this.make.graphics({x:0,y:0,add:false});
+    // base rounded rect
+    g.fillStyle(gem.color,1);
+    g.fillRoundedRect(2,2,gemSize-4,gemSize-4,Math.max(6, gemSize*0.12));
+    // inner highlight
+    g.fillStyle(0xffffff,0.18);
+    g.fillRoundedRect(Math.floor(gemSize*0.18),Math.floor(gemSize*0.12),Math.floor(gemSize*0.26),Math.floor(gemSize*0.22),3);
+    g.fillStyle(0xffffff,0.08);
+    g.fillRoundedRect(Math.floor(gemSize*0.34),Math.floor(gemSize*0.36),Math.floor(gemSize*0.36),Math.floor(gemSize*0.28),4);
+    // subtle border
+    g.lineStyle(2,0x000000,0.08);
+    g.strokeRoundedRect(2,2,gemSize-4,gemSize-4,Math.max(6, gemSize*0.12));
+    g.generateTexture(gem.key, gemSize, gemSize);
+    g.destroy();
+  });
+
+  // background texture (subtle)
+  const bg = this.make.graphics({x:0,y:0,add:false});
+  bg.fillStyle(0xffffff,0.02);
+  bg.fillRect(0,0,this.scale.width,this.scale.height);
+  bg.generateTexture('bg', this.scale.width, this.scale.height);
+  bg.destroy();
+}
+
+/* ============================
+   Create: board + input hooks + UI wiring
+   ============================ */
+function create(){
+  initAudio();
+  playPop('small'); // tiny sound to ensure user gesture may be needed later to resume audio on mobile
+
+  // add background
+  this.add.image(this.scale.width/2, this.scale.height/2, 'bg');
+
+  // Initialize state
+  board = [];
+  canMove = true;
+  selectedGem = null;
+  dragStartGem = null;
+  dragStartPosition = {x:0,y:0};
+
+  // restore or initialize global game variables
+  if(typeof GLOBAL_STATE.score === 'undefined'){
+    GLOBAL_STATE.score = 0; GLOBAL_STATE.level = 1; GLOBAL_STATE.movesLeft = 30; GLOBAL_STATE.targetScore = 1000;
+  }
+
+  // Build board
+  for(let r=0;r<boardSize;r++){
+    board[r] = [];
+    for(let c=0;c<boardSize;c++){
+      createGem(this, r, c);
+    }
+  }
+
+  removeInitialMatches(this);
+
+  // Update HUD
+  updateHUD();
+
+  // UI wiring (DOM buttons)
+  document.getElementById('restart-btn').onclick = ()=> {
+    // reset globals then restart scene
+    GLOBAL_STATE.score = 0; GLOBAL_STATE.level = 1; GLOBAL_STATE.movesLeft = 30; GLOBAL_STATE.targetScore = 1000;
+    this.scene.restart();
+  };
+  document.getElementById('hint-btn').onclick = ()=> showHint(this);
+  document.getElementById('menu-btn').onclick = ()=> document.getElementById('instructions-popup').classList.add('active');
+  document.getElementById('close-instructions').onclick = ()=> document.getElementById('instructions-popup').classList.remove('active');
+  document.getElementById('start-playing').onclick = ()=> document.getElementById('instructions-popup').classList.remove('active');
+  document.getElementById('play-again').onclick = ()=> {
+    document.getElementById('game-over-popup').classList.remove('active');
+    GLOBAL_STATE.score = 0; GLOBAL_STATE.level = 1; GLOBAL_STATE.movesLeft = 30; GLOBAL_STATE.targetScore = 1000;
+    this.scene.restart();
+  };
+  document.getElementById('close-gameover').onclick = ()=> document.getElementById('game-over-popup').classList.remove('active');
+
+  // Check / Auto-solve features
+  document.getElementById('check-btn').onclick = ()=> {
+    const m = findAnyPossibleMove();
+    if(m) showToast('Move available');
+    else showToast('No moves available — reshuffling soon');
+  };
+  document.getElementById('autosolve-btn').onclick = ()=> {
+    doAutoSolve(this, 18);
+  };
+
+  // show instructions first time slightly delayed
+  setTimeout(()=> document.getElementById('instructions-popup').classList.add('active'), 420);
+
+  // Bring DOM HUD values into sync
+  updateHUD();
+
+  // Keep reference to scene for resize restart
+  currentSceneRef = this;
+}
+
+/* Update loop (not heavily used here) */
+function update(){}
+
+/* ============================
+   Gem creation and interactions
+   ============================ */
+function createGem(scene, row, col){
+  const gemType = Phaser.Math.RND.pick(gemTypes);
+  // sprite
+  const x = offsetX + col * gemSize + gemSize/2;
+  const y = offsetY + row * gemSize + gemSize/2;
+  const s = scene.add.sprite(x,y,gemType.key).setInteractive({useHandCursor:true});
+  // text icon overlay (small, crisp)
+  const iconSize = Math.max(10, Math.floor(gemSize*0.42));
+  const t = scene.add.text(x,y, gemType.icon, {fontSize: iconSize+'px', fontFamily:'Arial', color:'#ffffff'}).setOrigin(0.5);
+  // metadata
+  s.setData('row', row); s.setData('col', col);
+  s.setData('type', gemType.key); s.setData('value', gemType.value); s.setData('iconText', t);
+  s.setData('gemSprite', s);
+
+  // subtle entrance scale
+  s.setScale(0.92);
+  scene.tweens.add({targets:s, scaleX:1, scaleY:1, duration:260, ease:'Back.out'});
+  // input handlers (tap or drag)
+  s.on('pointerdown', function(pointer){
+    if(!canMove) return;
+    dragStartGem = s;
+    dragStartPosition.x = pointer.x; dragStartPosition.y = pointer.y;
+
+    // select
+    if(!selectedGem){
+      selectedGem = s;
+      s.setTint(0xdddddd);
+      scene.tweens.add({targets:s, scaleX:1.08, scaleY:1.08, duration:160, yoyo:true, repeat:-1});
+    }
+  });
+
+  s.on('pointerup', function(pointer){
+    if(!canMove || !dragStartGem) return;
+    const dist = Phaser.Math.Distance.Between(dragStartPosition.x,dragStartPosition.y, pointer.x, pointer.y);
+    if(dist < 8){
+      // tap logic
+      if(selectedGem && selectedGem !== s){
+        const r1 = selectedGem.getData('row'), c1 = selectedGem.getData('col');
+        const r2 = s.getData('row'), c2 = s.getData('col');
+        const adjacent = (Math.abs(r1-r2)===1 && c1===c2) || (Math.abs(c1-c2)===1 && r1===r2);
+        if(adjacent){
+          canMove = false;
+          // remove effects
+          scene.tweens.killTweensOf(selectedGem);
+          selectedGem.clearTint(); selectedGem.setScale(1);
+          swapGems(selectedGem, s, scene, true);
+          setTimeout(()=> {
+            const matches = findMatches();
+            if(matches.length>0){ removeMatches(matches, scene); GLOBAL_STATE.movesLeft--; updateHUD(); }
+            else { swapGems(selectedGem, s, scene, true); canMove = true; }
+          }, 380);
+        } else {
+          // deselect first and select new
+          scene.tweens.killTweensOf(selectedGem); selectedGem.clearTint(); selectedGem.setScale(1);
+          selectedGem = s;
+          s.setTint(0xdddddd);
+          scene.tweens.add({targets:s, scaleX:1.08, scaleY:1.08, duration:160, yoyo:true, repeat:-1});
+        }
+      }
+    } else {
+      // drag gesture
+      handleDragGesture(scene, s, pointer);
+    }
+    dragStartGem = null;
+  });
+
+  board[row][col] = s;
+  return s;
+}
+
+/* ============================
+   Drag handler (swaps neighboring gems)
+   ============================ */
+function handleDragGesture(scene, gem, pointer){
+  if(!dragStartGem || !canMove) return;
+  const dx = pointer.x - dragStartPosition.x;
+  const dy = pointer.y - dragStartPosition.y;
+  const absX = Math.abs(dx), absY = Math.abs(dy);
+  if(absX > absY && absX > gemSize*0.28){
+    const targetCol = dragStartGem.getData('col') + (dx>0?1:-1);
+    const targetRow = dragStartGem.getData('row');
+    if(targetCol>=0 && targetCol<boardSize){
+      const t = board[targetRow][targetCol];
+      if(t){ swapGemsWithDrag(dragStartGem, t, scene); }
+    }
+  } else if(absY > gemSize*0.28){
+    const targetRow = dragStartGem.getData('row') + (dy>0?1:-1);
+    const targetCol = dragStartGem.getData('col');
+    if(targetRow>=0 && targetRow<boardSize){
+      const t = board[targetRow][targetCol];
+      if(t){ swapGemsWithDrag(dragStartGem, t, scene); }
+    }
+  }
+}
+
+/* ============================
+   Swapping helpers (animated)
+   ============================ */
+function swapGemsWithDrag(g1,g2,scene){
+  canMove = false;
+  if(selectedGem){
+    scene.tweens.killTweensOf(selectedGem); selectedGem.clearTint(); selectedGem.setScale(1); selectedGem=null;
+  }
+  swapGems(g1,g2,scene,true);
+  setTimeout(()=>{
+    const matches = findMatches();
+    if(matches.length>0){ removeMatches(matches,scene); GLOBAL_STATE.movesLeft--; updateHUD(); }
+    else { swapGems(g1,g2,scene,true); canMove=true; }
+  },420);
+}
+
+function swapGems(gem1, gem2, scene, animate=true){
+  // Swap data positions & animate coords & icons
+  const row1 = gem1.getData('row'), col1 = gem1.getData('col');
+  const row2 = gem2.getData('row'), col2 = gem2.getData('col');
+  // swap board
+  board[row1][col1] = gem2; board[row2][col2] = gem1;
+  gem1.setData('row', row2); gem1.setData('col', col2);
+  gem2.setData('row', row1); gem2.setData('col', col1);
+
+  const x1 = offsetX + col1*gemSize + gemSize/2;
+  const y1 = offsetY + row1*gemSize + gemSize/2;
+  const x2 = offsetX + col2*gemSize + gemSize/2;
+  const y2 = offsetY + row2*gemSize + gemSize/2;
+
+  // icons (text)
+  const t1 = gem1.getData('iconText'), t2 = gem2.getData('iconText');
+
+  if(animate){
+    scene.tweens.add({targets:gem1, x:x2, y:y2, duration:300, ease:'Cubic.easeOut'});
+    scene.tweens.add({targets:gem2, x:x1, y:y1, duration:300, ease:'Cubic.easeOut'});
+    scene.tweens.add({targets:t1, x:x2, y:y2, duration:300, ease:'Cubic.easeOut'});
+    scene.tweens.add({targets:t2, x:x1, y:y1, duration:300, ease:'Cubic.easeOut', onComplete:()=> playPop('small')});
+  } else {
+    gem1.x = x2; gem1.y = y2; gem2.x = x1; gem2.y = y1;
+    t1.x = x2; t1.y = y2; t2.x = x1; t2.y = y1;
+  }
+}
+
+/* ============================
+   Finding matches (rows & cols)
+   ============================ */
+function findMatches(){
+  const matches = [];
+  // horizontal
+  for(let r=0;r<boardSize;r++){
+    for(let c=0;c<boardSize-2;c++){
+      const a = board[r][c], b = board[r][c+1], c3 = board[r][c+2];
+      if(a && b && c3 && a.getData('type')===b.getData('type') && b.getData('type')===c3.getData('type')){
+        const match = [a,b,c3];
+        for(let k=c+3;k<boardSize;k++){
+          const nx = board[r][k]; if(nx && nx.getData('type')===a.getData('type')) match.push(nx); else break;
+        }
+        if(!matches.some(m=>m.includes(a))) matches.push(match);
+      }
+    }
+  }
+  // vertical
+  for(let c=0;c<boardSize;c++){
+    for(let r=0;r<boardSize-2;r++){
+      const a = board[r][c], b = board[r+1][c], c3 = board[r+2][c];
+      if(a && b && c3 && a.getData('type')===b.getData('type') && b.getData('type')===c3.getData('type')){
+        const match = [a,b,c3];
+        for(let k=r+3;k<boardSize;k++){
+          const nx = board[k][c]; if(nx && nx.getData('type')===a.getData('type')) match.push(nx); else break;
+        }
+        if(!matches.some(m=>m.includes(a))) matches.push(match);
+      }
+    }
+  }
+  return matches;
+}
+
+/* ============================
+   Remove matches, score, drop & refill
+   ============================ */
+function removeMatches(matches, scene){
+  // collect unique gems
+  const set = new Set();
+  let totalScore = 0;
+  matches.forEach(match=>{
+    match.forEach(g=>{
+      if(g && !set.has(g)){
+        set.add(g);
+        totalScore += g.getData('value');
+        if(match.length>=4) totalScore += g.getData('value')*(match.length-3);
+      }
+    });
+  });
+
+  if(set.size===0){ canMove=true; return; }
+
+  // Add score & play pop
+  addScore(totalScore);
+  playPop('big');
+
+  // remove with tween
+  set.forEach(gem=>{
+    const t = gem.getData('iconText');
+    scene.tweens.add({
+      targets:[gem,t],
+      scaleX:0, scaleY:0, alpha:0,
+      duration:300, ease:'Back.easeIn',
+      onComplete: ()=> { try{ gem.destroy(); t.destroy(); }catch(e){} }
+    });
+    // board slot -> null
+    const rr = gem.getData('row'), cc = gem.getData('col');
+    board[rr][cc] = null;
+  });
+
+  // After removal, drop and refill
+  setTimeout(()=> {
+    dropGems(scene);
+    setTimeout(()=> {
+      addNewGems(scene);
+      setTimeout(()=> {
+        const newMatches = findMatches();
+        if(newMatches.length>0) removeMatches(newMatches, scene);
+        else {
+          canMove = true;
+          // check level up or game over
+          if(GLOBAL_STATE.score >= GLOBAL_STATE.targetScore){
+            levelUp(scene);
+          }
+          if(GLOBAL_STATE.movesLeft <= 0 && GLOBAL_STATE.score < GLOBAL_STATE.targetScore){
+            gameOver(scene);
+          }
+          updateHUD();
+        }
+      }, 420);
+    }, 220);
+  }, 360);
+}
+
+function dropGems(scene){
+  for(let c=0;c<boardSize;c++){
+    let empties=0;
+    for(let r=boardSize-1;r>=0;r--){
+      if(board[r][c]===null) empties++;
+      else if(empties>0){
+        const gem = board[r][c];
+        const icon = gem.getData('iconText');
+        const newRow = r + empties;
+        board[newRow][c] = gem;
+        board[r][c] = null;
+        gem.setData('row', newRow);
+        scene.tweens.add({targets:[gem,icon], y: offsetY + newRow*gemSize + gemSize/2, duration:360 + c*18, ease:'Bounce.out'});
+      }
+    }
+  }
+}
+
+function addNewGems(scene){
+  for(let c=0;c<boardSize;c++){
+    for(let r=0;r<boardSize;r++){
+      if(board[r][c]===null){
+        const gemType = Phaser.Math.RND.pick(gemTypes);
+        const startY = offsetY - (boardSize - r)*gemSize;
+        const x = offsetX + c*gemSize + gemSize/2;
+        const s = scene.add.sprite(x, startY, gemType.key).setInteractive({useHandCursor:true});
+        const t = scene.add.text(x, startY, gemType.icon, {fontSize: Math.max(10,Math.floor(gemSize*0.42))+'px', color:'#fff'}).setOrigin(0.5);
+        s.setData('row', r); s.setData('col', c); s.setData('type', gemType.key); s.setData('value', gemType.value); s.setData('iconText', t);
+        board[r][c] = s;
+        // input handlers (duplicate of createGem's handlers)
+        s.on('pointerdown', function(pointer){
+          if(!canMove) return;
+          dragStartGem = s; dragStartPosition.x = pointer.x; dragStartPosition.y = pointer.y;
+          if(!selectedGem){ selectedGem = s; s.setTint(0xdddddd); scene.tweens.add({targets:s, scaleX:1.08, scaleY:1.08, duration:160, yoyo:true, repeat:-1}); }
+        });
+        s.on('pointerup', function(pointer){
+          if(!canMove || !dragStartGem) return;
+          const dist = Phaser.Math.Distance.Between(dragStartPosition.x,dragStartPosition.y, pointer.x, pointer.y);
+          if(dist<8){
+            if(selectedGem && selectedGem!==s){
+              const r1 = selectedGem.getData('row'), c1 = selectedGem.getData('col');
+              const r2 = s.getData('row'), c2 = s.getData('col');
+              const adjacent = (Math.abs(r1-r2)===1 && c1===c2) || (Math.abs(c1-c2)===1 && r1===r2);
+              if(adjacent){
+                canMove=false; scene.tweens.killTweensOf(selectedGem); selectedGem.clearTint(); selectedGem.setScale(1);
+                swapGems(selectedGem, s, scene, true);
+                setTimeout(()=> {
+                  const matches = findMatches();
+                  if(matches.length>0){ removeMatches(matches, scene); GLOBAL_STATE.movesLeft--; updateHUD(); }
+                  else { swapGems(selectedGem, s, scene, true); canMove=true; }
+                },380);
+              } else {
+                scene.tweens.killTweensOf(selectedGem); selectedGem.clearTint(); selectedGem.setScale(1);
+                selectedGem = s; s.setTint(0xdddddd); scene.tweens.add({targets:s, scaleX:1.08, scaleY:1.08, duration:160, yoyo:true, repeat:-1});
+              }
+            }
+          } else { handleDragGesture(scene, s, pointer); }
+          dragStartGem = null;
+        });
+        // animate drop
+        scene.tweens.add({targets:[s,t], y: offsetY + r*gemSize + gemSize/2, duration:420 + c*22, ease:'Bounce.out'});
+      }
+    }
+  }
+}
+
+/* ============================
+   Remove initial accidental matches by reassigning types
+   ============================ */
+function removeInitialMatches(scene){
+  let matches = findMatches();
+  while(matches.length>0){
+    matches.forEach(match=>{
+      match.forEach(gem=>{
+        const r = gem.getData('row'), c = gem.getData('col');
+        const pick = Phaser.Math.RND.pick(gemTypes.filter(x=> x.key !== gem.getData('type')));
+        gem.setTexture(pick.key);
+        gem.setData('type', pick.key);
+        gem.setData('value', pick.value);
+        const t = gem.getData('iconText'); if(t) t.setText(pick.icon);
+      });
+    });
+    matches = findMatches();
+  }
+}
+
+/* ============================
+   Score, HUD, Level Up, Game Over
+   ============================ */
+function addScore(points){
+  GLOBAL_STATE.score += points;
+  updateHUD();
+}
+function updateHUD(){
+  document.getElementById('score').textContent = GLOBAL_STATE.score;
+  document.getElementById('level').textContent = GLOBAL_STATE.level;
+  document.getElementById('moves').textContent = GLOBAL_STATE.movesLeft;
+}
+function levelUp(scene){
+  GLOBAL_STATE.level++;
+  GLOBAL_STATE.movesLeft += 10;
+  GLOBAL_STATE.targetScore = GLOBAL_STATE.level * 1500;
+  updateHUD();
+  const txt = scene.add.text(scene.scale.width/2, scene.scale.height/2, `LEVEL ${GLOBAL_STATE.level}`, {fontSize: Math.min(54, scene.scale.width*0.09)+'px', fill:'#6a11cb', fontStyle:'bold', stroke:'#fff', strokeThickness:6}).setOrigin(0.5);
+  scene.tweens.add({targets:txt, scaleX:1.4, scaleY:1.4, alpha:0, duration:1400, ease:'Power2', onComplete: ()=> txt.destroy()});
+  playPop('level');
+}
+function gameOver(scene){
+  canMove=false;
+  document.getElementById('final-score').textContent = GLOBAL_STATE.score;
+  setTimeout(()=> document.getElementById('game-over-popup').classList.add('active'), 420);
+}
+
+/* ============================
+   Hint: find any possible single move and highlight
+   ============================ */
+function showHint(scene){
+  if(!canMove) return;
+  const move = findAnyPossibleMove();
+  if(!move){ showToast('No valid moves found'); return; }
+  const [g1,g2] = move;
+  scene.tweens.add({targets:[g1,g2], scaleX:1.22, scaleY:1.22, duration:280, yoyo:true, repeat:3, onComplete: ()=>{ g1.setScale(1); g2.setScale(1); }});
+  showToast('Hint highlighted',900);
+}
+
+/* ============================
+   Find any possible move by trial swap
+   Returns [gemA, gemB] or null
+   ============================ */
+function findAnyPossibleMove(){
+  // horizontal attempts
+  for(let r=0;r<boardSize;r++){
+    for(let c=0;c<boardSize-1;c++){
+      const a = board[r][c], b = board[r][c+1];
+      if(!a||!b) continue;
+      swapGemsNoAnimation(a,b);
+      const matches = findMatches();
+      swapGemsNoAnimation(a,b);
+      if(matches.length>0) return [a,b];
+    }
+  }
+  // vertical attempts
+  for(let c=0;c<boardSize;c++){
+    for(let r=0;r<boardSize-1;r++){
+      const a = board[r][c], b = board[r+1][c];
+      if(!a||!b) continue;
+      swapGemsNoAnimation(a,b);
+      const matches = findMatches();
+      swapGemsNoAnimation(a,b);
+      if(matches.length>0) return [a,b];
+    }
+  }
+  return null;
+}
+function swapGemsNoAnimation(g1,g2){
+  const r1=g1.getData('row'), c1=g1.getData('col'), r2=g2.getData('row'), c2=g2.getData('col');
+  board[r1][c1] = g2; board[r2][c2] = g1;
+  g1.setData('row', r2); g1.setData('col', c2);
+  g2.setData('row', r1); g2.setData('col', c1);
+}
+
+/* ============================
+   Auto-solve: runs a sequence of available moves
+   naive: finds a possible move, executes it, waits for chain, repeats up to limit
+   ============================ */
+function doAutoSolve(scene, maxSteps=12){
+  if(!canMove) return;
+  showToast('Auto-solving...', 900);
+  let steps=0;
+  const loop = ()=>{
+    if(steps>=maxSteps || GLOBAL_STATE.movesLeft<=0) { showToast('Auto-solve finished'); return; }
+    const mv = findAnyPossibleMove();
+    if(!mv){ // no moves found -> reshuffle (simple: randomize few tiles)
+      shuffleBoard(scene);
+      showToast('Reshuffled',900);
+      return;
+    }
+    const [a,b] = mv;
+    canMove=false;
+    swapGems(a,b,scene,true);
+    setTimeout(()=> {
+      const matches=findMatches();
+      if(matches.length>0){ removeMatches(matches,scene); GLOBAL_STATE.movesLeft--; updateHUD(); }
+      else { swapGems(a,b,scene,true); canMove=true; }
+      steps++;
+      // next iteration after animations settle
+      setTimeout(()=> {
+        if(canMove) loop(); else {
+          // wait until chain finishes
+          const waitInt = setInterval(()=>{ if(canMove){ clearInterval(waitInt); loop(); } }, 300);
+        }
+      }, 520);
+    }, 420);
+  };
+  loop();
+}
+
+/* Simple reshuffle: randomize types for remaining board */
+function shuffleBoard(scene){
+  for(let r=0;r<boardSize;r++){
+    for(let c=0;c<boardSize;c++){
+      const gem = board[r][c];
+      if(gem){
+        const pick = Phaser.Math.RND.pick(gemTypes);
+        gem.setTexture(pick.key);
+        gem.setData('type', pick.key);
+        gem.setData('value', pick.value);
+        const t = gem.getData('iconText'); if(t) t.setText(pick.icon);
+      }
+    }
+  }
+  // ensure no immediate matches by adjusting until clean
+  removeInitialMatches(scene);
+}
+
+/* ============================
+   Utility: add new gems after refill handled above
+   ============================ */
+
+/* ============================
+   Resize handling: on window resize/orientation change, restart the scene to recalc sizes
+   Keep global state so score is preserved
+   ============================ */
+let resizeTimeout;
+function handleResize(){
+  // update scale to current window size and restart scene preserving state
+  if(!game) return;
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(()=>{
+    // update Phaser scale manager and restart scene to recalc textures and positions
+    try {
+      // Preserve GLOBAL_STATE (already global)
+      game.scale.resize(window.innerWidth, window.innerHeight);
+      // restart scene to rebuild textures with new gemSize
+      currentSceneRef.scene.restart();
+    } catch(e){
+      console.warn('Resize restart error',e);
+    }
+  }, 160);
+}
+window.addEventListener('resize', handleResize);
+window.addEventListener('orientationchange', ()=> setTimeout(handleResize, 180));
+
+/* Prevent context menu on touch long press */
+document.addEventListener('contextmenu', e=> e.preventDefault());
+
+/* Start game */
+game = new Phaser.Game(config);
+
+/* Expose audio resume on user gesture for mobile autoplay policy */
+document.body.addEventListener('touchstart', function initAudioOnFirstTouch(){
+  if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  document.body.removeEventListener('touchstart', initAudioOnFirstTouch);
+});
+
+</script>
+</body>
+</html>
