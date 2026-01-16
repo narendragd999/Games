@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kakuro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0093E9 0%, #80D0C7 100%);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        .header {
+            padding: 12px 15px;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: white;
+            font-size: 24px;
+            font-weight: 700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .info-btn {
+            background: rgba(255, 255, 255, 0.3);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .info-btn:active {
+            transform: scale(0.9);
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .game-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
+            overflow: hidden;
+        }
+
+        .grid {
+            display: grid;
+            gap: 1px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1px;
+            border-radius: 8px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            margin-bottom: 15px;
+        }
+
+        .cell {
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #333;
+            user-select: none;
+            position: relative;
+        }
+
+        .cell:active {
+            transform: scale(0.95);
+        }
+
+        .cell.black {
+            background: #2c3e50;
+            cursor: default;
+        }
+
+        .cell.clue {
+            background: linear-gradient(to bottom right, #2c3e50 50%, white 50%);
+            cursor: default;
+            padding: 2px;
+        }
+
+        .clue-content {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .clue-down {
+            text-align: right;
+            color: white;
+            padding: 2px 3px 0 0;
+        }
+
+        .clue-across {
+            text-align: left;
+            color: #333;
+            padding: 0 0 2px 3px;
+        }
+
+        .cell.input {
+            background: #f0f8ff;
+            font-size: 20px;
+        }
+
+        .cell.input.filled {
+            background: white;
+        }
+
+        .cell.input.error {
+            background: #ffebee;
+            animation: shake 0.3s;
+        }
+
+        .cell.input.correct {
+            background: #e8f5e9;
+        }
+
+        .cell.input.selected {
+            background: #fff9c4;
+            box-shadow: inset 0 0 0 2px #fbc02d;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .number-pad {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            width: 100%;
+            max-width: 300px;
+            margin-bottom: 10px;
+        }
+
+        .num-btn {
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            background: white;
+            color: #333;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            transition: all 0.2s;
+        }
+
+        .num-btn:active {
+            transform: scale(0.95);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+        }
+
+        .num-btn.clear {
+            background: #ff7043;
+            color: white;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            width: 100%;
+            max-width: 400px;
+            padding: 0 15px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        button:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .btn-new {
+            background: linear-gradient(135deg, #0093E9 0%, #80D0C7 100%);
+        }
+
+        .btn-hint {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .btn-check {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .btn-solve {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal h2 {
+            color: #0093E9;
+            margin-bottom: 15px;
+            font-size: 24px;
+        }
+
+        .modal p {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 12px;
+        }
+
+        .modal ul {
+            margin-left: 20px;
+            margin-bottom: 15px;
+            color: #555;
+        }
+
+        .modal li {
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+
+        .close-btn {
+            background: linear-gradient(135deg, #0093E9 0%, #80D0C7 100%);
+            width: 100%;
+            margin-top: 15px;
+        }
+
+        .status {
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            text-align: center;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .example-grid {
+            display: inline-grid;
+            grid-template-columns: repeat(3, 30px);
+            gap: 1px;
+            background: #ddd;
+            padding: 1px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .example-cell {
+            width: 30px;
+            height: 30px;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .example-cell.black {
+            background: #2c3e50;
+        }
+
+        .example-cell.clue {
+            background: linear-gradient(to bottom right, #2c3e50 50%, white 50%);
+            font-size: 8px;
+            padding: 1px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>KAKURO</h1>
+        <button class="info-btn" onclick="showInstructions()">?</button>
+    </div>
+
+    <div class="game-container">
+        <div class="status" id="status">Select a cell and enter a number</div>
+        <div class="grid" id="grid"></div>
+        
+        <div class="number-pad" id="numpad">
+            <button class="num-btn" onclick="enterNumber(1)">1</button>
+            <button class="num-btn" onclick="enterNumber(2)">2</button>
+            <button class="num-btn" onclick="enterNumber(3)">3</button>
+            <button class="num-btn" onclick="enterNumber(4)">4</button>
+            <button class="num-btn" onclick="enterNumber(5)">5</button>
+            <button class="num-btn" onclick="enterNumber(6)">6</button>
+            <button class="num-btn" onclick="enterNumber(7)">7</button>
+            <button class="num-btn" onclick="enterNumber(8)">8</button>
+            <button class="num-btn" onclick="enterNumber(9)">9</button>
+            <button class="num-btn clear" onclick="enterNumber(0)">✕</button>
+        </div>
+
+        <div class="controls">
+            <button class="btn-new" onclick="newGame()">New Game</button>
+            <button class="btn-hint" onclick="getHint()">Hint</button>
+            <button class="btn-check" onclick="checkSolution()">Check</button>
+            <button class="btn-solve" onclick="autoSolve()">Solve</button>
+        </div>
+    </div>
+
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <h2>How to Play Kakuro</h2>
+            <p><strong>Goal:</strong> Fill the white cells with numbers 1-9 so that each run adds up to the clue number.</p>
+            
+            <p><strong>Rules:</strong></p>
+            <ul>
+                <li>Each run (horizontal or vertical) must add up to its clue</li>
+                <li>Use only numbers 1-9</li>
+                <li>No number can repeat within the same run</li>
+                <li>Black cells separate runs</li>
+            </ul>
+
+            <p><strong>Example:</strong></p>
+            <div class="example-grid">
+                <div class="example-cell black"></div>
+                <div class="example-cell clue">
+                    <div style="font-size:8px;text-align:right;color:white;padding:1px">6↓</div>
+                </div>
+                <div class="example-cell clue">
+                    <div style="font-size:8px;text-align:right;color:white;padding:1px">3↓</div>
+                </div>
+                <div class="example-cell clue">
+                    <div style="display:flex;justify-content:space-between;width:100%;font-size:8px">
+                        <span style="color:#333">4→</span>
+                    </div>
+                </div>
+                <div class="example-cell">1</div>
+                <div class="example-cell">3</div>
+                <div class="example-cell clue">
+                    <div style="display:flex;justify-content:space-between;width:100%;font-size:8px">
+                        <span style="color:#333">5→</span>
+                    </div>
+                </div>
+                <div class="example-cell">5</div>
+                <div class="example-cell black"></div>
+            </div>
+
+            <p><strong>Controls:</strong></p>
+            <ul>
+                <li><strong>Tap a white cell:</strong> Select it</li>
+                <li><strong>Tap a number:</strong> Enter it in the selected cell</li>
+                <li><strong>Tap ✕:</strong> Clear the selected cell</li>
+            </ul>
+
+            <p><strong>Tips:</strong></p>
+            <ul>
+                <li>Start with small sums (3 can only be 1+2)</li>
+                <li>Look for runs with few possible combinations</li>
+                <li>Remember: no repeating digits in a run!</li>
+            </ul>
+
+            <button class="close-btn" onclick="closeInstructions()">Got It!</button>
+        </div>
+    </div>
+
+    <script>
+        function playTone(freq, duration) {
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.1, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+            osc.start();
+            osc.stop(ctx.currentTime + duration);
+        }
+
+        const gridSize = 7;
+        let puzzle = [];
+        let solution = [];
+        let playerState = [];
+        let selectedCell = null;
+
+        class KakuroGenerator {
+            constructor(size) {
+                this.size = size;
+                this.grid = [];
+                this.clues = [];
+            }
+
+            generate() {
+                this.createGrid();
+                this.generateSolution();
+                this.createClues();
+                return {
+                    grid: this.grid,
+                    clues: this.clues,
+                    solution: this.solution
+                };
+            }
+
+            createGrid() {
+                // Create a simple pattern
+                this.grid = [];
+                for (let i = 0; i < this.size; i++) {
+                    const row = [];
+                    for (let j = 0; j < this.size; j++) {
+                        if (i === 0 || j === 0) {
+                            row.push({ type: 'black' });
+                        } else if ((i + j) % 4 === 0 && i < this.size - 1 && j < this.size - 1) {
+                            row.push({ type: 'black' });
+                        } else {
+                            row.push({ type: 'input', value: 0 });
+                        }
+                    }
+                    this.grid.push(row);
+                }
+
+                // Add clue cells
+                for (let i = 0; i < this.size; i++) {
+                    for (let j = 0; j < this.size; j++) {
+                        if (this.grid[i][j].type === 'black') {
+                            const hasDown = i < this.size - 1 && this.grid[i + 1][j].type === 'input';
+                            const hasAcross = j < this.size - 1 && this.grid[i][j + 1].type === 'input';
+                            
+                            if (hasDown || hasAcross) {
+                                this.grid[i][j] = { type: 'clue', down: 0, across: 0 };
+                            }
+                        }
+                    }
+                }
+            }
+
+            generateSolution() {
+                this.solution = [];
+                for (let i = 0; i < this.size; i++) {
+                    const row = [];
+                    for (let j = 0; j < this.size; j++) {
+                        row.push(0);
+                    }
+                    this.solution.push(row);
+                }
+
+                // Fill with valid numbers
+                const runs = this.findRuns();
+                
+                for (const run of runs) {
+                    const len = run.cells.length;
+                    const nums = this.generateValidRun(len);
+                    
+                    for (let i = 0; i < run.cells.length; i++) {
+                        const [r, c] = run.cells[i];
+                        this.solution[r][c] = nums[i];
+                    }
+                }
+            }
+
+            generateValidRun(length) {
+                const available = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+                const result = [];
+                
+                for (let i = 0; i < length && available.length > 0; i++) {
+                    const idx = Math.floor(Math.random() * available.length);
+                    result.push(available[idx]);
+                    available.splice(idx, 1);
+                }
+                
+                return result;
+            }
+
+            findRuns() {
+                const runs = [];
+
+                // Horizontal runs
+                for (let i = 0; i < this.size; i++) {
+                    let run = [];
+                    for (let j = 0; j < this.size; j++) {
+                        if (this.grid[i][j].type === 'input') {
+                            run.push([i, j]);
+                        } else {
+                            if (run.length > 0) {
+                                runs.push({ type: 'across', cells: run, cluePos: null });
+                                run = [];
+                            }
+                        }
+                    }
+                    if (run.length > 0) {
+                        runs.push({ type: 'across', cells: run, cluePos: null });
+                    }
+                }
+
+                // Vertical runs
+                for (let j = 0; j < this.size; j++) {
+                    let run = [];
+                    for (let i = 0; i < this.size; i++) {
+                        if (this.grid[i][j].type === 'input') {
+                            run.push([i, j]);
+                        } else {
+                            if (run.length > 0) {
+                                runs.push({ type: 'down', cells: run, cluePos: null });
+                                run = [];
+                            }
+                        }
+                    }
+                    if (run.length > 0) {
+                        runs.push({ type: 'down', cells: run, cluePos: null });
+                    }
+                }
+
+                return runs;
+            }
+
+            createClues() {
+                const runs = this.findRuns();
+
+                for (const run of runs) {
+                    let sum = 0;
+                    for (const [r, c] of run.cells) {
+                        sum += this.solution[r][c];
+                    }
+
+                    // Find clue cell
+                    const [firstR, firstC] = run.cells[0];
+                    
+                    if (run.type === 'across') {
+                        // Look left
+                        if (firstC > 0 && this.grid[firstR][firstC - 1].type === 'clue') {
+                            this.grid[firstR][firstC - 1].across = sum;
+                        }
+                    } else {
+                        // Look up
+                        if (firstR > 0 && this.grid[firstR - 1][firstC].type === 'clue') {
+                            this.grid[firstR - 1][firstC].down = sum;
+                        }
+                    }
+                }
+            }
+        }
+
+        function createGrid() {
+            const gridEl = document.getElementById('grid');
+            gridEl.innerHTML = '';
+            
+            const cellSize = Math.min(50, (window.innerWidth - 50) / gridSize);
+            gridEl.style.gridTemplateColumns = `repeat(${gridSize}, ${cellSize}px)`;
+            
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.style.width = cellSize + 'px';
+                    cell.style.height = cellSize + 'px';
+                    
+                    const cellData = puzzle[i][j];
+                    
+                    if (cellData.type === 'black') {
+                        cell.classList.add('black');
+                    } else if (cellData.type === 'clue') {
+                        cell.classList.add('clue');
+                        const clueContent = document.createElement('div');
+                        clueContent.className = 'clue-content';
+                        
+                        const downDiv = document.createElement('div');
+                        downDiv.className = 'clue-down';
+                        downDiv.textContent = cellData.down ? cellData.down : '';
+                        
+                        const acrossDiv = document.createElement('div');
+                        acrossDiv.className = 'clue-across';
+                        acrossDiv.textContent = cellData.across ? cellData.across : '';
+                        
+                        clueContent.appendChild(downDiv);
+                        clueContent.appendChild(acrossDiv);
+                        cell.appendChild(clueContent);
+                    } else {
+                        cell.classList.add('input');
+                        cell.textContent = playerState[i][j] || '';
+                        if (playerState[i][j]) {
+                            cell.classList.add('filled');
+                        }
+                        cell.onclick = () => selectCell(i, j);
+                    }
+                    
+                    gridEl.appendChild(cell);
+                }
+            }
+        }
+
+        function selectCell(i, j) {
+            playTone(400, 0.05);
+            selectedCell = { i, j };
+            
+            const cells = document.querySelectorAll('.cell.input');
+            cells.forEach(cell => cell.classList.remove('selected'));
+            
+            const idx = i * gridSize + j;
+            const inputCells = Array.from(document.querySelectorAll('.cell')).filter(c => 
+                c.classList.contains('input')
+            );
+            
+            let inputIdx = 0;
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    if (puzzle[r][c].type === 'input') {
+                        if (r === i && c === j) {
+                            inputCells[inputIdx].classList.add('selected');
+                            return;
+                        }
+                        inputIdx++;
+                    }
+                }
+            }
+        }
+
+        function enterNumber(num) {
+            if (!selectedCell) {
+                playTone(300, 0.1);
+                document.getElementById('status').textContent = 'Select a cell first';
+                return;
+            }
+
+            playTone(num === 0 ? 300 : 500, 0.05);
+            
+            const { i, j } = selectedCell;
+            playerState[i][j] = num === 0 ? 0 : num;
+            
+            createGrid();
+            selectCell(i, j);
+            
+            document.getElementById('status').textContent = num === 0 ? 
+                'Cell cleared' : `Entered ${num}`;
+        }
+
+        function newGame() {
+            playTone(500, 0.1);
+            
+            const generator = new KakuroGenerator(gridSize);
+            const result = generator.generate();
+            
+            puzzle = result.grid;
+            solution = result.solution;
+            
+            playerState = [];
+            for (let i = 0; i < gridSize; i++) {
+                const row = [];
+                for (let j = 0; j < gridSize; j++) {
+                    row.push(0);
+                }
+                playerState.push(row);
+            }
+            
+            selectedCell = null;
+            createGrid();
+            document.getElementById('status').textContent = 'Select a cell and enter a number';
+        }
+
+        function getHint() {
+            playTone(600, 0.1);
+            
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    if (puzzle[i][j].type === 'input' && playerState[i][j] !== solution[i][j]) {
+                        selectCell(i, j);
+                        document.getElementById('status').textContent = 
+                            `Hint: Cell row ${i}, column ${j} should be ${solution[i][j]}`;
+                        
+                        setTimeout(() => {
+                            const cells = document.querySelectorAll('.cell.input');
+                            cells.forEach(cell => {
+                                if (cell.classList.contains('selected')) {
+                                    cell.style.background = '#fff9c4';
+                                }
+                            });
+                        }, 100);
+                        
+                        return;
+                    }
+                }
+            }
+
+            document.getElementById('status').textContent = 'All cells are correct!';
+        }
+
+        function checkSolution() {
+            const cells = Array.from(document.querySelectorAll('.cell'));
+            let allCorrect = true;
+            let allFilled = true;
+
+            cells.forEach(cell => {
+                cell.classList.remove('error', 'correct');
+            });
+
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    if (puzzle[i][j].type === 'input') {
+                        const cellIdx = i * gridSize + j;
+                        const cell = cells[cellIdx];
+                        
+                        if (playerState[i][j] === 0) {
+                            allFilled = false;
+                        } else if (playerState[i][j] !== solution[i][j]) {
+                            cell.classList.add('error');
+                            allCorrect = false;
+                        } else {
+                            cell.classList.add('correct');
+                        }
+                    }
+                }
+            }
+
+            if (allCorrect && allFilled) {
+                playTone(800, 0.2);
+                document.getElementById('status').textContent = '🎉 Perfect! You solved it!';
+            } else if (allCorrect) {
+                playTone(600, 0.1);
+                document.getElementById('status').textContent = 'Correct so far! Keep going!';
+            } else {
+                playTone(200, 0.2);
+                document.getElementById('status').textContent = 'Some cells are incorrect (red)';
+            }
+        }
+
+        function autoSolve() {
+            playTone(700, 0.15);
+            
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    if (puzzle[i][j].type === 'input') {
+                        playerState[i][j] = solution[i][j];
+                    }
+                }
+            }
+
+            createGrid();
+            document.getElementById('status').textContent = '✓ Puzzle solved automatically!';
+        }
+
+        function showInstructions() {
+            playTone(500, 0.1);
+            document.getElementById('modal').classList.add('active');
+        }
+
+        function closeInstructions() {
+            playTone(500, 0.1);
+            document.getElementById('modal').classList.remove('active');
+        }
+
+        // Initialize game
+        newGame();
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            createGrid();
+        });
+    </script>
+</body>
+</html>
