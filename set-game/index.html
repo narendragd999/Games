@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SET — Professional</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root{--bg1:#6a11cb;--bg2:#f7f3ff;--card:#ffffff;--primary:#3498db;--accent:#6a11cb;--muted:#6c7a89}
+    *{box-sizing:border-box;margin:0;padding:0;font-family:Inter, 'Segoe UI', Roboto, Arial}
+    html,body{height:100%}
+    body{min-height:100vh;background:linear-gradient(180deg,var(--bg1) 0%,var(--bg2) 65%);display:flex;align-items:flex-start;justify-content:center;padding:20px;color:#222}
+    .app{width:100%;max-width:980px}
+    header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .brand{display:flex;gap:12px;align-items:center;background:rgba(255,255,255,0.95);padding:10px;border-radius:12px}
+    .brand .title{font-weight:700;color:var(--accent);font-size:18px}
+    .status{display:flex;gap:12px;align-items:center;padding:8px 12px;background:rgba(255,255,255,0.95);border-radius:12px}
+    .status .item{font-size:14px;color:var(--muted)}
+
+    .main{display:grid;grid-template-columns:1fr 320px;gap:14px}
+    @media (max-width:920px){.main{grid-template-columns:1fr}}
+
+    .board-card{background:rgba(255,255,255,0.18);padding:14px;border-radius:14px}
+    .board{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+    @media (max-width:700px){.board{grid-template-columns:repeat(3,1fr)}}
+
+    .card{background:var(--card);border-radius:10px;padding:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;box-shadow:0 6px 14px rgba(0,0,0,0.08);transition:transform .18s,box-shadow .18s,border .18s}
+    .card.selected{transform:translateY(-6px);box-shadow:0 12px 36px rgba(0,0,0,0.16);outline:3px solid rgba(52,152,219,0.12)}
+    .card .symbols{display:flex;flex-direction:column;gap:6px;align-items:center}
+    .symbol{width:44px;height:30px;display:flex;align-items:center;justify-content:center;font-size:20px}
+    .symbol.striped{opacity:.75}
+    .symbol.outline{color:transparent;text-shadow:0 0 0 currentColor;border:2px solid currentColor;border-radius:6px;padding:2px}
+
+    .controls{background:rgba(255,255,255,0.95);padding:12px;border-radius:12px;display:flex;flex-direction:column;gap:12px;box-shadow:0 6px 18px rgba(0,0,0,0.08)}
+    .row{display:flex;gap:8px}
+    .btn{flex:1;padding:10px;border-radius:10px;border:none;background:#fff;cursor:pointer;font-weight:700;display:inline-flex;gap:8px;align-items:center;justify-content:center}
+    .btn.primary{background:var(--primary);color:#fff}
+    .btn.accent{background:var(--accent);color:#fff}
+    .btn.ghost{background:transparent;border:1px solid rgba(0,0,0,0.06)}
+
+    .muted{color:var(--muted);font-size:13px}
+    .hint-dot{position:absolute;right:10px;top:8px;width:12px;height:12px;border-radius:50%;background:#ffca28;box-shadow:0 6px 12px rgba(0,0,0,.12)}
+
+    .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);z-index:60;opacity:0;pointer-events:none;transition:opacity .15s}
+    .modal.show{opacity:1;pointer-events:auto}
+    .modal .dialog{background:#fff;padding:16px;border-radius:10px;min-width:260px;max-width:520px;box-shadow:0 12px 36px rgba(0,0,0,.2)}
+
+    .footer{margin-top:12px;text-align:center;color:#fff;font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand"><i class="fa-solid fa-shapes" style="color:var(--primary);font-size:20px"></i><div class="title">SET — Professional</div></div>
+      <div class="status">
+        <div class="item">Score: <strong id="score">0</strong></div>
+        <div class="item">Sets: <strong id="sets">0</strong></div>
+        <div class="item">Time: <strong id="timer">00:00</strong></div>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="board-card">
+        <div id="board" class="board" role="grid" aria-label="Set board"></div>
+      </section>
+
+      <aside class="controls" aria-label="controls">
+        <div class="row">
+          <button id="newBtn" class="btn accent"><i class="fa-solid fa-plus"></i> New Game</button>
+          <button id="hintBtn" class="btn ghost"><i class="fa-regular fa-lightbulb"></i> Hint</button>
+        </div>
+        <div class="row">
+          <button id="checkBtn" class="btn primary"><i class="fa-regular fa-circle-check"></i> Check</button>
+          <button id="autoBtn" class="btn ghost"><i class="fa-solid fa-robot"></i> Auto Solve</button>
+        </div>
+        <div class="row">
+          <button id="exportBtn" class="btn ghost"><i class="fa-solid fa-file-export"></i> Export JSON</button>
+          <button id="rulesBtn" class="btn ghost"><i class="fa-regular fa-circle-question"></i> How to Play</button>
+        </div>
+
+        <div class="muted">Keyboard: 1-9 select, Enter Check, H Hint, A Auto</div>
+      </aside>
+    </main>
+
+    <div class="footer">Professional rebuild: reliable auto-solve, robust deck, keyboard support, responsive UI</div>
+  </div>
+
+  <div id="modal" class="modal" role="dialog" aria-modal="true">
+    <div class="dialog">
+      <h3 id="modalTitle">Title</h3>
+      <div id="modalBody" class="muted" style="margin-top:8px"></div>
+      <div style="margin-top:12px;text-align:right"><button id="modalClose" class="btn primary">OK</button></div>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      // --- constants ---
+      const SHAPES = ['■','▲','●'];
+      const COLORS = ['#3498db','#e74c3c','#2ecc71'];
+      const SHADINGS = ['solid','striped','outline'];
+      const NUMBERS = [1,2,3];
+
+      // --- state ---
+      const state = {
+        deck: [],
+        board: [],
+        selected: new Set(),
+        score: 0,
+        setsCount: 0,
+        timerStart: null,
+        timerInterval: null,
+        autoSolving: false
+      };
+
+      // --- DOM ---
+      const boardEl = document.getElementById('board');
+      const scoreEl = document.getElementById('score');
+      const setsEl = document.getElementById('sets');
+      const timerEl = document.getElementById('timer');
+      const newBtn = document.getElementById('newBtn');
+      const hintBtn = document.getElementById('hintBtn');
+      const checkBtn = document.getElementById('checkBtn');
+      const autoBtn = document.getElementById('autoBtn');
+      const exportBtn = document.getElementById('exportBtn');
+      const rulesBtn = document.getElementById('rulesBtn');
+      const modal = document.getElementById('modal');
+      const modalTitle = document.getElementById('modalTitle');
+      const modalBody = document.getElementById('modalBody');
+      const modalClose = document.getElementById('modalClose');
+
+      // --- utilities ---
+      function createDeck(){
+        const d = [];
+        let id = 1;
+        for(const s of SHAPES) for(const c of COLORS) for(const n of NUMBERS) for(const sh of SHADINGS){
+          d.push({id: id++, shape: s, color: c, number: n, shading: sh});
+        }
+        return shuffle(d);
+      }
+
+      function shuffle(arr){
+        for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]]}
+        return arr;
+      }
+
+      function now(){return Date.now();}
+
+      // --- timer ---
+      function startTimer(){ stopTimer(); state.timerStart = now(); state.timerInterval = setInterval(updateTimer,1000); updateTimer(); }
+      function stopTimer(){ if(state.timerInterval){ clearInterval(state.timerInterval); state.timerInterval=null } }
+      function updateTimer(){ if(!state.timerStart) return; const diff=Math.floor((now()-state.timerStart)/1000); const mm=Math.floor(diff/60).toString().padStart(2,'0'); const ss=(diff%60).toString().padStart(2,'0'); timerEl.textContent = `${mm}:${ss}`; }
+
+      // --- set logic ---
+      function isSet(a,b,c){
+        const attrs = ['shape','color','number','shading'];
+        for(const attr of attrs){
+          const x=a[attr], y=b[attr], z=c[attr];
+          if(!((x===y && y===z) || (x!==y && y!==z && x!==z))) return false;
+        }
+        return true;
+      }
+
+      function findAllSets(cards){
+        const sets = [];
+        for(let i=0;i<cards.length;i++){
+          for(let j=i+1;j<cards.length;j++){
+            for(let k=j+1;k<cards.length;k++){
+              if(isSet(cards[i],cards[j],cards[k])) sets.push([cards[i],cards[j],cards[k]]);
+            }
+          }
+        }
+        return sets;
+      }
+
+      // --- render ---
+      function render(){
+        boardEl.innerHTML = '';
+        for(const card of state.board){
+          const el = document.createElement('div');
+          el.className = 'card';
+          el.dataset.id = card.id;
+          if(state.selected.has(card.id)) el.classList.add('selected');
+
+          // symbols
+          const wrap = document.createElement('div'); wrap.className='symbols';
+          for(let i=0;i<card.number;i++){
+            const s = document.createElement('div'); s.className='symbol';
+            s.textContent = card.shape;
+            s.style.color = card.color;
+            if(card.shading==='striped') s.classList.add('striped');
+            if(card.shading==='outline') s.classList.add('outline');
+            wrap.appendChild(s);
+          }
+
+          el.appendChild(wrap);
+          el.onclick = () => onCardClick(card.id);
+          el.onkeydown = (e) => { if(e.key==='Enter' || e.key===' ') onCardClick(card.id); };
+          el.setAttribute('tabindex',0);
+          boardEl.appendChild(el);
+          card._el = el; // attach for later
+        }
+      }
+
+      function onCardClick(id){
+        if(state.autoSolving) return;
+        if(state.selected.has(id)) state.selected.delete(id); else state.selected.add(id);
+        render();
+      }
+
+      // --- game flow ---
+      function dealInitial(count=12){
+        state.deck = createDeck();
+        state.board = [];
+        // ensure at least one set exists: draw until a deal has a set (with safety attempts)
+        let attempts=0;
+        while(attempts<200){
+          // draw candidate
+          const candidate = state.deck.slice(0,count);
+          if(findAllSets(candidate).length>0){ state.board = state.deck.splice(0,count); break; }
+          shuffle(state.deck);
+          attempts++;
+        }
+        if(state.board.length===0){ state.board = state.deck.splice(0,count); }
+      }
+
+      function newGame(){
+        stopAutoSolve();
+        state.selected.clear(); state.score=0; state.setsCount=0; scoreEl.textContent=state.score; setsEl.textContent=state.setsCount;
+        dealInitial(12); render(); startTimer();
+      }
+
+      function replaceCardsById(ids){
+        // replace cards having those ids (if deck empty remove card)
+        for(const id of ids){
+          const idx = state.board.findIndex(c=>c.id===id);
+          if(idx===-1) continue;
+          if(state.deck.length>0){ state.board[idx] = state.deck.shift(); } else { state.board.splice(idx,1); }
+        }
+        // top up to 12 if possible
+        while(state.board.length<12 && state.deck.length) state.board.push(state.deck.shift());
+      }
+
+      function checkSelection(){
+        if(state.selected.size!==3){ showModal('Select 3','Please select exactly three cards to check.'); return; }
+        const ids = Array.from(state.selected);
+        const cards = ids.map(id=>state.board.find(c=>c.id===id));
+        if(isSet(cards[0],cards[1],cards[2])){
+          // valid
+          state.score += 10; state.setsCount++; scoreEl.textContent=state.score; setsEl.textContent=state.setsCount;
+          // animate (add selected stays handled by CSS)
+          replaceCardsById(ids);
+          state.selected.clear(); render();
+
+          // if no sets remain, deal new board
+          if(findAllSets(state.board).length===0){
+            showModal('Board depleted','No sets remaining — dealing a new board.');
+            dealInitial(12); render();
+          }
+        } else {
+          // invalid
+          showModal('Not a set','Selected cards do not form a valid set. Try again.');
+          state.selected.clear(); render();
+        }
+      }
+
+      // --- hint ---
+      function provideHint(){
+        if(state.autoSolving) return;
+        const sets = findAllSets(state.board);
+        if(sets.length===0){ showModal('No sets','No sets on board — dealing a new board.'); dealInitial(12); render(); return; }
+        const pick = sets[Math.floor(Math.random()*sets.length)];
+        // show small dots on those elements
+        pick.forEach(c=>{ if(c._el){ const d=document.createElement('div'); d.className='hint-dot'; c._el.style.position='relative'; c._el.appendChild(d); } });
+        setTimeout(()=>{ document.querySelectorAll('.hint-dot').forEach(n=>n.remove()); },4000);
+      }
+
+      // --- auto solve (robust async loop) ---
+      async function startAutoSolve(){
+        if(state.autoSolving) return;
+        state.autoSolving = true;
+        autoBtn.classList.add('accent'); autoBtn.innerHTML = '<i class="fa-solid fa-stop"></i> Stop';
+        state.selected.clear(); render();
+
+        try{
+          while(state.autoSolving){
+            const sets = findAllSets(state.board);
+            if(sets.length===0) break;
+            const next = sets[0];
+            // highlight
+            next.forEach(c=> c._el && c._el.classList.add('selected'));
+            await sleep(700);
+            if(!state.autoSolving) break;
+            // score & replace
+            state.score += 10; state.setsCount++; scoreEl.textContent=state.score; setsEl.textContent=state.setsCount;
+            replaceCardsById(next.map(c=>c.id));
+            render();
+            await sleep(300);
+          }
+        } finally {
+          stopAutoSolve();
+          if(findAllSets(state.board).length===0){ showModal('Auto Solve','Completed. No more sets.'); }
+        }
+      }
+
+      function stopAutoSolve(){
+        state.autoSolving = false;
+        autoBtn.classList.remove('accent'); autoBtn.innerHTML = '<i class="fa-solid fa-robot"></i> Auto Solve';
+      }
+
+      function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+      // --- export ---
+      function exportJSON(){
+        const payload = {score: state.score, sets: state.setsCount, time: timerEl.textContent, board: state.board.map(c=>({id:c.id,shape:c.shape,color:c.color,number:c.number,shading:c.shading})) };
+        const blob = new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href=url; a.download='set-game.json'; a.click(); URL.revokeObjectURL(url);
+      }
+
+      // --- UI modal ---
+      function showModal(title, body){ modalTitle.textContent=title; modalBody.textContent=body; modal.classList.add('show'); }
+      modalClose.addEventListener('click', ()=> modal.classList.remove('show'));
+
+      // --- keyboard support ---
+      window.addEventListener('keydown', (e)=>{
+        if(e.key>='1' && e.key<='9'){
+          const idx = parseInt(e.key,10)-1; if(idx<state.board.length) {
+            const id = state.board[idx].id; if(state.selected.has(id)) state.selected.delete(id); else state.selected.add(id); render(); }
+        }
+        if(e.key==='Enter') checkSelection();
+        if(e.key.toLowerCase()==='h') provideHint();
+        if(e.key.toLowerCase()==='a'){ if(state.autoSolving) stopAutoSolve(); else startAutoSolve(); }
+      });
+
+      // --- attach events ---
+      newBtn.addEventListener('click', newGame);
+      checkBtn.addEventListener('click', checkSelection);
+      hintBtn.addEventListener('click', provideHint);
+      autoBtn.addEventListener('click', ()=>{ if(state.autoSolving) stopAutoSolve(); else startAutoSolve(); });
+      exportBtn.addEventListener('click', exportJSON);
+      rulesBtn.addEventListener('click', ()=> showModal('How to Play', 'Select exactly 3 cards. For each attribute (shape, color, number, shading) the three cards must be all the same or all different.'));
+
+      // --- start ---
+      newGame();
+
+      // expose for debugging
+      window._SET = {state, isSet, findAllSets};
+    })();
+  </script>
+</body>
+</html>
