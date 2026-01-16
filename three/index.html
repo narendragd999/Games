@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Threes Game</title>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: 'Arial', sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.container {
+  width: 100vw;
+  max-width: 500px;
+  padding: 10px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  color: white;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.score {
+  font-size: 20px;
+  background: rgba(255,255,255,0.2);
+  padding: 8px 15px;
+  border-radius: 8px;
+}
+
+.controls {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  flex: 1;
+  min-width: 70px;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  background: rgba(255,255,255,0.9);
+  color: #667eea;
+  transition: all 0.2s;
+}
+
+.btn:active {
+  transform: scale(0.95);
+}
+
+.board {
+  background: rgba(0,0,0,0.2);
+  border-radius: 12px;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.cell {
+  aspect-ratio: 1;
+  background: rgba(255,255,255,0.3);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: bold;
+  color: white;
+  transition: all 0.15s;
+}
+
+.cell.filled {
+  background: rgba(255,255,255,0.9);
+  color: #667eea;
+}
+
+.cell.value-1 { background: #ff6b6b; color: white; }
+.cell.value-2 { background: #4ecdc4; color: white; }
+.cell.value-3 { background: #45b7d1; color: white; }
+.cell.value-6 { background: #96ceb4; color: white; }
+.cell.value-12 { background: #ffeaa7; color: #333; }
+.cell.value-24 { background: #fd79a8; color: white; }
+.cell.value-48 { background: #a29bfe; color: white; }
+.cell.value-96 { background: #fd79a8; color: white; }
+.cell.value-192 { background: #fdcb6e; color: white; }
+.cell.value-384 { background: #e17055; color: white; }
+
+.hint {
+  text-align: center;
+  color: white;
+  font-size: 16px;
+  min-height: 24px;
+  margin-bottom: 10px;
+  background: rgba(0,0,0,0.2);
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.8);
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal.active {
+  display: flex;
+}
+
+.modal-content {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  max-width: 90%;
+  max-height: 80%;
+  overflow-y: auto;
+}
+
+.modal-content h2 {
+  color: #667eea;
+  margin-bottom: 15px;
+}
+
+.modal-content p {
+  margin-bottom: 10px;
+  line-height: 1.6;
+}
+
+.close-btn {
+  margin-top: 15px;
+  width: 100%;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="title">Threes!</div>
+    <div class="score">Score: <span id="score">0</span></div>
+  </div>
+  
+  <div class="controls">
+    <button class="btn" onclick="newGame()">New</button>
+    <button class="btn" onclick="checkSolution()">Check</button>
+    <button class="btn" onclick="autoSolve()">Solve</button>
+    <button class="btn" onclick="showInstructions()">Help</button>
+  </div>
+  
+  <div class="hint" id="hint">Swipe to combine tiles!</div>
+  
+  <div class="board" id="board"></div>
+</div>
+
+<div class="modal" id="modal">
+  <div class="modal-content">
+    <h2>How to Play Threes</h2>
+    <p><strong>Goal:</strong> Combine tiles to create the highest numbers possible!</p>
+    <p><strong>Rules:</strong></p>
+    <p>• Swipe in any direction to move all tiles</p>
+    <p>• 1 (red) + 2 (blue) = 3</p>
+    <p>• 3 + 3 = 6, 6 + 6 = 12, etc.</p>
+    <p>• Only matching numbers ≥3 can combine</p>
+    <p>• New tiles appear after each move</p>
+    <p>• Game ends when no moves are possible</p>
+    <p><strong>Tips:</strong> Plan ahead and keep your highest tiles in corners!</p>
+    <button class="btn close-btn" onclick="closeModal()">Got it!</button>
+  </div>
+</div>
+
+<script>
+const GRID_SIZE = 4;
+let grid = [];
+let score = 0;
+let touchStartX = 0;
+let touchStartY = 0;
+let audioContext;
+
+function initAudio() {
+  audioContext = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+function playSound(freq, duration) {
+  if (!audioContext) initAudio();
+  const osc = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
+  osc.frequency.value = freq;
+  gain.gain.value = 0.1;
+  osc.start();
+  gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+  osc.stop(audioContext.currentTime + duration);
+}
+
+function init() {
+  grid = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(0));
+  score = 0;
+  
+  // Add initial tiles
+  for (let i = 0; i < 9; i++) {
+    addRandomTile();
+  }
+  
+  render();
+  updateScore();
+  showHint("Swipe to move tiles!");
+}
+
+function addRandomTile() {
+  const empty = [];
+  for (let r = 0; r < GRID_SIZE; r++) {
+    for (let c = 0; c < GRID_SIZE; c++) {
+      if (grid[r][c] === 0) empty.push([r, c]);
+    }
+  }
+  
+  if (empty.length > 0) {
+    const [r, c] = empty[Math.floor(Math.random() * empty.length)];
+    const values = [1, 2, 3];
+    grid[r][c] = values[Math.floor(Math.random() * values.length)];
+  }
+}
+
+function render() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  
+  for (let r = 0; r < GRID_SIZE; r++) {
+    for (let c = 0; c < GRID_SIZE; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      const value = grid[r][c];
+      
+      if (value > 0) {
+        cell.textContent = value;
+        cell.classList.add('filled', `value-${value}`);
+      }
+      
+      board.appendChild(cell);
+    }
+  }
+}
+
+function updateScore() {
+  score = 0;
+  for (let r = 0; r < GRID_SIZE; r++) {
+    for (let c = 0; c < GRID_SIZE; c++) {
+      if (grid[r][c] >= 3) {
+        score += grid[r][c];
+      }
+    }
+  }
+  document.getElementById('score').textContent = score;
+}
+
+function move(direction) {
+  const oldGrid = JSON.stringify(grid);
+  let moved = false;
+  
+  if (direction === 'left') {
+    for (let r = 0; r < GRID_SIZE; r++) {
+      const row = grid[r].filter(v => v !== 0);
+      for (let i = 0; i < row.length - 1; i++) {
+        if (canCombine(row[i], row[i + 1])) {
+          row[i] = row[i] + row[i + 1];
+          row.splice(i + 1, 1);
+          playSound(400 + row[i] * 10, 0.1);
+        }
+      }
+      while (row.length < GRID_SIZE) row.push(0);
+      grid[r] = row;
+    }
+  } else if (direction === 'right') {
+    for (let r = 0; r < GRID_SIZE; r++) {
+      const row = grid[r].filter(v => v !== 0);
+      for (let i = row.length - 1; i > 0; i--) {
+        if (canCombine(row[i], row[i - 1])) {
+          row[i] = row[i] + row[i - 1];
+          row.splice(i - 1, 1);
+          playSound(400 + row[i] * 10, 0.1);
+        }
+      }
+      while (row.length < GRID_SIZE) row.unshift(0);
+      grid[r] = row;
+    }
+  } else if (direction === 'up') {
+    for (let c = 0; c < GRID_SIZE; c++) {
+      const col = [];
+      for (let r = 0; r < GRID_SIZE; r++) {
+        if (grid[r][c] !== 0) col.push(grid[r][c]);
+      }
+      for (let i = 0; i < col.length - 1; i++) {
+        if (canCombine(col[i], col[i + 1])) {
+          col[i] = col[i] + col[i + 1];
+          col.splice(i + 1, 1);
+          playSound(400 + col[i] * 10, 0.1);
+        }
+      }
+      while (col.length < GRID_SIZE) col.push(0);
+      for (let r = 0; r < GRID_SIZE; r++) {
+        grid[r][c] = col[r];
+      }
+    }
+  } else if (direction === 'down') {
+    for (let c = 0; c < GRID_SIZE; c++) {
+      const col = [];
+      for (let r = 0; r < GRID_SIZE; r++) {
+        if (grid[r][c] !== 0) col.push(grid[r][c]);
+      }
+      for (let i = col.length - 1; i > 0; i--) {
+        if (canCombine(col[i], col[i - 1])) {
+          col[i] = col[i] + col[i - 1];
+          col.splice(i - 1, 1);
+          playSound(400 + col[i] * 10, 0.1);
+        }
+      }
+      while (col.length < GRID_SIZE) col.unshift(0);
+      for (let r = 0; r < GRID_SIZE; r++) {
+        grid[r][c] = col[r];
+      }
+    }
+  }
+  
+  moved = oldGrid !== JSON.stringify(grid);
+  
+  if (moved) {
+    addRandomTile();
+    render();
+    updateScore();
+    
+    if (isGameOver()) {
+      setTimeout(() => {
+        showHint("Game Over! No more moves.");
+        playSound(200, 0.3);
+      }, 300);
+    }
+  } else {
+    playSound(150, 0.1);
+  }
+}
+
+function canCombine(a, b) {
+  if (a === 1 && b === 2) return true;
+  if (a === 2 && b === 1) return true;
+  if (a === b && a >= 3) return true;
+  return false;
+}
+
+function isGameOver() {
+  // Check for empty cells
+  for (let r = 0; r < GRID_SIZE; r++) {
+    for (let c = 0; c < GRID_SIZE; c++) {
+      if (grid[r][c] === 0) return false;
+    }
+  }
+  
+  // Check for possible combinations
+  for (let r = 0; r < GRID_SIZE; r++) {
+    for (let c = 0; c < GRID_SIZE; c++) {
+      const curr = grid[r][c];
+      if (c < GRID_SIZE - 1 && canCombine(curr, grid[r][c + 1])) return false;
+      if (r < GRID_SIZE - 1 && canCombine(curr, grid[r + 1][c])) return false;
+    }
+  }
+  
+  return true;
+}
+
+function newGame() {
+  playSound(600, 0.1);
+  init();
+}
+
+function checkSolution() {
+  if (isGameOver()) {
+    showHint("No more moves available!");
+    playSound(300, 0.2);
+  } else {
+    const maxVal = Math.max(...grid.flat());
+    showHint(`Looking good! Highest tile: ${maxVal}`);
+    playSound(500, 0.1);
+  }
+}
+
+function autoSolve() {
+  playSound(550, 0.1);
+  const directions = ['left', 'right', 'up', 'down'];
+  let moves = 0;
+  
+  const interval = setInterval(() => {
+    if (isGameOver() || moves >= 20) {
+      clearInterval(interval);
+      showHint(`Auto-solve complete! Score: ${score}`);
+      return;
+    }
+    
+    const dir = directions[Math.floor(Math.random() * directions.length)];
+    move(dir);
+    moves++;
+  }, 300);
+  
+  showHint("Auto-solving...");
+}
+
+function showHint(text) {
+  document.getElementById('hint').textContent = text;
+}
+
+function showInstructions() {
+  playSound(500, 0.1);
+  document.getElementById('modal').classList.add('active');
+}
+
+function closeModal() {
+  playSound(500, 0.1);
+  document.getElementById('modal').classList.remove('active');
+}
+
+// Touch controls
+const board = document.getElementById('board');
+
+board.addEventListener('touchstart', (e) => {
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+});
+
+board.addEventListener('touchend', (e) => {
+  const touchEndX = e.changedTouches[0].clientX;
+  const touchEndY = e.changedTouches[0].clientY;
+  const dx = touchEndX - touchStartX;
+  const dy = touchEndY - touchStartY;
+  
+  if (Math.abs(dx) > Math.abs(dy)) {
+    move(dx > 0 ? 'right' : 'left');
+  } else {
+    move(dy > 0 ? 'down' : 'up');
+  }
+});
+
+// Keyboard controls
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft') move('left');
+  if (e.key === 'ArrowRight') move('right');
+  if (e.key === 'ArrowUp') move('up');
+  if (e.key === 'ArrowDown') move('down');
+});
+
+// Mouse controls for desktop
+let mouseDown = false;
+let mouseStartX, mouseStartY;
+
+board.addEventListener('mousedown', (e) => {
+  mouseDown = true;
+  mouseStartX = e.clientX;
+  mouseStartY = e.clientY;
+});
+
+board.addEventListener('mouseup', (e) => {
+  if (!mouseDown) return;
+  mouseDown = false;
+  
+  const dx = e.clientX - mouseStartX;
+  const dy = e.clientY - mouseStartY;
+  
+  if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+  
+  if (Math.abs(dx) > Math.abs(dy)) {
+    move(dx > 0 ? 'right' : 'left');
+  } else {
+    move(dy > 0 ? 'down' : 'up');
+  }
+});
+
+// Initialize game
+init();
+</script>
+</body>
+</html>
