@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Pong Game</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: linear-gradient(135deg, #1e3a8a, #93c5fd);
+      font-family: 'Arial', sans-serif;
+      touch-action: none;
+    }
+    canvas {
+      display: block;
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      border: 2px solid #ffffff;
+      border-radius: 8px;
+    }
+    .ui-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    .button {
+      pointer-events: auto;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 24px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      color: #ffffff;
+      background-color: #2563eb;
+      transition: background-color 0.2s, transform 0.1s;
+    }
+    .button:hover, .button:active {
+      background-color: #1e40af;
+      transform: scale(1.05);
+    }
+    .mobile-controls {
+      position: absolute;
+      bottom: 20px;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 20px;
+      box-sizing: border-box;
+    }
+    .mobile-button {
+      pointer-events: auto;
+      background-color: rgba(255, 255, 255, 0.5);
+      border: 2px solid #ffffff;
+      border-radius: 12px;
+      width: 70px;
+      height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: bold;
+      color: #1e3a8a;
+      text-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+      touch-action: none;
+      transition: background-color 0.1s, transform 0.1s;
+    }
+    .mobile-button:active {
+      background-color: rgba(255, 255, 255, 0.7);
+      transform: scale(0.95);
+    }
+    .modal {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+      text-align: center;
+      max-width: 85%;
+      pointer-events: auto;
+      z-index: 10;
+    }
+    .modal h2 {
+      margin: 0 0 15px;
+      font-size: 22px;
+      color: #1e3a8a;
+    }
+    .modal p {
+      margin: 0 0 15px;
+      font-size: 14px;
+      color: #374151;
+    }
+    .loader {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      pointer-events: auto;
+      z-index: 10;
+    }
+    .spinner {
+      border: 3px solid #ffffff;
+      border-top: 3px solid #2563eb;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .score {
+      position: absolute;
+      top: 15px;
+      width: 100%;
+      text-align: center;
+      color: #ffffff;
+      font-size: 18px;
+      font-weight: bold;
+      text-shadow: 0 0 5px rgba(0, 0, 0, 0.6);
+      pointer-events: none;
+      z-index: 5;
+    }
+    .audio-error {
+      position: absolute;
+      top: 40px;
+      width: 100%;
+      text-align: center;
+      color: #ff4444;
+      font-size: 14px;
+      font-weight: bold;
+      text-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+      pointer-events: none;
+      z-index: 5;
+      display: none;
+    }
+    @media (max-width: 767px) {
+      .score {
+        font-size: 16px;
+      }
+      .audio-error {
+        font-size: 12px;
+      }
+      .modal h2 {
+        font-size: 20px;
+      }
+      .modal p {
+        font-size: 12px;
+      }
+      .button {
+        font-size: 14px;
+        padding: 10px 20px;
+      }
+      .mobile-button {
+        width: 60px;
+        height: 60px;
+        font-size: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="ui-container">
+    <div class="score" id="score">Player: 0 | Opponent: 0</div>
+    <div class="audio-error" id="audioError">Audio failed to initialize. Check device settings or try another browser.</div>
+    <div class="mobile-controls" id="mobileControls">
+      <div class="mobile-button" id="upButton">↑</div>
+      <div class="mobile-button" id="downButton">↓</div>
+    </div>
+    <div class="modal" id="startModal">
+      <h2>Pong Game</h2>
+      <p>Hold the up/down buttons to move your paddle (left side).</p>
+      <button class="button" id="startButton">Start Game</button>
+    </div>
+    <div class="modal" id="gameOverModal" style="display: none;">
+      <h2>Game Over</h2>
+      <p>Final Score: <span id="finalScore">Player: 0 | Opponent: 0</span></p>
+      <button class="button" id="restartButton">Restart</button>
+    </div>
+    <div class="loader" id="loader" style="display: none;">
+      <div class="spinner"></div>
+    </div>
+  </div>
+  <script>
+    let playerPaddle, opponentPaddle, ball, playerScore, opponentScore, gameState;
+    let isMobile = /Mobi|Android/i.test(navigator.userAgent);
+    let upPressed = false, downPressed = false;
+    let audioContext;
+
+    function setup() {
+      const aspectRatio = 2;
+      let canvasWidth = min(windowWidth * 0.95, 600);
+      let canvasHeight = canvasWidth / aspectRatio;
+      if (canvasHeight > windowHeight * 0.85) {
+        canvasHeight = min(windowHeight * 0.85, 300);
+        canvasWidth = canvasHeight * aspectRatio;
+      }
+      createCanvas(canvasWidth, canvasHeight);
+      let canvas = document.querySelector('canvas');
+      canvas.style.margin = 'auto';
+
+      // Initialize game state
+      resetGame();
+
+      // Initialize AudioContext on user interaction
+      document.getElementById('startButton').addEventListener('click', () => {
+        if (!audioContext) {
+          try {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            console.log('AudioContext created:', audioContext.state);
+            if (audioContext.state === 'suspended') {
+              audioContext.resume().then(() => {
+                console.log('AudioContext resumed:', audioContext.state);
+              }).catch(err => {
+                console.error('Failed to resume AudioContext:', err);
+                document.getElementById('audioError').style.display = 'block';
+              });
+            }
+          } catch (err) {
+            console.error('Failed to create AudioContext:', err);
+            document.getElementById('audioError').style.display = 'block';
+          }
+        }
+        startGame();
+      });
+
+      document.getElementById('restartButton').addEventListener('click', resetGame);
+      if (isMobile) {
+        setupMobileControls();
+      } else {
+        document.getElementById('mobileControls').style.display = 'none';
+      }
+    }
+
+    function windowResized() {
+      const aspectRatio = 2;
+      let canvasWidth = min(windowWidth * 0.95, 600);
+      let canvasHeight = canvasWidth / aspectRatio;
+      if (canvasHeight > windowHeight * 0.85) {
+        canvasHeight = min(windowHeight * 0.85, 300);
+        canvasWidth = canvasHeight * aspectRatio;
+      }
+      resizeCanvas(canvasWidth, canvasHeight);
+      let canvas = document.querySelector('canvas');
+      canvas.style.margin = 'auto';
+      if (playerPaddle && opponentPaddle && ball) {
+        playerPaddle.x = 10;
+        playerPaddle.width = canvasWidth * 0.02;
+        playerPaddle.height = canvasHeight * 0.3;
+        playerPaddle.y = constrain(playerPaddle.y, 0, height - playerPaddle.height);
+        opponentPaddle.x = width - 20;
+        opponentPaddle.width = canvasWidth * 0.02;
+        opponentPaddle.height = canvasHeight * 0.3;
+        opponentPaddle.y = constrain(opponentPaddle.y, 0, height - opponentPaddle.height);
+        ball.x = constrain(ball.x, ball.radius, width - ball.radius);
+        ball.y = constrain(ball.y, ball.radius, height - ball.radius);
+        ball.radius = canvasWidth * 0.015;
+      }
+    }
+
+    function resetGame() {
+      console.log('Resetting game...');
+      playerPaddle = { x: 10, y: height / 2 - height * 0.15, width: width * 0.02, height: height * 0.3 };
+      opponentPaddle = { x: width - 20, y: height / 2 - height * 0.15, width: width * 0.02, height: height * 0.3 };
+      ball = { x: width / 2, y: height / 2, vx: random([-3, 3]) * (width / 600), vy: random(-1.5, 1.5) * (height / 300), radius: width * 0.015 };
+      playerScore = 0;
+      opponentScore = 0;
+      gameState = 'start';
+      document.getElementById('score').innerText = `Player: 0 | Opponent: 0`;
+      document.getElementById('startModal').style.display = 'block';
+      document.getElementById('gameOverModal').style.display = 'none';
+      document.getElementById('loader').style.display = 'none';
+      document.getElementById('audioError').style.display = 'none';
+      upPressed = false;
+      downPressed = false;
+      noLoop();
+      console.log('Game reset complete:', { playerPaddle, opponentPaddle, ball });
+    }
+
+    function startGame() {
+      console.log('Starting game...');
+      gameState = 'playing';
+      document.getElementById('startModal').style.display = 'none';
+      document.getElementById('loader').style.display = 'block';
+      setTimeout(() => {
+        document.getElementById('loader').style.display = 'none';
+        loop();
+      }, 500);
+    }
+
+    function setupMobileControls() {
+      let upButton = document.getElementById('upButton');
+      let downButton = document.getElementById('downButton');
+
+      function handleTouchStart(e, button) {
+        e.preventDefault();
+        if (button === 'up') upPressed = true;
+        if (button === 'down') downPressed = true;
+      }
+
+      function handleTouchEnd(e, button) {
+        e.preventDefault();
+        if (button === 'up') upPressed = false;
+        if (button === 'down') downPressed = false;
+      }
+
+      upButton.addEventListener('touchstart', (e) => handleTouchStart(e, 'up'));
+      downButton.addEventListener('touchstart', (e) => handleTouchStart(e, 'down'));
+      upButton.addEventListener('touchend', (e) => handleTouchEnd(e, 'up'));
+      downButton.addEventListener('touchend', (e) => handleTouchEnd(e, 'down'));
+      upButton.addEventListener('mousedown', (e) => handleTouchStart(e, 'up'));
+      downButton.addEventListener('mousedown', (e) => handleTouchStart(e, 'down'));
+      upButton.addEventListener('mouseup', (e) => handleTouchEnd(e, 'up'));
+      downButton.addEventListener('mouseup', (e) => handleTouchEnd(e, 'down'));
+    }
+
+    function keyPressed() {
+      if (keyCode === UP_ARROW) upPressed = true;
+      if (keyCode === DOWN_ARROW) downPressed = true;
+    }
+
+    function keyReleased() {
+      if (keyCode === UP_ARROW) upPressed = false;
+      if (keyCode === DOWN_ARROW) downPressed = false;
+    }
+
+    function playSound(frequency, type, duration) {
+      if (!audioContext || audioContext.state !== 'running') {
+        console.warn('AudioContext not running, sound skipped:', { frequency, type, duration });
+        document.getElementById('audioError').style.display = 'block';
+        return;
+      }
+      console.log('Playing sound:', { frequency, type, duration });
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      oscillator.type = type;
+      oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + duration);
+    }
+
+    function playBounceSound() {
+      playSound(440, 'sine', 0.1); // Short beep for paddle/wall hit
+    }
+
+    function playScoreSound() {
+      playSound(330, 'square', 0.2); // Medium buzz for score
+    }
+
+    function playGameOverSound() {
+      playSound(220, 'triangle', 0.5); // Longer tone for game over
+    }
+
+    function draw() {
+      if (gameState !== 'playing' || !ball || !playerPaddle || !opponentPaddle) {
+        console.log('Draw skipped:', { gameState, ball, playerPaddle, opponentPaddle });
+        return;
+      }
+
+      background(255);
+
+      // Update player paddle
+      if (upPressed) playerPaddle.y -= 4 * (height / 300);
+      if (downPressed) playerPaddle.y += 4 * (height / 300);
+      playerPaddle.y = constrain(playerPaddle.y, 0, height - playerPaddle.height);
+
+      // Update opponent paddle (simple AI)
+      if (ball.y < opponentPaddle.y + opponentPaddle.height / 2) {
+        opponentPaddle.y -= 2.5 * (height / 300);
+      } else if (ball.y > opponentPaddle.y + opponentPaddle.height / 2) {
+        opponentPaddle.y += 2.5 * (height / 300);
+      }
+      opponentPaddle.y = constrain(opponentPaddle.y, 0, height - opponentPaddle.height);
+
+      // Update ball
+      let prevBallX = ball.x;
+      let prevBallY = ball.y;
+      ball.x += ball.vx;
+      ball.y += ball.vy;
+
+      // Ball collisions with top and bottom
+      if (ball.y - ball.radius < 0 || ball.y + ball.radius > height) {
+        ball.vy *= -1;
+        ball.y = constrain(ball.y, ball.radius, height - ball.radius);
+        playBounceSound();
+      }
+
+      // Ball collisions with paddles
+      if (collideRectCircle(playerPaddle.x, playerPaddle.y, playerPaddle.width, playerPaddle.height, ball.x, ball.y, ball.radius * 2) &&
+          prevBallX > playerPaddle.x + playerPaddle.width) {
+        ball.vx = abs(ball.vx) * 1.05;
+        ball.vy += (ball.y - (playerPaddle.y + playerPaddle.height / 2)) / (12 * (height / 300));
+        playBounceSound();
+      }
+      if (collideRectCircle(opponentPaddle.x, opponentPaddle.y, opponentPaddle.width, opponentPaddle.height, ball.x, ball.y, ball.radius * 2) &&
+          prevBallX < opponentPaddle.x) {
+        ball.vx = -abs(ball.vx) * 1.05;
+        ball.vy += (ball.y - (opponentPaddle.y + opponentPaddle.height / 2)) / (12 * (height / 300));
+        playBounceSound();
+      }
+
+      // Score points
+      if (ball.x < 0) {
+        opponentScore++;
+        playScoreSound();
+        resetBall();
+      } else if (ball.x > width) {
+        playerScore++;
+        playScoreSound();
+        resetBall();
+      }
+
+      // Check for game over (first to 5 points)
+      if (playerScore >= 5 || opponentScore >= 5) {
+        gameState = 'gameOver';
+        document.getElementById('finalScore').innerText = `Player: ${playerScore} | Opponent: ${opponentScore}`;
+        document.getElementById('gameOverModal').style.display = 'block';
+        playGameOverSound();
+        noLoop();
+      }
+
+      // Draw paddles and ball
+      fill(0);
+      rect(playerPaddle.x, playerPaddle.y, playerPaddle.width, playerPaddle.height, 4);
+      rect(opponentPaddle.x, opponentPaddle.y, opponentPaddle.width, opponentPaddle.height, 4);
+      ellipse(ball.x, ball.y, ball.radius * 2);
+
+      // Draw center line
+      stroke(150);
+      strokeWeight(2 * (width / 600));
+      for (let y = 0; y < height; y += 15 * (height / 300)) {
+        line(width / 2, y, width / 2, y + 8 * (height / 300));
+      }
+      strokeWeight(1);
+      stroke(0);
+
+      // Update score
+      document.getElementById('score').innerText = `Player: ${playerScore} | Opponent: ${opponentScore}`;
+    }
+
+    function resetBall() {
+      ball.x = width / 2;
+      ball.y = height / 2;
+      ball.vx = random([-3, 3]) * (width / 600);
+      ball.vy = random(-1.5, 1.5) * (height / 300);
+    }
+
+    function collideRectCircle(rx, ry, rw, rh, cx, cy, diameter) {
+      let testX = cx;
+      let testY = cy;
+      if (cx < rx) testX = rx;
+      else if (cx > rx + rw) testX = rx + rw;
+      if (cy < ry) testY = ry;
+      else if (cy > ry + rh) testY = ry + rh;
+      let distX = cx - testX;
+      let distY = cy - testY;
+      let distance = sqrt(distX * distX + distY * distY);
+      return distance <= diameter / 2;
+    }
+  </script>
+</body>
+</html>
