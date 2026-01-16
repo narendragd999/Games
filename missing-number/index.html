@@ -1,0 +1,1649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Brain Puzzle Pro</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+:root {
+  --primary: #4361ee;
+  --secondary: #3a0ca3;
+  --success: #4cc9f0;
+  --danger: #f72585;
+  --warning: #f8961e;
+  --info: #7209b7;
+  --light: #f8f9fa;
+  --dark: #212529;
+  --card-bg: rgba(255, 255, 255, 0.98);
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 10px;
+  overflow-x: hidden;
+  touch-action: manipulation;
+}
+
+.container {
+  width: 100%;
+  max-width: 100%;
+  height: 100vh;
+  max-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header - Compact */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  color: white;
+  flex-shrink: 0;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.logo i {
+  color: #ffd166;
+  font-size: 1.5rem;
+}
+
+.difficulty-select {
+  padding: 6px 12px;
+  border-radius: 16px;
+  border: 2px solid white;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.difficulty-select option {
+  background: #3a0ca3;
+  color: white;
+}
+
+/* Stats Bar - Compact */
+.stats-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.stat-item {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 8px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 600;
+  box-shadow: var(--shadow);
+  font-size: 0.85rem;
+}
+
+.stat-item i {
+  font-size: 1rem;
+}
+
+.streak { color: #ef476f; }
+.coins { color: #06d6a0; }
+.level { color: #118ab2; }
+
+/* Main Card */
+.card {
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+  margin-bottom: 10px;
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  max-height: calc(100vh - 180px);
+}
+
+/* Category Tabs - Compact */
+.category-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+
+.category-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.category-tab {
+  flex: 0 0 auto;
+  padding: 10px 8px;
+  border: none;
+  border-radius: 10px;
+  background: var(--light);
+  color: var(--dark);
+  font-weight: 600;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  border: 2px solid transparent;
+  min-width: 60px;
+}
+
+.category-tab i {
+  font-size: 1.1rem;
+}
+
+.category-tab.active {
+  background: var(--secondary);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(58, 12, 163, 0.2);
+}
+
+.category-tab:hover:not(.active) {
+  border-color: var(--secondary);
+}
+
+/* Category Label */
+.category-label {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: 6px;
+  background: var(--light);
+}
+
+.math-label { background: #e3f2fd; color: #1976d2; }
+.logic-label { background: #f3e5f5; color: #7b1fa2; }
+.finance-label { background: #e8f5e9; color: #388e3c; }
+.pattern-label { background: #fff3e0; color: #f57c00; }
+.word-label { background: #fce4ec; color: #c2185b; }
+.spatial-label { background: #e8eaf6; color: #303f9f; }
+.sequence-label { background: #e0f2f1; color: #00796b; }
+
+/* Puzzle Container - Compact */
+.puzzle-container {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 2px solid #e9ecef;
+  flex-shrink: 0;
+}
+
+.puzzle-title {
+  text-align: center;
+  font-size: 0.9rem;
+  color: #6c757d;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sequence {
+  font-size: 20px;
+  text-align: center;
+  margin: 16px 0;
+  font-weight: 700;
+  color: var(--dark);
+  font-family: 'Courier New', monospace;
+  letter-spacing: 4px;
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sequence span {
+  padding: 4px 8px;
+  background: white;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  font-size: 18px;
+}
+
+.missing {
+  background: linear-gradient(45deg, #4361ee, #3a0ca3) !important;
+  color: white;
+  animation: pulse 2s infinite;
+  padding: 6px 12px !important;
+}
+
+/* Word Puzzle Styles */
+.word-puzzle {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--dark);
+  margin: 16px 0;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.word-hint {
+  font-size: 12px;
+  color: #666;
+  font-style: italic;
+  margin-top: 6px;
+}
+
+/* Options Grid - Compact */
+.options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.option-btn {
+  padding: 14px 6px;
+  border: none;
+  border-radius: 10px;
+  background: var(--primary);
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 3px 5px rgba(67, 97, 238, 0.2);
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.option-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(67, 97, 238, 0.3);
+}
+
+.option-btn:active {
+  transform: translateY(0);
+}
+
+/* Word Options */
+.word-option {
+  font-size: 14px;
+  padding: 12px 4px;
+}
+
+/* Actions - Compact */
+.action-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.action-btn {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  font-size: 13px;
+  min-height: 44px;
+}
+
+.hint-btn {
+  background: var(--warning);
+  color: white;
+}
+
+.solution-btn {
+  background: var(--danger);
+  color: white;
+}
+
+.next-btn {
+  background: var(--success);
+  color: white;
+  font-size: 14px;
+}
+
+.action-btn:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Result Display */
+.result-container {
+  text-align: center;
+  padding: 12px;
+  border-radius: 10px;
+  margin-top: 12px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  animation: slideIn 0.3s ease;
+  display: none;
+  flex-shrink: 0;
+}
+
+.result-container.correct {
+  background: rgba(76, 201, 240, 0.2);
+  color: #118ab2;
+  border: 2px solid #4cc9f0;
+}
+
+.result-container.wrong {
+  background: rgba(247, 37, 133, 0.1);
+  color: #f72585;
+  border: 2px solid #f72585;
+}
+
+/* Progress Bar */
+.progress-container {
+  margin-top: 16px;
+  flex-shrink: 0;
+}
+
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-size: 0.8rem;
+  color: var(--dark);
+}
+
+.progress-bar {
+  height: 6px;
+  background: #e9ecef;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4cc9f0, #4361ee);
+  border-radius: 3px;
+  width: 0%;
+  transition: width 0.5s ease;
+}
+
+/* Animations */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Tutorial Button */
+.tutorial-btn {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  border: none;
+  font-size: 1.3rem;
+  cursor: pointer;
+  box-shadow: 0 3px 12px rgba(67, 97, 238, 0.4);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s;
+}
+
+.tutorial-btn:hover {
+  transform: scale(1.05);
+}
+
+/* Loading Overlay */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  display: none;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #4361ee;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Puzzle Counter */
+.puzzle-counter {
+  text-align: center;
+  font-size: 11px;
+  color: #6c757d;
+  margin-top: 8px;
+  flex-shrink: 0;
+}
+
+/* Notification */
+.notification {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  z-index: 1000;
+  display: none;
+  animation: slideIn 0.3s ease;
+  min-width: 280px;
+  max-width: 90%;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.notification.success {
+  border-left: 4px solid var(--success);
+}
+
+.notification.error {
+  border-left: 4px solid var(--danger);
+}
+
+.notification.warning {
+  border-left: 4px solid var(--warning);
+}
+
+/* Modal */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+  animation: fadeIn 0.3s ease;
+  padding: 16px;
+}
+
+.modal-content {
+  background: white;
+  padding: 20px;
+  border-radius: 16px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: slideIn 0.3s ease;
+  max-width: 400px;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.close-modal {
+  background: none;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  color: #6c757d;
+}
+
+.modal-body {
+  line-height: 1.5;
+  font-size: 0.9rem;
+}
+
+.modal-body h3 {
+  margin: 16px 0 8px 0;
+  color: var(--secondary);
+  font-size: 1.1rem;
+}
+
+.modal-body ul {
+  margin-left: 16px;
+  margin-bottom: 16px;
+}
+
+.modal-body li {
+  margin-bottom: 6px;
+}
+
+/* Very small screens */
+@media (max-height: 700px) {
+  .card {
+    padding: 12px;
+  }
+  
+  .puzzle-container {
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+  
+  .sequence {
+    font-size: 18px;
+    margin: 12px 0;
+    gap: 6px;
+  }
+  
+  .sequence span {
+    font-size: 16px;
+    padding: 3px 6px;
+  }
+  
+  .missing {
+    padding: 4px 10px !important;
+  }
+  
+  .options-grid {
+    gap: 8px;
+  }
+  
+  .option-btn {
+    padding: 12px 4px;
+    font-size: 15px;
+    min-height: 44px;
+  }
+  
+  .action-btn {
+    padding: 10px;
+    min-height: 40px;
+  }
+}
+
+/* Landscape orientation */
+@media (orientation: landscape) and (max-height: 500px) {
+  .container {
+    flex-direction: row;
+    gap: 12px;
+    padding: 10px;
+  }
+  
+  .card {
+    flex: 1;
+    max-height: 100vh;
+  }
+  
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .stats-bar {
+    flex-direction: column;
+  }
+  
+  .category-tabs {
+    flex-direction: column;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+}
+
+/* No scrollbars for Chrome/Safari */
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* Touch-friendly sizes */
+@media (pointer: coarse) {
+  .option-btn,
+  .action-btn,
+  .category-tab {
+    min-height: 44px;
+  }
+  
+  .option-btn {
+    padding: 16px 8px;
+  }
+}
+
+/* Prevent text selection */
+.noselect {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+</style>
+</head>
+
+<body class="noselect">
+
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">
+      <i class="fas fa-brain"></i>
+      <span>Puzzle Pro</span>
+    </div>
+    <div class="difficulty">
+      <select id="difficulty" class="difficulty-select">
+        <option value="easy">Easy</option>
+        <option value="medium" selected>Medium</option>
+        <option value="hard">Hard</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Stats Bar -->
+  <div class="stats-bar">
+    <div class="stat-item">
+      <i class="fas fa-fire"></i>
+      <span><span id="streak">0</span></span>
+    </div>
+    <div class="stat-item">
+      <i class="fas fa-coins"></i>
+      <span><span id="coins">100</span></span>
+    </div>
+    <div class="stat-item">
+      <i class="fas fa-chart-line"></i>
+      <span><span id="level">1</span></span>
+    </div>
+  </div>
+
+  <!-- Main Card -->
+  <div class="card">
+    <!-- Category Tabs -->
+    <div class="category-tabs" id="category-tabs">
+      <!-- Tabs will be populated by JavaScript -->
+    </div>
+
+    <!-- Puzzle Container -->
+    <div class="puzzle-container">
+      <div class="puzzle-title">
+        <span id="puzzle-title">Find Missing Number</span>
+        <span id="category-label" class="category-label math-label">Math</span>
+      </div>
+      <div class="sequence" id="sequence"></div>
+      <div class="word-puzzle" id="word-puzzle" style="display: none;"></div>
+      
+      <!-- Options -->
+      <div class="options-grid" id="options"></div>
+      
+      <!-- Result -->
+      <div class="result-container" id="result"></div>
+      
+      <!-- Puzzle Counter -->
+      <div class="puzzle-counter">
+        <span id="puzzle-counter">Puzzle 1</span>
+      </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="progress-container">
+      <div class="progress-label">
+        <span>Next Level</span>
+        <span id="progress-text">0/10</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-bar">
+      <button class="action-btn hint-btn" id="hint-btn">
+        <i class="fas fa-lightbulb"></i>
+        <span>Hint (-5)</span>
+      </button>
+      <button class="action-btn solution-btn" id="solution-btn">
+        <i class="fas fa-eye"></i>
+        <span>Solution</span>
+      </button>
+      <button class="action-btn next-btn" id="next-btn">
+        <i class="fas fa-forward"></i>
+        <span>Next</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Tutorial Button -->
+<button class="tutorial-btn" id="tutorial-btn">
+  <i class="fas fa-question"></i>
+</button>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="spinner"></div>
+</div>
+
+<!-- Notification -->
+<div class="notification" id="notification"></div>
+
+<!-- Tutorial Modal -->
+<div class="modal" id="tutorial-modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>How to Play</h2>
+      <button class="close-modal" id="close-modal">&times;</button>
+    </div>
+    <div class="modal-body">
+      <h3><i class="fas fa-gamepad"></i> Game Rules</h3>
+      <ul>
+        <li>Choose from 7 puzzle categories</li>
+        <li>Find the missing element in sequence</li>
+        <li>Select correct answer from 4 options</li>
+        <li>Maintain streaks for bonus coins</li>
+        <li>Progress through levels for rewards</li>
+      </ul>
+      
+      <h3><i class="fas fa-star"></i> Scoring</h3>
+      <ul>
+        <li>Correct answer: +10 coins</li>
+        <li>3+ streak: Bonus +5 coins</li>
+        <li>Level up: +50 coins</li>
+        <li>Wrong answer: Streak resets</li>
+      </ul>
+      
+      <h3><i class="fas fa-tools"></i> Controls</h3>
+      <ul>
+        <li>Hint: Reveal clue (5 coins)</li>
+        <li>Solution: Show answer (resets streak)</li>
+        <li>Keyboard: 1-4 for options, H/S/N</li>
+      </ul>
+      
+      <button class="action-btn next-btn" id="start-playing-btn" style="width:100%;margin-top:16px;">
+        Start Playing!
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Game State - Optimized for mobile
+let gameState = {
+  streak: 0,
+  coins: 100,
+  level: 1,
+  progress: 0,
+  currentCategory: 'math',
+  difficulty: 'medium',
+  answer: null,
+  explanation: '',
+  hint: '',
+  puzzleCount: 0,
+  recentPuzzles: new Set(),
+  maxRecentPuzzles: 30
+};
+
+// Category Configuration
+const categoryConfig = {
+  math: { 
+    label: 'Math', 
+    class: 'math-label', 
+    color: '#1976d2',
+    icon: 'fa-calculator',
+    name: 'Math'
+  },
+  logic: { 
+    label: 'Logic', 
+    class: 'logic-label', 
+    color: '#7b1fa2',
+    icon: 'fa-brain',
+    name: 'Logic'
+  },
+  finance: { 
+    label: 'Finance', 
+    class: 'finance-label', 
+    color: '#388e3c',
+    icon: 'fa-chart-line',
+    name: 'Finance'
+  },
+  patterns: { 
+    label: 'Patterns', 
+    class: 'pattern-label', 
+    color: '#f57c00',
+    icon: 'fa-shapes',
+    name: 'Patterns'
+  },
+  word: { 
+    label: 'Word', 
+    class: 'word-label', 
+    color: '#c2185b',
+    icon: 'fa-font',
+    name: 'Word'
+  },
+  spatial: { 
+    label: 'Spatial', 
+    class: 'spatial-label', 
+    color: '#303f9f',
+    icon: 'fa-cube',
+    name: 'Spatial'
+  },
+  sequence: { 
+    label: 'Sequence', 
+    class: 'sequence-label', 
+    color: '#00796b',
+    icon: 'fa-list-ol',
+    name: 'Sequence'
+  }
+};
+
+// Predefined word puzzles
+const wordPuzzles = [
+  { type: 'anagram', question: 'Anagram of "LISTEN":', answer: 'SILENT', hint: 'Quiet', options: ['SILENT', 'ENLIST', 'TINSEL', 'LISTEN'] },
+  { type: 'anagram', question: 'Anagram of "EARTH":', answer: 'HEART', hint: 'Organ', options: ['HEART', 'HATER', 'RATHE', 'EARTH'] },
+  { type: 'synonym', question: 'Synonym for "HAPPY":', answer: 'JOYFUL', hint: 'Full of joy', options: ['JOYFUL', 'SAD', 'ANGRY', 'TIRED'] },
+  { type: 'synonym', question: 'Synonym for "BIG":', answer: 'LARGE', hint: 'Opposite of small', options: ['LARGE', 'TINY', 'SMALL', 'MEDIUM'] },
+  { type: 'antonym', question: 'Antonym of "HOT":', answer: 'COLD', hint: 'Temperature', options: ['COLD', 'WARM', 'HEATED', 'BOILING'] },
+  { type: 'antonym', question: 'Antonym of "UP":', answer: 'DOWN', hint: 'Direction', options: ['DOWN', 'LEFT', 'RIGHT', 'SIDE'] },
+  { type: 'riddle', question: 'What has keys but can\'t open locks?', answer: 'PIANO', hint: 'Instrument', options: ['PIANO', 'DOOR', 'COMPUTER', 'CAR'] },
+  { type: 'riddle', question: 'What gets wet while drying?', answer: 'TOWEL', hint: 'Bathroom', options: ['TOWEL', 'UMBRELLA', 'RAIN', 'HAIR'] }
+];
+
+// DOM Elements
+const elements = {
+  streak: document.getElementById('streak'),
+  coins: document.getElementById('coins'),
+  level: document.getElementById('level'),
+  sequence: document.getElementById('sequence'),
+  options: document.getElementById('options'),
+  result: document.getElementById('result'),
+  progressFill: document.getElementById('progress-fill'),
+  progressText: document.getElementById('progress-text'),
+  puzzleTitle: document.getElementById('puzzle-title'),
+  categoryLabel: document.getElementById('category-label'),
+  difficulty: document.getElementById('difficulty'),
+  hintBtn: document.getElementById('hint-btn'),
+  solutionBtn: document.getElementById('solution-btn'),
+  nextBtn: document.getElementById('next-btn'),
+  tutorialBtn: document.getElementById('tutorial-btn'),
+  tutorialModal: document.getElementById('tutorial-modal'),
+  closeModal: document.getElementById('close-modal'),
+  startPlayingBtn: document.getElementById('start-playing-btn'),
+  notification: document.getElementById('notification'),
+  wordPuzzle: document.getElementById('word-puzzle'),
+  categoryTabs: document.getElementById('category-tabs'),
+  puzzleCounter: document.getElementById('puzzle-counter'),
+  loadingOverlay: document.getElementById('loading-overlay')
+};
+
+// Initialize Game
+function initGame() {
+  loadGameState();
+  setupCategoryTabs();
+  setupEventListeners();
+  generatePuzzle();
+  updateUI();
+  
+  if (!localStorage.getItem('tutorialShown')) {
+    setTimeout(() => showTutorial(), 300);
+    localStorage.setItem('tutorialShown', 'true');
+  }
+  
+  // Adjust viewport for mobile
+  adjustViewport();
+}
+
+// Adjust viewport for mobile
+function adjustViewport() {
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if (isMobile) {
+    document.body.style.padding = '5px';
+    document.querySelector('.container').style.maxWidth = '100%';
+  }
+}
+
+// Setup Category Tabs
+function setupCategoryTabs() {
+  const categories = Object.keys(categoryConfig);
+  elements.categoryTabs.innerHTML = '';
+  
+  categories.forEach(catKey => {
+    const config = categoryConfig[catKey];
+    const tab = document.createElement('button');
+    tab.className = `category-tab ${catKey === gameState.currentCategory ? 'active' : ''}`;
+    tab.dataset.category = catKey;
+    tab.innerHTML = `
+      <i class="fas ${config.icon}"></i>
+      <span>${config.name}</span>
+    `;
+    elements.categoryTabs.appendChild(tab);
+  });
+}
+
+// Setup Event Listeners
+function setupEventListeners() {
+  // Category tabs
+  let categoryChangeTimeout;
+  document.querySelectorAll('.category-tab').forEach(tab => {
+    tab.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (categoryChangeTimeout) clearTimeout(categoryChangeTimeout);
+      
+      document.querySelectorAll('.category-tab').forEach(t => {
+        t.style.pointerEvents = 'none';
+      });
+      
+      showLoading();
+      
+      categoryChangeTimeout = setTimeout(() => {
+        setCategory(tab.dataset.category);
+        hideLoading();
+        
+        document.querySelectorAll('.category-tab').forEach(t => {
+          t.style.pointerEvents = 'auto';
+        });
+      }, 50);
+    });
+  });
+  
+  // Difficulty selector
+  elements.difficulty.addEventListener('change', (e) => {
+    gameState.difficulty = e.target.value;
+    generatePuzzle();
+  });
+  
+  // Action buttons
+  elements.hintBtn.addEventListener('click', useHint);
+  elements.solutionBtn.addEventListener('click', showSolution);
+  elements.nextBtn.addEventListener('click', nextPuzzle);
+  
+  // Tutorial buttons
+  elements.tutorialBtn.addEventListener('click', showTutorial);
+  elements.closeModal.addEventListener('click', closeTutorial);
+  elements.startPlayingBtn.addEventListener('click', closeTutorial);
+  
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    if (e.key >= '1' && e.key <= '4') {
+      const index = parseInt(e.key) - 1;
+      const options = document.querySelectorAll('.option-btn');
+      if (options[index]) {
+        const value = parseInt(options[index].dataset.value) || options[index].dataset.value;
+        checkAnswer(value);
+      }
+    } else if (e.key === 'h' || e.key === 'H') {
+      useHint();
+    } else if (e.key === 's' || e.key === 'S') {
+      showSolution();
+    } else if (e.key === 'n' || e.key === 'N') {
+      nextPuzzle();
+    }
+  });
+  
+  // Prevent zoom on double tap
+  let lastTap = 0;
+  document.addEventListener('touchend', (e) => {
+    const currentTime = new Date().getTime();
+    const tapLength = currentTime - lastTap;
+    if (tapLength < 500 && tapLength > 0) {
+      e.preventDefault();
+    }
+    lastTap = currentTime;
+  });
+}
+
+// Show loading overlay
+function showLoading() {
+  elements.loadingOverlay.style.display = 'flex';
+}
+
+// Hide loading overlay
+function hideLoading() {
+  elements.loadingOverlay.style.display = 'none';
+}
+
+// Set Category
+function setCategory(category) {
+  if (!categoryConfig[category]) return;
+  
+  const config = categoryConfig[category];
+  elements.categoryLabel.textContent = config.label;
+  elements.categoryLabel.className = `category-label ${config.class}`;
+  
+  document.querySelectorAll('.category-tab').forEach(tab => {
+    tab.classList.remove('active');
+    if (tab.dataset.category === category) {
+      tab.classList.add('active');
+    }
+  });
+  
+  const titles = {
+    math: 'Find Missing Number',
+    logic: 'Logic Puzzle',
+    finance: 'Finance Pattern',
+    patterns: 'Pattern Challenge',
+    word: 'Word Puzzle',
+    spatial: 'Spatial Test',
+    sequence: 'Sequence Analysis'
+  };
+  elements.puzzleTitle.textContent = titles[category];
+  
+  gameState.currentCategory = category;
+  generatePuzzle();
+}
+
+// Generate Puzzle
+function generatePuzzle() {
+  const category = gameState.currentCategory;
+  const difficulty = gameState.difficulty;
+  
+  let puzzleData;
+  let attempts = 0;
+  
+  while (attempts < 10) {
+    attempts++;
+    
+    switch (category) {
+      case 'math': puzzleData = generateMathPuzzle(difficulty); break;
+      case 'logic': puzzleData = generateLogicPuzzle(difficulty); break;
+      case 'finance': puzzleData = generateFinancePuzzle(difficulty); break;
+      case 'patterns': puzzleData = generatePatternPuzzle(difficulty); break;
+      case 'word': puzzleData = generateWordPuzzle(difficulty); break;
+      case 'spatial': puzzleData = generateSpatialPuzzle(difficulty); break;
+      case 'sequence': puzzleData = generateSequencePuzzle(difficulty); break;
+      default: puzzleData = generateMathPuzzle(difficulty);
+    }
+    
+    const puzzleHash = `${category}-${puzzleData.answer}`;
+    
+    if (!gameState.recentPuzzles.has(puzzleHash)) {
+      gameState.recentPuzzles.add(puzzleHash);
+      
+      if (gameState.recentPuzzles.size > gameState.maxRecentPuzzles) {
+        const array = Array.from(gameState.recentPuzzles);
+        array.shift();
+        gameState.recentPuzzles = new Set(array);
+      }
+      
+      break;
+    }
+  }
+  
+  gameState.answer = puzzleData.answer;
+  gameState.explanation = puzzleData.explanation || 'Pattern recognition puzzle';
+  gameState.hint = puzzleData.hint || 'Look for a pattern';
+  gameState.puzzleCount++;
+  
+  renderPuzzle(puzzleData);
+}
+
+// Generate Math Puzzle
+function generateMathPuzzle(difficulty) {
+  const diffMult = { easy: 0.7, medium: 1, hard: 1.3 }[difficulty];
+  const type = ['arithmetic', 'geometric', 'fibonacci'][Math.floor(Math.random() * 3)];
+  
+  let sequence = [], answer, explanation = '', hint = '';
+  const base = Math.floor(8 * diffMult);
+  
+  if (type === 'arithmetic') {
+    const start = rand(2, base);
+    const diff = rand(2, Math.floor(4 * diffMult));
+    sequence = [start, start + diff, '?', start + 3*diff];
+    answer = start + 2*diff;
+    explanation = `Add ${diff} each time`;
+    hint = `Constant difference`;
+  } else if (type === 'geometric') {
+    const gStart = rand(2, Math.floor(4 * diffMult));
+    const ratio = rand(2, Math.floor(3 * diffMult));
+    sequence = [gStart, gStart * ratio, '?', gStart * ratio * ratio * ratio];
+    answer = gStart * ratio * ratio;
+    explanation = `Multiply by ${ratio}`;
+    hint = `Constant multiplier`;
+  } else {
+    const f1 = rand(1, Math.floor(4 * diffMult));
+    const f2 = rand(1, Math.floor(4 * diffMult));
+    sequence = [f1, f2, f1 + f2, '?', (f1 + f2) + f2];
+    answer = (f1 + f2) + f2;
+    explanation = `Fibonacci sequence`;
+    hint = `Sum of previous two`;
+  }
+  
+  const options = generateOptions(answer, diffMult);
+  return { sequence, answer, explanation, hint, options };
+}
+
+// Generate Logic Puzzle
+function generateLogicPuzzle(difficulty) {
+  const diffMult = { easy: 0.7, medium: 1, hard: 1.3 }[difficulty];
+  const base = rand(3, Math.floor(6 * diffMult));
+  
+  let sequence = [], answer, explanation = '', hint = '';
+  
+  if (Math.random() > 0.5) {
+    const pattern = Math.random() > 0.5 ? ['×2', '+2'] : ['+2', '×2'];
+    let current = base;
+    for (let i = 0; i < 4; i++) {
+      if (i === 2) {
+        sequence.push('?');
+      } else if (i === 0) {
+        sequence.push(current);
+      } else {
+        const op = pattern[(i-1) % 2];
+        if (op === '×2') current *= 2;
+        else current += 2;
+        sequence.push(current);
+      }
+    }
+    let calc = base;
+    for (let i = 0; i < 3; i++) {
+      const op = pattern[i % 2];
+      if (op === '×2') calc *= 2;
+      else calc += 2;
+    }
+    answer = calc;
+    explanation = `Pattern: ${pattern[0]}, ${pattern[1]}`;
+    hint = `Alternating operations`;
+  } else {
+    const pos = rand(2, 4);
+    sequence = [pos, pos*2, pos*3, '?', pos*5];
+    answer = pos*4;
+    explanation = `Multiply by position`;
+    hint = `Position numbers`;
+  }
+  
+  const options = generateOptions(answer, diffMult);
+  return { sequence, answer, explanation, hint, options };
+}
+
+// Generate Finance Puzzle
+function generateFinancePuzzle(difficulty) {
+  const diffMult = { easy: 0.7, medium: 1, hard: 1.3 }[difficulty];
+  const principal = rand(1000, Math.floor(5000 * diffMult));
+  const rate = rand(5, Math.floor(15 * diffMult));
+  
+  const sequence = [];
+  for (let i = 0; i < 4; i++) {
+    if (i === 2) {
+      sequence.push('?');
+    } else {
+      const amount = Math.round(principal * Math.pow(1 + rate/100, i));
+      sequence.push(`$${amount.toLocaleString()}`);
+    }
+  }
+  
+  const answer = Math.round(principal * Math.pow(1 + rate/100, 2));
+  const explanation = `${rate}% compound interest`;
+  const hint = `Use compound formula`;
+  
+  const options = generateOptions(answer, diffMult, true);
+  return { sequence, answer, explanation, hint, options };
+}
+
+// Generate Pattern Puzzle
+function generatePatternPuzzle(difficulty) {
+  const diffMult = { easy: 0.7, medium: 1, hard: 1.3 }[difficulty];
+  
+  let sequence = [], answer, explanation = '', hint = '';
+  
+  const patterns = [
+    [1, 4, 9, '?', 25], // Squares
+    [2, 4, 6, '?', 10], // Even numbers
+    [1, 3, 6, '?', 15]  // Triangular
+  ];
+  
+  const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+  sequence = pattern;
+  
+  if (pattern[0] === 1 && pattern[1] === 4) {
+    answer = 16;
+    explanation = 'Square numbers';
+    hint = 'n² pattern';
+  } else if (pattern[0] === 2 && pattern[1] === 4) {
+    answer = 8;
+    explanation = 'Even numbers';
+    hint = 'Add 2 each time';
+  } else {
+    answer = 10;
+    explanation = 'Triangular numbers';
+    hint = 'n(n+1)/2';
+  }
+  
+  const options = generateOptions(answer, diffMult);
+  return { sequence, answer, explanation, hint, options };
+}
+
+// Generate Word Puzzle
+function generateWordPuzzle(difficulty) {
+  const puzzle = wordPuzzles[Math.floor(Math.random() * wordPuzzles.length)];
+  
+  return {
+    isWordPuzzle: true,
+    question: puzzle.question,
+    answer: puzzle.answer,
+    explanation: `${puzzle.type}: ${puzzle.answer}`,
+    hint: puzzle.hint,
+    options: shuffleArray([...puzzle.options])
+  };
+}
+
+// Generate Spatial Puzzle
+function generateSpatialPuzzle(difficulty) {
+  const diffMult = { easy: 0.7, medium: 1, hard: 1.3 }[difficulty];
+  const base = rand(2, Math.floor(5 * diffMult));
+  
+  let sequence = [], answer, explanation = '', hint = '';
+  
+  sequence = [base, base*2, base*4, '?', base*16];
+  answer = base*8;
+  explanation = 'Double each time';
+  hint = 'Multiply by 2';
+  
+  const options = generateOptions(answer, diffMult);
+  return { sequence, answer, explanation, hint, options };
+}
+
+// Generate Sequence Puzzle
+function generateSequencePuzzle(difficulty) {
+  const diffMult = { easy: 0.7, medium: 1, hard: 1.3 }[difficulty];
+  const base = rand(2, Math.floor(5 * diffMult));
+  
+  let sequence = [], answer, explanation = '', hint = '';
+  
+  sequence = [base, base + 3, (base + 3) * 2, '?', ((base + 3) * 2 + 3) * 2];
+  answer = (base + 3) * 2 + 3;
+  explanation = '+3 then ×2 pattern';
+  hint = 'Alternate operations';
+  
+  const options = generateOptions(answer, diffMult);
+  return { sequence, answer, explanation, hint, options };
+}
+
+// Generate Options
+function generateOptions(correctAnswer, diffMult, isCurrency = false) {
+  const options = [correctAnswer];
+  const range = Math.max(5, Math.floor(correctAnswer * 0.2 * diffMult));
+  
+  while (options.length < 4) {
+    let wrongAnswer;
+    
+    if (options.length === 1) {
+      wrongAnswer = correctAnswer + rand(-range, range);
+    } else if (options.length === 2) {
+      wrongAnswer = correctAnswer + (Math.random() > 0.5 ? range : -range);
+    } else {
+      wrongAnswer = correctAnswer * (Math.random() > 0.5 ? 1.5 : 0.7);
+    }
+    
+    if (!options.includes(wrongAnswer) && wrongAnswer > 0) {
+      options.push(Math.round(wrongAnswer));
+    }
+  }
+  
+  return shuffleArray(options);
+}
+
+// Shuffle Array
+function shuffleArray(array) {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+// Render Puzzle
+function renderPuzzle(puzzleData) {
+  const isWordPuzzle = puzzleData.isWordPuzzle || gameState.currentCategory === 'word';
+  
+  elements.sequence.style.display = isWordPuzzle ? 'none' : 'flex';
+  elements.wordPuzzle.style.display = isWordPuzzle ? 'block' : 'none';
+  
+  if (isWordPuzzle && puzzleData.question) {
+    elements.wordPuzzle.innerHTML = `
+      <div style="font-size: 18px; margin-bottom: 8px;">${puzzleData.question}</div>
+      <div class="word-hint">Word Puzzle</div>
+    `;
+  } else {
+    let sequenceHTML = '';
+    puzzleData.sequence.forEach(item => {
+      if (item === '?') {
+        sequenceHTML += `<span class="missing">?</span>`;
+      } else {
+        sequenceHTML += `<span>${item}</span>`;
+      }
+    });
+    elements.sequence.innerHTML = sequenceHTML;
+  }
+  
+  elements.options.innerHTML = '';
+  
+  puzzleData.options.forEach((option, index) => {
+    const button = document.createElement('button');
+    button.className = `option-btn ${isWordPuzzle ? 'word-option' : ''}`;
+    
+    if (isWordPuzzle) {
+      button.textContent = option;
+      button.dataset.value = option;
+    } else {
+      button.textContent = gameState.currentCategory === 'finance' 
+        ? `$${option.toLocaleString()}` 
+        : option;
+      button.dataset.value = option;
+    }
+    
+    elements.options.appendChild(button);
+  });
+  
+  elements.result.style.display = 'none';
+  elements.result.className = 'result-container';
+  elements.hintBtn.disabled = gameState.coins < 5;
+  elements.puzzleCounter.textContent = `Puzzle ${gameState.puzzleCount}`;
+}
+
+// Check Answer
+function checkAnswer(selectedAnswer) {
+  const isCorrect = selectedAnswer == gameState.answer;
+  
+  elements.result.style.display = 'block';
+  elements.result.className = `result-container ${isCorrect ? 'correct' : 'wrong'}`;
+  
+  if (isCorrect) {
+    elements.result.innerHTML = `
+      <i class="fas fa-check-circle"></i> 
+      <span>Correct! +10 coins</span>
+      ${gameState.streak >= 2 ? `<br><small>+5 streak bonus</small>` : ''}
+    `;
+    
+    gameState.streak++;
+    gameState.coins += 10;
+    
+    if (gameState.streak >= 3) {
+      gameState.coins += 5;
+      if (gameState.streak === 3 || gameState.streak === 5) {
+        showNotification(`🔥 ${gameState.streak} Streak!`, 'success');
+      }
+    }
+    
+    gameState.progress++;
+    if (gameState.progress >= 10) {
+      levelUp();
+    }
+    
+    if (gameState.streak === 5) {
+      gameState.coins += 25;
+      showNotification('🎯 5-Streak! +25 coins', 'success');
+    }
+    
+    highlightAnswers(selectedAnswer, true);
+    
+  } else {
+    elements.result.innerHTML = `
+      <i class="fas fa-times-circle"></i> 
+      <span>Incorrect! Answer: ${formatAnswer(gameState.answer)}</span>
+    `;
+    
+    gameState.streak = 0;
+    highlightAnswers(selectedAnswer, false);
+  }
+  
+  updateUI();
+  saveGameState();
+}
+
+// Highlight answers
+function highlightAnswers(selectedAnswer, isCorrect) {
+  document.querySelectorAll('.option-btn').forEach(btn => {
+    const btnValue = btn.dataset.value;
+    
+    if (btnValue == gameState.answer) {
+      btn.style.background = 'var(--success)';
+    } else if (!isCorrect && btnValue == selectedAnswer) {
+      btn.style.background = 'var(--danger)';
+    }
+  });
+}
+
+// Format answer
+function formatAnswer(answer) {
+  if (gameState.currentCategory === 'finance') {
+    return `$${answer.toLocaleString()}`;
+  }
+  return answer;
+}
+
+// Level Up
+function levelUp() {
+  gameState.level++;
+  gameState.progress = 0;
+  gameState.coins += 50;
+  
+  if (gameState.level % 5 === 0) {
+    gameState.coins += 100;
+    showNotification(`🎉 Level ${gameState.level}! +150 coins`, 'success');
+  } else {
+    showNotification(`🎉 Level ${gameState.level}! +50 coins`, 'success');
+  }
+  
+  updateUI();
+}
+
+// Use Hint
+function useHint() {
+  if (gameState.coins < 5) {
+    showNotification('Need 5 coins!', 'error');
+    return;
+  }
+  
+  gameState.coins -= 5;
+  
+  elements.result.style.display = 'block';
+  elements.result.className = 'result-container correct';
+  elements.result.innerHTML = `
+    <i class="fas fa-lightbulb"></i>
+    <span>${gameState.hint}</span>
+  `;
+  
+  updateUI();
+  saveGameState();
+}
+
+// Show Solution
+function showSolution() {
+  if (confirm("Show solution? This resets your streak.")) {
+    gameState.streak = 0;
+    
+    elements.result.style.display = 'block';
+    elements.result.className = 'result-container wrong';
+    elements.result.innerHTML = `
+      <i class="fas fa-eye"></i>
+      <span>${formatAnswer(gameState.answer)}</span>
+      <br>
+      <small>${gameState.explanation}</small>
+    `;
+    
+    highlightAnswers(null, false);
+    
+    updateUI();
+    saveGameState();
+  }
+}
+
+// Next Puzzle
+function nextPuzzle() {
+  generatePuzzle();
+  elements.result.style.display = 'none';
+}
+
+// Update UI
+function updateUI() {
+  elements.streak.textContent = gameState.streak;
+  elements.coins.textContent = gameState.coins;
+  elements.level.textContent = gameState.level;
+  elements.progressText.textContent = `${gameState.progress}/10`;
+  elements.progressFill.style.width = `${(gameState.progress / 10) * 100}%`;
+  
+  elements.hintBtn.disabled = gameState.coins < 5;
+  elements.hintBtn.innerHTML = gameState.coins < 5 
+    ? `<i class="fas fa-lightbulb"></i><span>Need 5</span>`
+    : `<i class="fas fa-lightbulb"></i><span>Hint (-5)</span>`;
+}
+
+// Show Notification
+function showNotification(message, type = 'success') {
+  elements.notification.textContent = message;
+  elements.notification.className = `notification ${type}`;
+  elements.notification.style.display = 'block';
+  
+  setTimeout(() => {
+    elements.notification.style.display = 'none';
+  }, 2000);
+}
+
+// Show Tutorial
+function showTutorial() {
+  elements.tutorialModal.style.display = 'flex';
+}
+
+// Close Tutorial
+function closeTutorial() {
+  elements.tutorialModal.style.display = 'none';
+}
+
+// Save Game State
+function saveGameState() {
+  const saveData = {
+    coins: gameState.coins,
+    level: gameState.level,
+    streak: gameState.streak,
+    progress: gameState.progress,
+    puzzleCount: gameState.puzzleCount,
+    currentCategory: gameState.currentCategory
+  };
+  
+  localStorage.setItem('brainPuzzleState', JSON.stringify(saveData));
+}
+
+// Load Game State
+function loadGameState() {
+  const saved = localStorage.getItem('brainPuzzleState');
+  if (saved) {
+    try {
+      const data = JSON.parse(saved);
+      gameState.coins = data.coins || 100;
+      gameState.level = data.level || 1;
+      gameState.streak = data.streak || 0;
+      gameState.progress = data.progress || 0;
+      gameState.puzzleCount = data.puzzleCount || 0;
+      gameState.currentCategory = data.currentCategory || 'math';
+    } catch (e) {
+      console.error('Error loading game:', e);
+    }
+  }
+}
+
+// Utility: Random number
+function rand(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+// Initialize game
+window.addEventListener('DOMContentLoaded', () => {
+  initGame();
+  
+  document.addEventListener('click', (e) => {
+    if (e.target.classList.contains('option-btn')) {
+      const value = e.target.dataset.value;
+      if (value) {
+        const numValue = isNaN(value) ? value : Number(value);
+        checkAnswer(numValue);
+      }
+    }
+  });
+  
+  // Auto-save
+  setInterval(() => {
+    saveGameState();
+  }, 30000);
+  
+  // Prevent body scroll on mobile
+  document.body.addEventListener('touchmove', (e) => {
+    if (e.target.classList.contains('card')) {
+      e.stopPropagation();
+    }
+  }, { passive: false });
+});
+</script>
+</body>
+</html>
