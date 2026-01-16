@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Flood It Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(to bottom, #6a11cb, #fff);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .moves {
+            font-size: 14px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .help-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #6a11cb;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .game-board {
+            width: 100%;
+            aspect-ratio: 1/1;
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            grid-template-rows: repeat(6, 1fr);
+            gap: 2px;
+            background: white;
+            padding: 4px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .tile {
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+        }
+
+        .color-palette {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 8px 0;
+        }
+
+        .color-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 2px solid white;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s ease;
+        }
+
+        .color-btn:hover, .color-btn:active {
+            transform: scale(1.1);
+        }
+
+        .game-controls {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 14px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #6a11cb;
+            color: white;
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-content {
+            background: white;
+            width: 85%;
+            max-width: 400px;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #7f8c8d;
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #34495e;
+        }
+
+        .level-selector {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin: 15px 0;
+        }
+
+        .level-btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            background: #ecf0f1;
+            color: #2c3e50;
+        }
+
+        .level-btn.active {
+            background: #6a11cb;
+            color: white;
+        }
+
+        .game-over {
+            text-align: center;
+            font-weight: bold;
+            font-size: 20px;
+            margin: 10px 0;
+            height: 24px;
+        }
+
+        @media (max-height: 700px) {
+            .container {
+                transform: scale(0.9);
+            }
+        }
+
+        @media (max-height: 600px) {
+            .container {
+                transform: scale(0.8);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="moves">Moves: <span id="moves-count">0</span>/<span id="max-moves">25</span></div>
+            <div class="title">Flood It</div>
+            <div class="help-btn" id="help-btn">?</div>
+        </div>
+        
+        <div class="game-board" id="game-board"></div>
+        
+        <div class="color-palette" id="color-palette"></div>
+        
+        <div class="game-over" id="game-message"></div>
+        
+        <div class="game-controls">
+            <button class="btn btn-secondary" id="restart-btn">Restart</button>
+            <div class="level-selector">
+                <button class="level-btn active" data-level="easy">Easy</button>
+                <button class="level-btn" data-level="medium">Medium</button>
+                <button class="level-btn" data-level="hard">Hard</button>
+            </div>
+            <button class="btn btn-primary" id="new-game-btn">New Game</button>
+        </div>
+    </div>
+
+    <div class="modal" id="instructions-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">How to Play</div>
+                <button class="close-btn" id="close-instructions">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Your goal is to flood the entire board with one color.</p>
+                <p>Start from the top-left tile. Select a color to change the flooded area to that color.</p>
+                <p>Any adjacent tiles of the same color will be absorbed into the flooded area.</p>
+                <p>Complete the board before running out of moves!</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Game configuration
+            const config = {
+                easy: { size: 6, colors: 4, moves: 25 },
+                medium: { size: 8, colors: 5, moves: 30 },
+                hard: { size: 10, colors: 6, moves: 35 }
+            };
+            
+            // Game state
+            let board = [];
+            let flooded = [];
+            let currentLevel = 'easy';
+            let moves = 0;
+            let maxMoves = config.easy.moves;
+            let gameOver = false;
+            let currentColor = null;
+            
+            // DOM elements
+            const gameBoard = document.getElementById('game-board');
+            const colorPalette = document.getElementById('color-palette');
+            const movesCount = document.getElementById('moves-count');
+            const maxMovesEl = document.getElementById('max-moves');
+            const gameMessage = document.getElementById('game-message');
+            const restartBtn = document.getElementById('restart-btn');
+            const newGameBtn = document.getElementById('new-game-btn');
+            const helpBtn = document.getElementById('help-btn');
+            const instructionsModal = document.getElementById('instructions-modal');
+            const closeInstructions = document.getElementById('close-instructions');
+            const levelButtons = document.querySelectorAll('.level-btn');
+            
+            // Color palette (extended for difficulty levels)
+            const colorOptions = [
+                '#3498db', // blue
+                '#e74c3c', // red
+                '#2ecc71', // green
+                '#f1c40f', // yellow
+                '#9b59b6', // purple
+                '#1abc9c', // turquoise
+                '#e67e22', // orange
+                '#34495e'  // dark blue
+            ];
+            
+            // Initialize game
+            initGame();
+            
+            // Event listeners
+            restartBtn.addEventListener('click', initGame);
+            newGameBtn.addEventListener('click', initGame);
+            helpBtn.addEventListener('click', () => instructionsModal.classList.add('active'));
+            closeInstructions.addEventListener('click', () => instructionsModal.classList.remove('active'));
+            
+            instructionsModal.addEventListener('click', (e) => {
+                if (e.target === instructionsModal) {
+                    instructionsModal.classList.remove('active');
+                }
+            });
+            
+            levelButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    levelButtons.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentLevel = this.getAttribute('data-level');
+                    maxMoves = config[currentLevel].moves;
+                    maxMovesEl.textContent = maxMoves;
+                    initGame();
+                });
+            });
+            
+            // Initialize or reset the game
+            function initGame() {
+                moves = 0;
+                movesCount.textContent = moves;
+                gameOver = false;
+                gameMessage.textContent = '';
+                
+                const size = config[currentLevel].size;
+                const colorsCount = config[currentLevel].colors;
+                
+                // Set up the game board grid
+                gameBoard.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+                gameBoard.style.gridTemplateRows = `repeat(${size}, 1fr)`;
+                gameBoard.innerHTML = '';
+                
+                // Generate the board with random colors
+                board = [];
+                for (let y = 0; y < size; y++) {
+                    const row = [];
+                    for (let x = 0; x < size; x++) {
+                        const colorIndex = Math.floor(Math.random() * colorsCount);
+                        row.push(colorIndex);
+                        
+                        const tile = document.createElement('div');
+                        tile.className = 'tile';
+                        tile.style.backgroundColor = colorOptions[colorIndex];
+                        tile.dataset.x = x;
+                        tile.dataset.y = y;
+                        gameBoard.appendChild(tile);
+                    }
+                    board.push(row);
+                }
+                
+                // Initialize flooded area (top-left corner and connected same-color tiles)
+                flooded = [{x: 0, y: 0}];
+                currentColor = board[0][0];
+                floodFill(0, 0, currentColor, true);
+                
+                // Set up color palette
+                colorPalette.innerHTML = '';
+                for (let i = 0; i < colorsCount; i++) {
+                    const colorBtn = document.createElement('div');
+                    colorBtn.className = 'color-btn';
+                    colorBtn.style.backgroundColor = colorOptions[i];
+                    colorBtn.dataset.color = i;
+                    
+                    colorBtn.addEventListener('click', function() {
+                        if (gameOver) return;
+                        
+                        const newColor = parseInt(this.dataset.color);
+                        if (newColor !== currentColor) {
+                            currentColor = newColor;
+                            expandFlood(newColor);
+                            moves++;
+                            movesCount.textContent = moves;
+                            checkGameStatus();
+                        }
+                    });
+                    
+                    colorPalette.appendChild(colorBtn);
+                }
+            }
+            
+            // Flood fill algorithm
+            function floodFill(x, y, color, initial = false) {
+                // Base cases
+                if (x < 0 || x >= board[0].length || y < 0 || y >= board.length) return;
+                if (!initial && board[y][x] !== color) return;
+                
+                // If the tile is already flooded, return
+                if (flooded.some(tile => tile.x === x && tile.y === y)) return;
+                
+                // Add to flooded area
+                flooded.push({x, y});
+                
+                // Update the tile color visually
+                const tile = document.querySelector(`.tile[data-x="${x}"][data-y="${y}"]`);
+                if (tile) {
+                    tile.style.backgroundColor = colorOptions[color];
+                }
+                
+                // Recursively flood fill adjacent tiles
+                floodFill(x + 1, y, color);
+                floodFill(x - 1, y, color);
+                floodFill(x, y + 1, color);
+                floodFill(x, y - 1, color);
+            }
+            
+            // Expand the flooded area with the new color
+            function expandFlood(newColor) {
+                // Change the color of all flooded tiles
+                for (const tile of flooded) {
+                    board[tile.y][tile.x] = newColor;
+                    const tileEl = document.querySelector(`.tile[data-x="${tile.x}"][data-y="${tile.y}"]`);
+                    if (tileEl) {
+                        tileEl.style.backgroundColor = colorOptions[newColor];
+                    }
+                }
+                
+                // Find and add adjacent tiles of the new color
+                const newFlooded = [...flooded];
+                for (const tile of flooded) {
+                    const {x, y} = tile;
+                    
+                    // Check all four directions
+                    const neighbors = [
+                        {x: x + 1, y},
+                        {x: x - 1, y},
+                        {x, y: y + 1},
+                        {x, y: y - 1}
+                    ];
+                    
+                    for (const neighbor of neighbors) {
+                        if (neighbor.x >= 0 && neighbor.x < board[0].length && 
+                            neighbor.y >= 0 && neighbor.y < board.length) {
+                            
+                            if (board[neighbor.y][neighbor.x] === newColor &&
+                                !newFlooded.some(t => t.x === neighbor.x && t.y === neighbor.y)) {
+                                newFlooded.push(neighbor);
+                            }
+                        }
+                    }
+                }
+                
+                flooded = newFlooded;
+            }
+            
+            // Check if the game is won or lost
+            function checkGameStatus() {
+                // Check if all tiles are flooded (win condition)
+                if (flooded.length === board.length * board[0].length) {
+                    gameMessage.textContent = 'You Win!';
+                    gameMessage.style.color = '#2ecc71';
+                    gameOver = true;
+                    return;
+                }
+                
+                // Check if move limit is reached (lose condition)
+                if (moves >= maxMoves) {
+                    gameMessage.textContent = 'Game Over!';
+                    gameMessage.style.color = '#e74c3c';
+                    gameOver = true;
+                }
+            }
+        });
+    </script>
+</body>
+</html>
