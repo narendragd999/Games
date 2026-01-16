@@ -1,0 +1,1492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nine Men's Morris</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            left: 0;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 500px;
+            height: 100vh;
+            height: 100dvh;
+            background: white;
+            border-radius: 0;
+            box-shadow: none;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            border-bottom: 2px solid #e0e0e0;
+            flex-shrink: 0;
+        }
+
+        h1 {
+            color: #2c3e50;
+            font-size: 1.3rem;
+            text-align: center;
+            flex: 1;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+
+
+        .players-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin: 0;
+            flex-shrink: 0;
+        }
+
+        .player-card {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            border-radius: 10px;
+            font-weight: 600;
+            position: relative;
+            background: #f8f9fa;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .player-card.active {
+            background: white;
+            border-color: #3498db;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.2);
+        }
+
+        .player-card.ai {
+            background: #fef5e7;
+        }
+
+        .player-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+
+        .player-human .player-icon {
+            background: #3498db;
+        }
+
+        .player-ai .player-icon {
+            background: #e74c3c;
+        }
+
+        .player-details {
+            flex: 1;
+        }
+
+        .player-name {
+            font-size: 0.9rem;
+            color: #2c3e50;
+            margin-bottom: 2px;
+        }
+
+        .player-stats {
+            font-size: 0.75rem;
+            color: #7f8c8d;
+        }
+
+        .ai-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #9b59b6;
+            color: white;
+            font-size: 0.7rem;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-weight: bold;
+        }
+
+        .ai-thinking {
+            position: absolute;
+            bottom: 5px;
+            right: 10px;
+            font-size: 0.75rem;
+            color: #95a5a6;
+            display: none;
+        }
+
+        .ai-thinking.active {
+            display: block;
+            animation: thinking 1.5s infinite;
+        }
+
+        @keyframes thinking {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .game-status {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            border-radius: 10px;
+            padding: 8px;
+            margin: 0;
+            text-align: center;
+            font-weight: 600;
+            color: #1565c0;
+            border-left: 4px solid #3498db;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+
+        .board-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1;
+            background: #faf3e0;
+            border-radius: 10px;
+            border: 3px solid #8b4513;
+            overflow: hidden;
+            box-shadow: inset 0 0 20px rgba(139, 69, 19, 0.2);
+            flex-shrink: 0;
+        }
+
+        .board-svg {
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .line {
+            stroke: #5d4037;
+            stroke-width: 3;
+            fill: none;
+            stroke-linecap: round;
+        }
+
+        .point {
+            cursor: pointer;
+            transition: all 0.2s;
+            pointer-events: auto;
+        }
+
+        .point:hover:not(.player1):not(.player2) {
+            r: 13;
+            fill: #a1887f;
+        }
+
+        .point.empty {
+            fill: #795548;
+            stroke: #5d4037;
+            stroke-width: 2;
+        }
+
+        .point.player1 {
+            fill: #3498db;
+            stroke: #2980b9;
+            stroke-width: 2.5;
+            filter: drop-shadow(0 2px 4px rgba(52, 152, 219, 0.3));
+        }
+
+        .point.player2 {
+            fill: #e74c3c;
+            stroke: #c0392b;
+            stroke-width: 2.5;
+            filter: drop-shadow(0 2px 4px rgba(231, 76, 60, 0.3));
+        }
+
+        .point.selected {
+            fill: #f1c40f;
+            stroke: #f39c12;
+            stroke-width: 3;
+            filter: drop-shadow(0 0 10px #f1c40f);
+            animation: selected-pulse 1s infinite;
+        }
+
+        .point.hint {
+            fill: #2ecc71;
+            stroke: #27ae60;
+            stroke-width: 2.5;
+            animation: hint-pulse 1.5s infinite;
+            cursor: pointer;
+        }
+
+        .point.removable {
+            fill: #e67e22;
+            stroke: #d35400;
+            stroke-width: 2.5;
+            animation: removable-pulse 1s infinite;
+            cursor: pointer;
+        }
+
+        .point.mill {
+            stroke: #9b59b6;
+            stroke-width: 3;
+            animation: mill-pulse 2s infinite;
+        }
+
+        @keyframes selected-pulse {
+            0%, 100% { r: 13; }
+            50% { r: 15; }
+        }
+
+        @keyframes hint-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        @keyframes removable-pulse {
+            0%, 100% { fill: #e67e22; }
+            50% { fill: #f39c12; }
+        }
+
+        @keyframes mill-pulse {
+            0%, 100% { filter: drop-shadow(0 0 5px #9b59b6); }
+            50% { filter: drop-shadow(0 0 15px #9b59b6); }
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            padding: 0;
+            flex-shrink: 0;
+        }
+
+        .btn {
+            padding: 10px 6px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            font-weight: 600;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            box-shadow: 0 2px 4px rgba(52, 152, 219, 0.2);
+            white-space: nowrap;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+        }
+
+        .btn-purple {
+            background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+        }
+
+        .message-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            display: none;
+        }
+
+        .message-box {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            animation: message-appear 0.3s ease-out;
+        }
+
+        @keyframes message-appear {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .message-title {
+            color: #2c3e50;
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .message-text {
+            color: #7f8c8d;
+            margin-bottom: 25px;
+            line-height: 1.5;
+            white-space: pre-line;
+        }
+
+        .message-btn {
+            padding: 12px 30px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .message-btn:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        .sound-toggle {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            font-size: 1rem;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .sound-toggle:hover {
+            transform: scale(1.1);
+        }
+
+                    @media (max-width: 480px) {
+            #game-container {
+                border-radius: 0;
+                max-width: 100%;
+            }
+            
+            h1 {
+                font-size: 1.2rem;
+            }
+            
+            .btn {
+                padding: 8px 4px;
+                font-size: 0.7rem;
+                gap: 3px;
+            }
+            
+            .player-card {
+                padding: 6px;
+                gap: 6px;
+            }
+
+            .player-icon {
+                width: 24px;
+                height: 24px;
+                font-size: 0.75rem;
+            }
+
+            .player-name {
+                font-size: 0.8rem;
+            }
+
+            .player-stats {
+                font-size: 0.7rem;
+            }
+
+            .sound-toggle {
+                width: 32px;
+                height: 32px;
+                font-size: 0.9rem;
+            }
+
+            .game-status {
+                font-size: 0.8rem;
+                padding: 6px;
+            }
+        }
+
+        @media (max-height: 700px) {
+            h1 {
+                font-size: 1.1rem;
+            }
+
+            .player-card {
+                padding: 6px;
+            }
+
+            .game-status {
+                padding: 6px;
+                font-size: 0.8rem;
+            }
+
+            .btn {
+                padding: 8px 4px;
+                font-size: 0.7rem;
+            }
+
+            .controls {
+                gap: 4px;
+            }
+        }
+
+        @media (min-width: 481px) {
+            #game-container {
+                border-radius: 20px;
+                height: auto;
+                max-height: 95vh;
+                padding: 15px;
+                gap: 10px;
+            }
+
+            body {
+                padding: 10px;
+            }
+
+            .board-container {
+                border-radius: 12px;
+            }
+
+            .controls {
+                gap: 8px;
+                padding: 10px 0 0;
+            }
+
+            .btn {
+                padding: 12px 8px;
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div class="header">
+            <h1>Nine Men's Morris</h1>
+            <div class="sound-toggle" id="soundToggle" title="Toggle sound">
+                🔊
+            </div>
+        </div>
+        
+
+        
+        <div class="players-info">
+            <div class="player-card player-human active" id="playerHuman">
+                <div class="player-icon">P</div>
+                <div class="player-details">
+                    <div class="player-name">Player</div>
+                    <div class="player-stats">Pieces: <span id="humanPieces">9</span></div>
+                </div>
+            </div>
+            <div class="player-card player-ai" id="playerAI">
+                <div class="player-icon">AI</div>
+                <div class="player-details">
+                    <div class="player-name">AI</div>
+                    <div class="player-stats">Pieces: <span id="aiPieces">9</span></div>
+                    <div class="ai-badge">🤖</div>
+                    <div class="ai-thinking" id="aiThinking">Thinking...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="game-status" id="gameStatus">
+            Place your pieces (9 remaining)
+        </div>
+        
+        <div class="board-container">
+            <svg class="board-svg" viewBox="0 0 400 400">
+                <!-- Board lines -->
+                <!-- Outer square -->
+                <line class="line" x1="50" y1="50" x2="350" y2="50"/>
+                <line class="line" x1="50" y1="350" x2="350" y2="350"/>
+                <line class="line" x1="50" y1="50" x2="50" y2="350"/>
+                <line class="line" x1="350" y1="50" x2="350" y2="350"/>
+                
+                <!-- Middle square -->
+                <line class="line" x1="100" y1="100" x2="300" y2="100"/>
+                <line class="line" x1="100" y1="300" x2="300" y2="300"/>
+                <line class="line" x1="100" y1="100" x2="100" y2="300"/>
+                <line class="line" x1="300" y1="100" x2="300" y2="300"/>
+                
+                <!-- Inner square -->
+                <line class="line" x1="150" y1="150" x2="250" y2="150"/>
+                <line class="line" x1="150" y1="250" x2="250" y2="250"/>
+                <line class="line" x1="150" y1="150" x2="150" y2="250"/>
+                <line class="line" x1="250" y1="150" x2="250" y2="250"/>
+                
+                <!-- Cross connections -->
+                <line class="line" x1="200" y1="50" x2="200" y2="150"/>
+                <line class="line" x1="200" y1="250" x2="200" y2="350"/>
+                <line class="line" x1="50" y1="200" x2="150" y2="200"/>
+                <line class="line" x1="250" y1="200" x2="350" y2="200"/>
+            </svg>
+        </div>
+        
+        <div class="controls">
+            <button class="btn btn-secondary" onclick="showHint()" id="hintBtn">
+                💡 Hint
+            </button>
+            <button class="btn btn-purple" onclick="checkMills()">
+                🔍 Mills
+            </button>
+            <button class="btn btn-warning" onclick="undoMove()" id="undoBtn">
+                ↩️ Undo
+            </button>
+            <button class="btn btn-danger" onclick="newGame()">
+                🆕 New Game
+            </button>
+            <button class="btn" onclick="showInstructions()">
+                📖 Rules
+            </button>
+            <button class="btn" onclick="toggleSound()" id="soundBtn">
+                🔊 Sound On
+            </button>
+        </div>
+    </div>
+    
+    <div class="message-overlay" id="messageOverlay">
+        <div class="message-box">
+            <h2 class="message-title" id="messageTitle"></h2>
+            <p class="message-text" id="messageText"></p>
+            <button class="message-btn" onclick="hideMessage()">Continue</button>
+        </div>
+    </div>
+
+    <script>
+        const gameState = {
+            board: new Array(24).fill(0),
+            currentPlayer: 1,
+            phase: 'placement',
+            piecesToPlace: {1: 9, 2: 9},
+            piecesOnBoard: {1: 0, 2: 0},
+            selectedPoint: -1,
+            gameOver: false,
+            soundEnabled: true,
+            difficulty: 'hard',
+            moveHistory: [],
+            turnCount: 1,
+            aiThinking: false,
+            recentMill: null,
+            lastMillPositions: []
+        };
+
+        const adjacentPoints = [
+            [1, 9], [0, 2, 4], [1, 14], [4, 10], [1, 3, 5, 7], [4, 13],
+            [7, 11], [4, 6, 8], [7, 12], [0, 10, 21], [3, 9, 11, 18],
+            [6, 10, 15], [8, 13, 17], [5, 12, 14, 20], [2, 13, 23],
+            [11, 16], [15, 17, 19], [12, 16], [10, 19], [16, 18, 20, 22],
+            [13, 19, 23], [9, 22], [19, 21, 23], [14, 20, 22]
+        ];
+
+        const millCombinations = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11], [12, 13, 14],
+            [15, 16, 17], [18, 19, 20], [21, 22, 23], [0, 9, 21],
+            [3, 10, 18], [6, 11, 15], [1, 4, 7], [16, 19, 22],
+            [8, 12, 17], [5, 13, 20], [2, 14, 23]
+        ];
+
+        function initGame() {
+            createBoardPoints();
+            updateUI();
+            showMessage('Welcome to Nine Men\'s Morris!', 'Place your blue pieces on empty circles. Form a line of three to remove an AI piece.');
+        }
+
+        function createBoardPoints() {
+            const svg = document.querySelector('.board-svg');
+            svg.querySelectorAll('.point').forEach(p => p.remove());
+            
+            const coords = [
+                [50, 50], [200, 50], [350, 50], [100, 100], [200, 100], [300, 100],
+                [150, 150], [200, 150], [250, 150], [50, 200], [100, 200], [150, 200],
+                [250, 200], [300, 200], [350, 200], [150, 250], [200, 250], [250, 250],
+                [100, 300], [200, 300], [300, 300], [50, 350], [200, 350], [350, 350]
+            ];
+            
+            coords.forEach(([x, y], index) => {
+                const point = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                point.setAttribute('class', 'point empty');
+                point.setAttribute('cx', x);
+                point.setAttribute('cy', y);
+                point.setAttribute('r', '14');
+                point.setAttribute('data-index', index);
+                point.addEventListener('click', () => handlePointClick(index));
+                svg.appendChild(point);
+            });
+        }
+
+
+
+        function handlePointClick(index) {
+            if (gameState.gameOver || gameState.aiThinking || gameState.currentPlayer !== 1) return;
+            
+            saveState();
+            const player = gameState.currentPlayer;
+            
+            if (gameState.phase === 'removal') {
+                if (gameState.board[index] === 2 && canRemovePiece(index)) {
+                    removePiece(index);
+                    endRemovalPhase();
+                    if (!gameState.gameOver) {
+                        setTimeout(() => makeAIMove(), 500);
+                    }
+                }
+                return;
+            }
+            
+            if (gameState.phase === 'placement') {
+                if (gameState.board[index] === 0) {
+                    placePiece(index, player);
+                    if (!checkForMill(index, player)) {
+                        if (gameState.piecesToPlace[1] === 0 && gameState.piecesToPlace[2] === 0) {
+                            gameState.phase = getMovementPhase();
+                        }
+                        switchPlayer();
+                        updateUI();
+                        setTimeout(() => makeAIMove(), 500);
+                    }
+                }
+            } else if (gameState.phase === 'movement' || gameState.phase === 'flying') {
+                if (gameState.selectedPoint === -1) {
+                    if (gameState.board[index] === player) {
+                        gameState.selectedPoint = index;
+                        highlightValidMoves(index);
+                        updateUI();
+                    }
+                } else {
+                    if (gameState.board[index] === 0 && isValidMove(gameState.selectedPoint, index)) {
+                        const from = gameState.selectedPoint;
+                        gameState.selectedPoint = -1;
+                        movePiece(from, index, player);
+                        clearHighlights();
+                        if (!checkForMill(index, player)) {
+                            switchPlayer();
+                            updateUI();
+                            setTimeout(() => makeAIMove(), 500);
+                        }
+                    } else if (gameState.board[index] === player) {
+                        gameState.selectedPoint = index;
+                        highlightValidMoves(index);
+                        updateUI();
+                    } else {
+                        gameState.selectedPoint = -1;
+                        clearHighlights();
+                        updateUI();
+                    }
+                }
+            }
+        }
+
+        function placePiece(index, player) {
+            gameState.board[index] = player;
+            gameState.piecesToPlace[player]--;
+            gameState.piecesOnBoard[player]++;
+            updatePointVisual(index);
+            playSound('place');
+        }
+
+        function movePiece(fromIndex, toIndex, player) {
+            gameState.board[fromIndex] = 0;
+            gameState.board[toIndex] = player;
+            updatePointVisual(fromIndex);
+            updatePointVisual(toIndex);
+            playSound('move');
+        }
+
+        function removePiece(index) {
+            const player = gameState.board[index];
+            gameState.board[index] = 0;
+            gameState.piecesOnBoard[player]--;
+            updatePointVisual(index);
+            playSound('remove');
+            
+            if (gameState.piecesOnBoard[player] <= 3) {
+                gameState.phase = 'flying';
+            }
+            
+            checkGameOver();
+        }
+
+        function checkForMill(index, player) {
+            const newMills = millCombinations.filter(mill => 
+                mill.includes(index) && mill.every(pos => gameState.board[pos] === player)
+            );
+            
+            if (newMills.length > 0) {
+                gameState.recentMill = newMills[0];
+                gameState.lastMillPositions = [...newMills[0]];
+                gameState.phase = 'removal';
+                playSound('mill');
+                
+                const opponent = player === 1 ? 2 : 1;
+                const removablePieces = getAllPieces(opponent).filter(p => canRemovePiece(p));
+                
+                if (removablePieces.length > 0) {
+                    highlightRemovablePieces(opponent);
+                    showMessage('Mill Formed!', player === 1 ? 'Select an AI piece to remove.' : 'AI formed a mill!');
+                } else {
+                    endRemovalPhase();
+                    if (player === 2 && !gameState.gameOver) {
+                        switchPlayer();
+                        updateUI();
+                    }
+                }
+                
+                return true;
+            }
+            return false;
+        }
+
+        function highlightRemovablePieces(opponent) {
+            clearHighlights();
+            const removable = getAllPieces(opponent).filter(p => canRemovePiece(p));
+            removable.forEach(index => {
+                const point = document.querySelector(`.point[data-index="${index}"]`);
+                if (point) point.classList.add('removable');
+            });
+        }
+
+        function canRemovePiece(index) {
+            const player = gameState.board[index];
+            if (player === 0) return false;
+            
+            const opponent = player === 1 ? 2 : 1;
+            if (gameState.currentPlayer !== opponent) return false;
+            
+            const allPieces = getAllPieces(player);
+            const allInMills = allPieces.every(piece => isInMill(piece, player));
+            
+            if (allInMills) return true;
+            return !isInMill(index, player);
+        }
+
+        function isInMill(index, player) {
+            return millCombinations.some(mill =>
+                mill.includes(index) && mill.every(pos => gameState.board[pos] === player)
+            );
+        }
+
+        function getAllPieces(player) {
+            return gameState.board.reduce((acc, val, idx) => {
+                if (val === player) acc.push(idx);
+                return acc;
+            }, []);
+        }
+
+        function endRemovalPhase() {
+            gameState.phase = getMovementPhase();
+            gameState.recentMill = null;
+            clearHighlights();
+        }
+
+        function getMovementPhase() {
+            if (gameState.piecesToPlace[1] > 0 || gameState.piecesToPlace[2] > 0) {
+                return 'placement';
+            }
+            if (gameState.piecesOnBoard[1] <= 3 || gameState.piecesOnBoard[2] <= 3) {
+                return 'flying';
+            }
+            return 'movement';
+        }
+
+        function checkGameOver() {
+            const opponent = gameState.currentPlayer === 1 ? 2 : 1;
+            
+            if (gameState.piecesOnBoard[opponent] < 3 && gameState.piecesToPlace[opponent] === 0) {
+                gameState.gameOver = true;
+                const winner = gameState.currentPlayer === 1 ? 'You' : 'AI';
+                showMessage(`${winner} Win! 🎉`, `${opponent === 1 ? 'You were' : 'AI was'} reduced to 2 pieces!`);
+                return true;
+            }
+            
+            if (gameState.phase !== 'placement' && gameState.phase !== 'removal') {
+                if (!hasValidMoves(opponent)) {
+                    gameState.gameOver = true;
+                    const winner = gameState.currentPlayer === 1 ? 'You' : 'AI';
+                    showMessage(`${winner} Win! 🎉`, `${opponent === 1 ? 'You have' : 'AI has'} no valid moves!`);
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+
+        function hasValidMoves(player) {
+            const pieces = getAllPieces(player);
+            
+            if (pieces.length === 0) return false;
+            
+            if ((gameState.phase === 'flying' && player === 1 && gameState.piecesOnBoard[1] <= 3) ||
+                (gameState.phase === 'flying' && player === 2 && gameState.piecesOnBoard[2] <= 3)) {
+                return gameState.board.some(cell => cell === 0);
+            }
+            
+            return pieces.some(piece => 
+                adjacentPoints[piece].some(adj => gameState.board[adj] === 0)
+            );
+        }
+
+        function switchPlayer() {
+            gameState.currentPlayer = gameState.currentPlayer === 1 ? 2 : 1;
+            gameState.turnCount++;
+        }
+
+        function highlightValidMoves(fromIndex) {
+            clearHighlights();
+            
+            let validMoves;
+            if (gameState.phase === 'flying' && gameState.piecesOnBoard[gameState.currentPlayer] <= 3) {
+                validMoves = gameState.board
+                    .map((val, idx) => val === 0 ? idx : -1)
+                    .filter(idx => idx !== -1);
+            } else {
+                validMoves = adjacentPoints[fromIndex].filter(idx => gameState.board[idx] === 0);
+            }
+            
+            validMoves.forEach(index => {
+                const point = document.querySelector(`.point[data-index="${index}"]`);
+                if (point) point.classList.add('hint');
+            });
+        }
+
+        function clearHighlights() {
+            document.querySelectorAll('.point').forEach(point => {
+                point.classList.remove('hint', 'selected', 'mill', 'removable');
+            });
+        }
+
+        function updatePointVisual(index) {
+            const point = document.querySelector(`.point[data-index="${index}"]`);
+            if (!point) return;
+            
+            point.className = 'point';
+            switch(gameState.board[index]) {
+                case 0:
+                    point.classList.add('empty');
+                    break;
+                case 1:
+                    point.classList.add('player1');
+                    break;
+                case 2:
+                    point.classList.add('player2');
+                    break;
+            }
+            
+            if (index === gameState.selectedPoint) {
+                point.classList.add('selected');
+            }
+        }
+
+        function showHint() {
+            if (gameState.gameOver || gameState.aiThinking || gameState.currentPlayer !== 1) return;
+            
+            clearHighlights();
+            
+            if (gameState.phase === 'removal') {
+                const removable = getAllPieces(2).filter(p => canRemovePiece(p));
+                if (removable.length > 0) {
+                    const best = chooseBestPieceToRemove(removable, 1);
+                    const point = document.querySelector(`.point[data-index="${best}"]`);
+                    if (point) point.classList.add('hint');
+                }
+            } else if (gameState.phase === 'placement') {
+                const bestMove = getBestPlacementMove(1);
+                if (bestMove !== -1) {
+                    const point = document.querySelector(`.point[data-index="${bestMove}"]`);
+                    if (point) point.classList.add('hint');
+                }
+            } else if (gameState.phase === 'movement' || gameState.phase === 'flying') {
+                const bestMove = getBestMovementMove(1);
+                if (bestMove.from !== -1 && bestMove.to !== -1) {
+                    const pointFrom = document.querySelector(`.point[data-index="${bestMove.from}"]`);
+                    const pointTo = document.querySelector(`.point[data-index="${bestMove.to}"]`);
+                    if (pointFrom) pointFrom.classList.add('hint');
+                    if (pointTo) pointTo.classList.add('hint');
+                }
+            }
+            
+            setTimeout(clearHighlights, 2000);
+        }
+
+        function getBestPlacementMove(player) {
+            const emptyPoints = getAllPieces(0);
+            const opponent = player === 1 ? 2 : 1;
+            
+            for (const mill of millCombinations) {
+                const playerCount = mill.filter(pos => gameState.board[pos] === player).length;
+                const empty = mill.filter(pos => gameState.board[pos] === 0);
+                if (playerCount === 2 && empty.length === 1) {
+                    return empty[0];
+                }
+            }
+            
+            for (const mill of millCombinations) {
+                const opponentCount = mill.filter(pos => gameState.board[pos] === opponent).length;
+                const empty = mill.filter(pos => gameState.board[pos] === 0);
+                if (opponentCount === 2 && empty.length === 1) {
+                    return empty[0];
+                }
+            }
+            
+            const strategicPoints = emptyPoints.filter(index => 
+                adjacentPoints[index].some(adj => gameState.board[adj] === player)
+            );
+            
+            if (strategicPoints.length > 0) {
+                return strategicPoints[Math.floor(Math.random() * strategicPoints.length)];
+            }
+            
+            return emptyPoints.length > 0 ? emptyPoints[Math.floor(Math.random() * emptyPoints.length)] : -1;
+        }
+
+        function getBestMovementMove(player) {
+            const pieces = getAllPieces(player);
+            const opponent = player === 1 ? 2 : 1;
+            
+            for (const piece of pieces) {
+                const validMoves = getValidMovesForPiece(piece, player);
+                for (const move of validMoves) {
+                    gameState.board[piece] = 0;
+                    gameState.board[move] = player;
+                    
+                    const formsMill = millCombinations.some(mill =>
+                        mill.includes(move) && mill.every(pos => gameState.board[pos] === player)
+                    );
+                    
+                    gameState.board[piece] = player;
+                    gameState.board[move] = 0;
+                    
+                    if (formsMill) {
+                        return {from: piece, to: move};
+                    }
+                }
+            }
+            
+            for (const mill of millCombinations) {
+                const opponentCount = mill.filter(pos => gameState.board[pos] === opponent).length;
+                const empty = mill.filter(pos => gameState.board[pos] === 0);
+                if (opponentCount === 2 && empty.length === 1) {
+                    const blockPoint = empty[0];
+                    for (const piece of pieces) {
+                        const validMoves = getValidMovesForPiece(piece, player);
+                        if (validMoves.includes(blockPoint)) {
+                            return {from: piece, to: blockPoint};
+                        }
+                    }
+                }
+            }
+            
+            const movablePieces = pieces.filter(piece => getValidMovesForPiece(piece, player).length > 0);
+            if (movablePieces.length > 0) {
+                const piece = movablePieces[Math.floor(Math.random() * movablePieces.length)];
+                const validMoves = getValidMovesForPiece(piece, player);
+                const move = validMoves[Math.floor(Math.random() * validMoves.length)];
+                return {from: piece, to: move};
+            }
+            
+            return {from: -1, to: -1};
+        }
+
+        function getValidMovesForPiece(fromIndex, player) {
+            if (gameState.phase === 'flying' && gameState.piecesOnBoard[player] <= 3) {
+                return getAllPieces(0);
+            }
+            return adjacentPoints[fromIndex].filter(idx => gameState.board[idx] === 0);
+        }
+
+        function makeAIMove() {
+            if (gameState.gameOver || gameState.currentPlayer !== 2) return;
+            
+            gameState.aiThinking = true;
+            document.getElementById('aiThinking').classList.add('active');
+            updateUI();
+            
+            setTimeout(() => {
+                if (gameState.phase === 'removal') {
+                    const removable = getAllPieces(1).filter(p => canRemovePiece(p));
+                    if (removable.length > 0) {
+                        const pieceToRemove = chooseBestPieceToRemove(removable, 2);
+                        removePiece(pieceToRemove);
+                        endRemovalPhase();
+                        if (!gameState.gameOver) {
+                            switchPlayer();
+                            updateUI();
+                        }
+                    }
+                } else if (gameState.phase === 'placement') {
+                    const move = getExpertPlacementMove();
+                    if (move !== -1) {
+                        placePiece(move, 2);
+                        if (!checkForMill(move, 2)) {
+                            if (gameState.piecesToPlace[1] === 0 && gameState.piecesToPlace[2] === 0) {
+                                gameState.phase = getMovementPhase();
+                            }
+                            switchPlayer();
+                            updateUI();
+                        }
+                    }
+                } else {
+                    const move = getExpertMovementMove();
+                    if (move.from !== -1 && move.to !== -1) {
+                        movePiece(move.from, move.to, 2);
+                        if (!checkForMill(move.to, 2)) {
+                            switchPlayer();
+                            updateUI();
+                        }
+                    }
+                }
+                
+                gameState.aiThinking = false;
+                document.getElementById('aiThinking').classList.remove('active');
+                updateUI();
+            }, 1200);
+        }
+
+        function chooseBestPieceToRemove(removablePieces, forPlayer) {
+            
+            const opponent = forPlayer === 1 ? 2 : 1;
+            
+            for (const piece of removablePieces) {
+                let partOfPotentialMills = 0;
+                for (const mill of millCombinations) {
+                    if (mill.includes(piece)) {
+                        const opponentCount = mill.filter(pos => gameState.board[pos] === opponent).length;
+                        const emptyCount = mill.filter(pos => gameState.board[pos] === 0).length;
+                        if (opponentCount >= 1 && emptyCount >= 1) {
+                            partOfPotentialMills++;
+                        }
+                    }
+                }
+                if (partOfPotentialMills >= 2) {
+                    return piece;
+                }
+            }
+            
+            for (const piece of removablePieces) {
+                for (const mill of millCombinations) {
+                    if (mill.includes(piece)) {
+                        const opponentCount = mill.filter(pos => gameState.board[pos] === opponent).length;
+                        const emptyCount = mill.filter(pos => gameState.board[pos] === 0).length;
+                        if (opponentCount === 2 && emptyCount === 1) {
+                            return piece;
+                        }
+                    }
+                }
+            }
+            
+            return removablePieces[Math.floor(Math.random() * removablePieces.length)];
+        }
+
+        function getExpertPlacementMove() {
+            const emptyPoints = getAllPieces(0);
+            
+            for (const mill of millCombinations) {
+                const aiCount = mill.filter(pos => gameState.board[pos] === 2).length;
+                const empty = mill.filter(pos => gameState.board[pos] === 0);
+                if (aiCount === 2 && empty.length === 1) {
+                    return empty[0];
+                }
+            }
+            
+            for (const mill of millCombinations) {
+                const humanCount = mill.filter(pos => gameState.board[pos] === 1).length;
+                const empty = mill.filter(pos => gameState.board[pos] === 0);
+                if (humanCount === 2 && empty.length === 1) {
+                    return empty[0];
+                }
+            }
+            
+            for (const point of emptyPoints) {
+                let potentialMills = 0;
+                for (const mill of millCombinations) {
+                    if (mill.includes(point)) {
+                        const aiCount = mill.filter(pos => gameState.board[pos] === 2).length;
+                        const emptyCount = mill.filter(pos => gameState.board[pos] === 0).length;
+                        if (aiCount === 1 && emptyCount === 2) {
+                            potentialMills++;
+                        }
+                    }
+                }
+                if (potentialMills >= 2) {
+                    return point;
+                }
+            }
+            
+            const centerPoints = [4, 7, 10, 13, 16, 19];
+            const availableCenters = centerPoints.filter(p => emptyPoints.includes(p));
+            if (availableCenters.length > 0) {
+                return availableCenters[Math.floor(Math.random() * availableCenters.length)];
+            }
+            
+            return emptyPoints[Math.floor(Math.random() * emptyPoints.length)];
+        }
+
+
+
+        function getExpertMovementMove() {
+            const aiPieces = getAllPieces(2);
+            
+            for (const piece of aiPieces) {
+                const validMoves = getAIMoves(piece);
+                for (const move of validMoves) {
+                    gameState.board[piece] = 0;
+                    gameState.board[move] = 2;
+                    
+                    const formsMill = millCombinations.some(mill =>
+                        mill.includes(move) && mill.every(pos => gameState.board[pos] === 2)
+                    );
+                    
+                    gameState.board[piece] = 2;
+                    gameState.board[move] = 0;
+                    
+                    if (formsMill) {
+                        return {from: piece, to: move};
+                    }
+                }
+            }
+            
+            for (const mill of millCombinations) {
+                const humanCount = mill.filter(pos => gameState.board[pos] === 1).length;
+                const empty = mill.filter(pos => gameState.board[pos] === 0);
+                if (humanCount === 2 && empty.length === 1) {
+                    const blockPoint = empty[0];
+                    for (const piece of aiPieces) {
+                        const validMoves = getAIMoves(piece);
+                        if (validMoves.includes(blockPoint)) {
+                            return {from: piece, to: blockPoint};
+                        }
+                    }
+                }
+            }
+            
+            for (const piece of aiPieces) {
+                const validMoves = getAIMoves(piece);
+                for (const move of validMoves) {
+                    gameState.board[piece] = 0;
+                    gameState.board[move] = 2;
+                    
+                    let futureOpportunities = 0;
+                    for (const futureMill of millCombinations) {
+                        if (futureMill.includes(move)) {
+                            const aiCount = futureMill.filter(pos => gameState.board[pos] === 2).length;
+                            const emptyCount = futureMill.filter(pos => gameState.board[pos] === 0).length;
+                            if (aiCount === 2 && emptyCount === 1) {
+                                futureOpportunities++;
+                            }
+                        }
+                    }
+                    
+                    gameState.board[piece] = 2;
+                    gameState.board[move] = 0;
+                    
+                    if (futureOpportunities >= 2) {
+                        return {from: piece, to: move};
+                    }
+                }
+            }
+            
+            const strategicMoves = [];
+            for (const piece of aiPieces) {
+                const validMoves = getAIMoves(piece);
+                for (const move of validMoves) {
+                    gameState.board[piece] = 0;
+                    gameState.board[move] = 2;
+                    
+                    let opportunities = 0;
+                    for (const mill of millCombinations) {
+                        if (mill.includes(move)) {
+                            const aiCount = mill.filter(pos => gameState.board[pos] === 2).length;
+                            const emptyCount = mill.filter(pos => gameState.board[pos] === 0).length;
+                            if (aiCount === 2 && emptyCount === 1) opportunities++;
+                            if (aiCount === 1 && emptyCount === 2) opportunities += 0.5;
+                        }
+                    }
+                    
+                    gameState.board[piece] = 2;
+                    gameState.board[move] = 0;
+                    
+                    if (opportunities > 0) {
+                        strategicMoves.push({from: piece, to: move, score: opportunities});
+                    }
+                }
+            }
+            
+            if (strategicMoves.length > 0) {
+                strategicMoves.sort((a, b) => b.score - a.score);
+                return strategicMoves[0];
+            }
+            
+            const movablePieces = aiPieces.filter(piece => getAIMoves(piece).length > 0);
+            if (movablePieces.length > 0) {
+                const piece = movablePieces[Math.floor(Math.random() * movablePieces.length)];
+                const validMoves = getAIMoves(piece);
+                const move = validMoves[Math.floor(Math.random() * validMoves.length)];
+                return {from: piece, to: move};
+            }
+            
+            return {from: -1, to: -1};
+        }
+
+        function getAIMoves(fromIndex) {
+            if (gameState.piecesOnBoard[2] <= 3) {
+                return getAllPieces(0);
+            }
+            return adjacentPoints[fromIndex].filter(idx => gameState.board[idx] === 0);
+        }
+
+
+
+        function checkMills() {
+            clearHighlights();
+            
+            let humanMills = 0;
+            let aiMills = 0;
+            
+            millCombinations.forEach(mill => {
+                if (mill.every(pos => gameState.board[pos] === 1)) {
+                    humanMills++;
+                    mill.forEach(pos => {
+                        const point = document.querySelector(`.point[data-index="${pos}"]`);
+                        if (point) point.classList.add('mill');
+                    });
+                }
+                if (mill.every(pos => gameState.board[pos] === 2)) {
+                    aiMills++;
+                }
+            });
+            
+            showMessage('Mill Status', `You have ${humanMills} mill(s)\nAI has ${aiMills} mill(s)`);
+            setTimeout(clearHighlights, 3000);
+        }
+
+        function undoMove() {
+            if (gameState.moveHistory.length === 0 || gameState.aiThinking || gameState.currentPlayer !== 1) return;
+            
+            const lastState = gameState.moveHistory.pop();
+            Object.assign(gameState, lastState);
+            gameState.board = [...lastState.board];
+            gameState.piecesToPlace = {...lastState.piecesToPlace};
+            gameState.piecesOnBoard = {...lastState.piecesOnBoard};
+            clearHighlights();
+            updateUI();
+        }
+
+        function saveState() {
+            gameState.moveHistory.push({
+                board: [...gameState.board],
+                currentPlayer: gameState.currentPlayer,
+                phase: gameState.phase,
+                piecesToPlace: {...gameState.piecesToPlace},
+                piecesOnBoard: {...gameState.piecesOnBoard},
+                selectedPoint: gameState.selectedPoint,
+                turnCount: gameState.turnCount,
+                gameOver: gameState.gameOver
+            });
+            
+            if (gameState.moveHistory.length > 10) {
+                gameState.moveHistory.shift();
+            }
+        }
+
+        function newGame() {
+            Object.assign(gameState, {
+                board: new Array(24).fill(0),
+                currentPlayer: 1,
+                phase: 'placement',
+                piecesToPlace: {1: 9, 2: 9},
+                piecesOnBoard: {1: 0, 2: 0},
+                selectedPoint: -1,
+                gameOver: false,
+                moveHistory: [],
+                turnCount: 1,
+                aiThinking: false,
+                recentMill: null,
+                lastMillPositions: []
+            });
+            
+            clearHighlights();
+            createBoardPoints();
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('playerHuman').classList.toggle('active', gameState.currentPlayer === 1);
+            document.getElementById('playerAI').classList.toggle('active', gameState.currentPlayer === 2);
+            
+            document.getElementById('humanPieces').textContent = gameState.piecesOnBoard[1];
+            document.getElementById('aiPieces').textContent = gameState.piecesOnBoard[2];
+            
+            let statusText = '';
+            if (gameState.phase === 'placement') {
+                const remaining = gameState.piecesToPlace[gameState.currentPlayer];
+                statusText = gameState.currentPlayer === 1 ? 
+                    `Place your pieces (${gameState.piecesToPlace[1]} remaining)` :
+                    `AI placing pieces (${gameState.piecesToPlace[2]} remaining)`;
+            } else if (gameState.phase === 'movement') {
+                statusText = gameState.currentPlayer === 1 ?
+                    'Move your pieces to adjacent points' :
+                    'AI is moving...';
+            } else if (gameState.phase === 'flying') {
+                statusText = gameState.currentPlayer === 1 ?
+                    'FLYING MODE! You can move anywhere' :
+                    'AI in FLYING MODE';
+            } else if (gameState.phase === 'removal') {
+                statusText = gameState.currentPlayer === 1 ?
+                    'Select an AI piece to remove' :
+                    'AI selecting piece to remove';
+            }
+            document.getElementById('gameStatus').textContent = statusText;
+            
+            gameState.board.forEach((_, index) => updatePointVisual(index));
+            
+            document.getElementById('undoBtn').disabled = gameState.moveHistory.length === 0 || gameState.aiThinking || gameState.currentPlayer !== 1;
+            document.getElementById('hintBtn').disabled = gameState.aiThinking || gameState.currentPlayer !== 1 || gameState.gameOver;
+        }
+
+        function showMessage(title, text) {
+            document.getElementById('messageTitle').textContent = title;
+            document.getElementById('messageText').textContent = text;
+            document.getElementById('messageOverlay').style.display = 'flex';
+        }
+
+        function hideMessage() {
+            document.getElementById('messageOverlay').style.display = 'none';
+        }
+
+        function showInstructions() {
+            showMessage('How to Play', 
+                `🎯 OBJECTIVE\nReduce opponent to 2 pieces or block all moves\n\n🎮 PHASES\n1. Placement: Place 9 pieces\n2. Movement: Move to adjacent points\n3. Flying: With 3 pieces, move anywhere\n\n⭐ MILLS\n• 3 in a row = Mill\n• Forming a mill removes opponent piece\n• Can't remove from mill unless all in mills\n\n🤖 EXPERT AI\n• Advanced strategic planning\n• Mill formation & blocking\n• Smart piece removal`);
+        }
+
+        function toggleSound() {
+            gameState.soundEnabled = !gameState.soundEnabled;
+            const soundBtn = document.getElementById('soundBtn');
+            const soundToggle = document.getElementById('soundToggle');
+            
+            if (gameState.soundEnabled) {
+                soundBtn.textContent = '🔊 Sound On';
+                soundToggle.textContent = '🔊';
+            } else {
+                soundBtn.textContent = '🔇 Sound Off';
+                soundToggle.textContent = '🔇';
+            }
+        }
+
+        function playSound(type) {
+            if (!gameState.soundEnabled) return;
+            
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                let frequency = 440;
+                let duration = 0.1;
+                
+                switch(type) {
+                    case 'place':
+                        frequency = 523.25;
+                        break;
+                    case 'move':
+                        frequency = 659.25;
+                        break;
+                    case 'remove':
+                        frequency = 392.00;
+                        duration = 0.15;
+                        break;
+                    case 'mill':
+                        frequency = 783.99;
+                        duration = 0.2;
+                        break;
+                }
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = frequency;
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + duration);
+            } catch (e) {
+                console.log('Audio not supported');
+            }
+        }
+
+        function isValidMove(fromIndex, toIndex) {
+            if (gameState.phase === 'flying' && gameState.piecesOnBoard[gameState.currentPlayer] <= 3) {
+                return gameState.board[toIndex] === 0;
+            }
+            return adjacentPoints[fromIndex].includes(toIndex) && gameState.board[toIndex] === 0;
+        }
+
+        window.addEventListener('DOMContentLoaded', initGame);
+        document.addEventListener('touchmove', (e) => {
+            if (e.target.closest('.board-container')) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+    </script>
+</body>
+</html>
