@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Motocross Jump Challenge</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(180deg, #6a11cb, #fff);
+    }
+    canvas {
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+    #score {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #fff;
+      font-weight: bold;
+      font-family: Arial, sans-serif;
+      font-size: 1.2rem;
+      text-shadow: 0 0 5px #000;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <div id="score">Score: 0</div>
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    let w = window.innerWidth;
+    let h = window.innerHeight;
+    canvas.width = w;
+    canvas.height = h;
+
+    let bike = { x: 100, y: h - 120, vy: 0, onGround: true };
+    let groundY = h - 100;
+    let score = 0;
+    let jumpPower = -17;
+    let gravity = 0.9;
+
+    const ramps = [];
+    function createRamps() {
+      ramps.length = 0;
+      let x = 300;
+      for (let i = 0; i < 5; i++) {
+        let height = Math.random() * 60 + 40;
+        ramps.push({ x, width: 100, height });
+        x += 400;
+      }
+    }
+    createRamps();
+
+    function drawGround() {
+      ctx.fillStyle = '#6a11cb';
+      ctx.fillRect(0, groundY, w, h - groundY);
+    }
+
+    function drawBike() {
+      ctx.fillStyle = '#3498db';
+      ctx.beginPath();
+      ctx.arc(bike.x, bike.y, 20, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#000';
+      ctx.fillRect(bike.x - 25, bike.y + 15, 50, 8);
+    }
+
+    function drawRamps() {
+      ctx.fillStyle = '#8e44ad';
+      ramps.forEach(r => {
+        ctx.beginPath();
+        ctx.moveTo(r.x, groundY);
+        ctx.lineTo(r.x + r.width, groundY - r.height);
+        ctx.lineTo(r.x + r.width, groundY);
+        ctx.closePath();
+        ctx.fill();
+      });
+    }
+
+    function jump() {
+      if (bike.onGround) {
+        bike.vy = jumpPower;
+        bike.onGround = false;
+      }
+    }
+
+    function update() {
+      bike.y += bike.vy;
+      bike.vy += gravity;
+
+      if (bike.y > groundY - 20) {
+        bike.y = groundY - 20;
+        bike.vy = 0;
+        bike.onGround = true;
+      }
+
+      ramps.forEach(r => {
+        r.x -= 6;
+        if (r.x + r.width < 0) {
+          r.x = w + Math.random() * 200;
+          r.height = Math.random() * 60 + 40;
+          score++;
+          document.getElementById('score').innerText = 'Score: ' + score;
+        }
+      });
+
+      ctx.clearRect(0, 0, w, h);
+      drawGround();
+      drawRamps();
+      drawBike();
+      requestAnimationFrame(update);
+    }
+
+    canvas.addEventListener('click', jump);
+    canvas.addEventListener('touchstart', e => {
+      e.preventDefault();
+      jump();
+    });
+
+    update();
+  </script>
+</body>
+</html>
