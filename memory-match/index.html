@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Memory Match</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(#6a11cb, #fff);
+            font-family: Arial, sans-serif;
+            color: #333;
+            overflow: hidden;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 400px;
+            padding: 10px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 1.5em;
+            margin: 10px 0;
+            color: #fff;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+
+        #controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .primary-btn {
+            background-color: #3498db;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            font-size: 1em;
+            cursor: pointer;
+            margin: 0 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .secondary-btn {
+            background-color: #6a11cb;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            font-size: 1em;
+            cursor: pointer;
+            margin: 0 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        #instructions-icon, #sound-toggle {
+            font-size: 1.5em;
+            color: #fff;
+            cursor: pointer;
+            margin: 0 5px;
+        }
+
+        #board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            width: 100%;
+            max-height: 70vh;
+        }
+
+        .card {
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2em;
+            cursor: pointer;
+            transition: transform 0.3s;
+            aspect-ratio: 1 / 1;
+            color: transparent; /* Hide value initially */
+        }
+
+        .card.flipped {
+            transform: rotateY(180deg);
+            color: #333;
+            background-color: #f0f0f0;
+        }
+
+        .card.matched {
+            color: #333;
+            background-color: #d4edda;
+            pointer-events: none;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: #fff;
+            margin: auto;
+            padding: 15px;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 300px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 1.5em;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        /* Loader (if needed, but hidden by default) */
+        #loader {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 2;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid #fff;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Optimize for mobile */
+        @media (max-width: 400px) {
+            h1 {
+                font-size: 1.2em;
+            }
+            .card {
+                font-size: 1.5em;
+            }
+            .primary-btn, .secondary-btn {
+                padding: 6px 12px;
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <h1>Memory Match</h1>
+        <div id="controls">
+            <button id="new-game" class="primary-btn">New Game</button>
+            <button id="auto-solve" class="secondary-btn">Auto Solve</button>
+            <i id="instructions-icon" class="fas fa-question-circle"></i>
+            <i id="sound-toggle" class="fas fa-volume-up"></i>
+        </div>
+        <div id="board"></div>
+    </div>
+
+    <!-- Instructions Modal -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>How to Play</h2>
+            <p>Flip two cards at a time to find matching pairs. Match all pairs to win! Use the New Game button to start over. Auto Solve to see the solution automatically.</p>
+        </div>
+    </div>
+
+    <!-- Loader (optional, for future use) -->
+    <div id="loader">
+        <div class="spinner"></div>
+    </div>
+
+    <script>
+        const board = document.getElementById('board');
+        const newGameBtn = document.getElementById('new-game');
+        const autoSolveBtn = document.getElementById('auto-solve');
+        const instructionsIcon = document.getElementById('instructions-icon');
+        const soundToggle = document.getElementById('sound-toggle');
+        const modal = document.getElementById('modal');
+        const closeModal = document.getElementsByClassName('close')[0];
+
+        let cards = [];
+        let flippedCards = [];
+        let matchedPairs = 0;
+        const totalPairs = 8; // 4x4 grid, 8 pairs
+        let isAutoSolving = false;
+        let soundsEnabled = true;
+        let hasUserInteracted = false;
+
+        // Card values (emojis for fun and visibility)
+        const cardValues = ['🍎', '🍌', '🍇', '🍉', '🍓', '🍒', '🍑', '🍍'];
+
+        // Audio setup (use real URLs for production; these are placeholders)
+        const flipSound = new Audio('https://www.soundjay.com/buttons/sounds/beep-07a.mp3');
+        const matchSound = new Audio('https://www.soundjay.com/buttons/sounds/button-3.mp3');
+        const mismatchSound = new Audio('https://www.soundjay.com/buttons/sounds/button-4.mp3');
+        const bgMusic = new Audio('https://www.soundjay.com/ambient/sounds/ambient-001.mp3'); // Placeholder for background music
+        bgMusic.loop = true;
+
+        // Function to play sound with error handling
+        function playSound(audio) {
+            if (soundsEnabled) {
+                audio.currentTime = 0;
+                audio.play().catch(() => {}); // Silent fail if not allowed
+            }
+        }
+
+        // Function to start background music
+        function startBgMusic() {
+            if (soundsEnabled) {
+                bgMusic.play().catch(() => {});
+            }
+        }
+
+        // Detect first user interaction to enable audio
+        const enableAudioOnInteraction = () => {
+            if (!hasUserInteracted) {
+                hasUserInteracted = true;
+                startBgMusic();
+            }
+        };
+
+        document.addEventListener('click', enableAudioOnInteraction, { once: true });
+        document.addEventListener('touchstart', enableAudioOnInteraction, { once: true });
+
+        function toggleSounds() {
+            soundsEnabled = !soundsEnabled;
+            soundToggle.classList.toggle('fa-volume-up', soundsEnabled);
+            soundToggle.classList.toggle('fa-volume-mute', !soundsEnabled);
+            if (soundsEnabled) {
+                startBgMusic();
+            } else {
+                bgMusic.pause();
+            }
+        }
+
+        function createCards() {
+            const duplicatedValues = [...cardValues, ...cardValues];
+            duplicatedValues.sort(() => Math.random() - 0.5); // Shuffle
+
+            board.innerHTML = '';
+            duplicatedValues.forEach(value => {
+                const card = document.createElement('div');
+                card.classList.add('card');
+                card.dataset.value = value;
+                card.innerText = value;
+                card.addEventListener('click', flipCard);
+                board.appendChild(card);
+            });
+
+            cards = Array.from(board.children);
+        }
+
+        function flipCard() {
+            if (isAutoSolving) return;
+            if (flippedCards.length < 2 && !this.classList.contains('flipped') && !this.classList.contains('matched')) {
+                this.classList.add('flipped');
+                flippedCards.push(this);
+                playSound(flipSound);
+
+                if (flippedCards.length === 2) {
+                    checkMatch();
+                }
+            }
+        }
+
+        function checkMatch() {
+            const [card1, card2] = flippedCards;
+            if (card1.dataset.value === card2.dataset.value) {
+                card1.classList.add('matched');
+                card2.classList.add('matched');
+                matchedPairs++;
+                flippedCards = [];
+                playSound(matchSound);
+
+                if (matchedPairs === totalPairs) {
+                    setTimeout(() => alert('You won! All pairs matched.'), 500);
+                }
+            } else {
+                playSound(mismatchSound);
+                setTimeout(() => {
+                    card1.classList.remove('flipped');
+                    card2.classList.remove('flipped');
+                    flippedCards = [];
+                }, 1000);
+            }
+        }
+
+        function newGame() {
+            matchedPairs = 0;
+            flippedCards = [];
+            isAutoSolving = false;
+            createCards();
+            // Do not play bgMusic here to avoid autoplay policy violation
+        }
+
+        function autoSolve() {
+            if (isAutoSolving || matchedPairs === totalPairs) return;
+            isAutoSolving = true;
+
+            // Disable user clicks
+            cards.forEach(card => card.removeEventListener('click', flipCard));
+
+            // Get unmatched cards
+            const unmatched = cards.filter(c => !c.classList.contains('matched'));
+
+            // Group by value
+            const groups = {};
+            unmatched.forEach(card => {
+                const val = card.dataset.value;
+                if (!groups[val]) groups[val] = [];
+                groups[val].push(card);
+            });
+
+            // Pairs
+            const pairs = Object.values(groups);
+
+            // Sequential solve
+            let delay = 0;
+            pairs.forEach(pair => {
+                setTimeout(() => {
+                    // Flip first
+                    pair[0].classList.add('flipped');
+                    playSound(flipSound);
+                    flippedCards.push(pair[0]);
+
+                    setTimeout(() => {
+                        // Flip second
+                        pair[1].classList.add('flipped');
+                        playSound(flipSound);
+                        flippedCards.push(pair[1]);
+
+                        // Check match
+                        checkMatch();
+                    }, 500);
+                }, delay);
+                delay += 1500; // Time for flip and match
+            });
+
+            setTimeout(() => {
+                isAutoSolving = false;
+                // Re-enable clicks if needed, but game over
+            }, delay);
+        }
+
+        // Modal controls
+        instructionsIcon.onclick = () => { modal.style.display = 'flex'; };
+        closeModal.onclick = () => { modal.style.display = 'none'; };
+        window.onclick = (event) => {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        };
+
+        // Sound toggle
+        soundToggle.onclick = toggleSounds;
+
+        // Buttons
+        newGameBtn.addEventListener('click', newGame);
+        autoSolveBtn.addEventListener('click', autoSolve);
+
+        // Start initial game
+        newGame();
+    </script>
+</body>
+</html>
