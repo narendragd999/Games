@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Futoshiki Puzzle</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            padding: 10px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 28px;
+        }
+
+        .grid-container {
+            display: inline-block;
+            background: white;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            margin: 0 auto;
+            display: block;
+            width: fit-content;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            gap: 2px;
+            width: 100%;
+            max-width: 360px;
+            margin: 0 auto;
+        }
+
+        .cell {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            border: 2px solid #ddd;
+            background: white;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .cell:hover {
+            background: #f0f0f0;
+        }
+
+        .cell.selected {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .cell.given {
+            background: #e8eaf6;
+            color: #667eea;
+            cursor: default;
+        }
+
+        .cell.given:hover {
+            background: #e8eaf6;
+        }
+
+        .cell.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .cell.correct {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .constraint {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: #666;
+            font-weight: bold;
+        }
+
+        .number-pad {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin: 15px 0;
+        }
+
+        .number-btn {
+            padding: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .number-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .number-btn:active {
+            transform: scale(0.95);
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        .btn {
+            padding: 12px;
+            font-size: 14px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: white;
+        }
+
+        .btn-primary {
+            background: #667eea;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #764ba2;
+        }
+
+        .btn-secondary:hover {
+            background: #653a8b;
+        }
+
+        .btn-success {
+            background: #4caf50;
+        }
+
+        .btn-success:hover {
+            background: #45a049;
+        }
+
+        .btn-danger {
+            background: #f44336;
+        }
+
+        .btn-danger:hover {
+            background: #da190b;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-content h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .modal-content p {
+            margin-bottom: 10px;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .modal-content ul {
+            margin-left: 20px;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .modal-content li {
+            margin-bottom: 8px;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 15px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .cell {
+                font-size: 18px;
+            }
+
+            .number-btn {
+                padding: 10px;
+                font-size: 16px;
+            }
+
+            .btn {
+                padding: 10px;
+                font-size: 13px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Futoshiki</h1>
+        
+        <div class="grid-container">
+            <div class="grid" id="grid"></div>
+        </div>
+
+        <div class="number-pad" id="numberPad"></div>
+
+        <div class="controls">
+            <button class="btn btn-primary" onclick="newPuzzle()">New Puzzle</button>
+            <button class="btn btn-secondary" onclick="getHint()">Hint</button>
+            <button class="btn btn-success" onclick="checkSolution()">Check</button>
+            <button class="btn btn-danger" onclick="autoSolve()">Solve</button>
+            <button class="btn btn-primary" style="grid-column: 1 / -1;" onclick="showInstructions()">Instructions</button>
+        </div>
+    </div>
+
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <h2>How to Play Futoshiki</h2>
+            <p><strong>Objective:</strong> Fill the grid with numbers 1-5 so that:</p>
+            <ul>
+                <li>Each row contains 1-5 exactly once</li>
+                <li>Each column contains 1-5 exactly once</li>
+                <li>All inequality signs (&lt; &gt;) are satisfied</li>
+            </ul>
+            <p><strong>Controls:</strong></p>
+            <ul>
+                <li>Click a cell to select it</li>
+                <li>Click a number to fill the cell</li>
+                <li>Click "Clear" to erase a cell</li>
+                <li>Use "Hint" for help</li>
+                <li>Use "Check" to verify your solution</li>
+            </ul>
+            <button class="btn btn-primary" style="width: 100%; margin-top: 15px;" onclick="closeModal()">Got it!</button>
+        </div>
+    </div>
+
+    <script>
+        const SIZE = 5;
+        let puzzle = [];
+        let solution = [];
+        let userGrid = [];
+        let selectedCell = null;
+        let constraints = { horizontal: [], vertical: [] };
+
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(freq, duration) {
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            osc.frequency.value = freq;
+            gain.gain.value = 0.1;
+            osc.start();
+            gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+            osc.stop(audioContext.currentTime + duration);
+        }
+
+        function initGrid() {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+            
+            for (let row = 0; row < SIZE; row++) {
+                for (let col = 0; col < SIZE; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    cell.onclick = () => selectCell(row, col);
+                    grid.appendChild(cell);
+
+                    if (col < SIZE - 1) {
+                        const hConstraint = document.createElement('div');
+                        hConstraint.className = 'constraint';
+                        grid.appendChild(hConstraint);
+                    }
+                }
+
+                if (row < SIZE - 1) {
+                    for (let col = 0; col < SIZE; col++) {
+                        const vConstraint = document.createElement('div');
+                        vConstraint.className = 'constraint';
+                        grid.appendChild(vConstraint);
+
+                        if (col < SIZE - 1) {
+                            const spacer = document.createElement('div');
+                            grid.appendChild(spacer);
+                        }
+                    }
+                }
+            }
+
+            const numberPad = document.getElementById('numberPad');
+            numberPad.innerHTML = '';
+            for (let i = 1; i <= SIZE; i++) {
+                const btn = document.createElement('button');
+                btn.className = 'number-btn';
+                btn.textContent = i;
+                btn.onclick = () => placeNumber(i);
+                numberPad.appendChild(btn);
+            }
+            const clearBtn = document.createElement('button');
+            clearBtn.className = 'number-btn';
+            clearBtn.textContent = 'Clear';
+            clearBtn.onclick = () => placeNumber(0);
+            numberPad.appendChild(clearBtn);
+        }
+
+        function generatePuzzle() {
+            solution = Array(SIZE).fill(null).map(() => Array(SIZE).fill(0));
+            
+            function isValid(grid, row, col, num) {
+                for (let i = 0; i < SIZE; i++) {
+                    if (grid[row][i] === num || grid[i][col] === num) return false;
+                }
+                return true;
+            }
+
+            function solve(grid) {
+                for (let row = 0; row < SIZE; row++) {
+                    for (let col = 0; col < SIZE; col++) {
+                        if (grid[row][col] === 0) {
+                            const nums = [1, 2, 3, 4, 5].sort(() => Math.random() - 0.5);
+                            for (let num of nums) {
+                                if (isValid(grid, row, col, num)) {
+                                    grid[row][col] = num;
+                                    if (solve(grid)) return true;
+                                    grid[row][col] = 0;
+                                }
+                            }
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            }
+
+            solve(solution);
+
+            constraints = { horizontal: [], vertical: [] };
+            
+            for (let row = 0; row < SIZE; row++) {
+                constraints.horizontal[row] = [];
+                for (let col = 0; col < SIZE - 1; col++) {
+                    if (Math.random() > 0.5) {
+                        constraints.horizontal[row][col] = solution[row][col] < solution[row][col + 1] ? '<' : '>';
+                    } else {
+                        constraints.horizontal[row][col] = '';
+                    }
+                }
+            }
+
+            for (let row = 0; row < SIZE - 1; row++) {
+                constraints.vertical[row] = [];
+                for (let col = 0; col < SIZE; col++) {
+                    if (Math.random() > 0.5) {
+                        constraints.vertical[row][col] = solution[row][col] < solution[row + 1][col] ? '^' : 'v';
+                    } else {
+                        constraints.vertical[row][col] = '';
+                    }
+                }
+            }
+
+            puzzle = solution.map(row => row.map(() => 0));
+            const cellsToFill = Math.floor(SIZE * SIZE * 0.3);
+            for (let i = 0; i < cellsToFill; i++) {
+                const row = Math.floor(Math.random() * SIZE);
+                const col = Math.floor(Math.random() * SIZE);
+                puzzle[row][col] = solution[row][col];
+            }
+
+            userGrid = puzzle.map(row => [...row]);
+        }
+
+        function renderGrid() {
+            const cells = document.querySelectorAll('.cell');
+            let cellIndex = 0;
+
+            for (let row = 0; row < SIZE; row++) {
+                for (let col = 0; col < SIZE; col++) {
+                    const cell = cells[cellIndex];
+                    cell.textContent = userGrid[row][col] || '';
+                    cell.className = 'cell';
+                    
+                    if (puzzle[row][col] !== 0) {
+                        cell.classList.add('given');
+                    }
+                    
+                    if (selectedCell && selectedCell.row === row && selectedCell.col === col) {
+                        cell.classList.add('selected');
+                    }
+                    
+                    cellIndex++;
+                }
+            }
+
+            const allCells = document.getElementById('grid').children;
+            let constraintIndex = 0;
+
+            for (let row = 0; row < SIZE; row++) {
+                for (let col = 0; col < SIZE; col++) {
+                    constraintIndex++;
+                    
+                    if (col < SIZE - 1) {
+                        allCells[constraintIndex].textContent = constraints.horizontal[row][col] || '';
+                        constraintIndex++;
+                    }
+                }
+
+                if (row < SIZE - 1) {
+                    for (let col = 0; col < SIZE; col++) {
+                        const symbol = constraints.vertical[row][col];
+                        allCells[constraintIndex].textContent = symbol === '^' ? '∧' : (symbol === 'v' ? '∨' : '');
+                        constraintIndex++;
+
+                        if (col < SIZE - 1) {
+                            constraintIndex++;
+                        }
+                    }
+                }
+            }
+        }
+
+        function selectCell(row, col) {
+            if (puzzle[row][col] !== 0) return;
+            selectedCell = { row, col };
+            playSound(400, 0.1);
+            renderGrid();
+        }
+
+        function placeNumber(num) {
+            if (!selectedCell) return;
+            const { row, col } = selectedCell;
+            if (puzzle[row][col] !== 0) return;
+            
+            userGrid[row][col] = num;
+            playSound(num === 0 ? 300 : 500, 0.1);
+            renderGrid();
+        }
+
+        function checkSolution() {
+            let correct = true;
+            let hasEmpty = false;
+            const grid = document.getElementById('grid');
+            const allElements = grid.children;
+            
+            // Calculate proper cell indices
+            for (let row = 0; row < SIZE; row++) {
+                for (let col = 0; col < SIZE; col++) {
+                    // Calculate the correct index considering constraints
+                    let cellIndex = row * (SIZE * 2 - 1) + col * 2;
+                    if (row > 0) cellIndex += (SIZE * 2 - 1) * (row);
+                    
+                    const cell = allElements[cellIndex];
+                    
+                    if (userGrid[row][col] === 0) {
+                        hasEmpty = true;
+                        correct = false;
+                    } else if (userGrid[row][col] !== solution[row][col]) {
+                        cell.classList.add('error');
+                        correct = false;
+                    } else {
+                        cell.classList.add('correct');
+                    }
+                }
+            }
+
+            if (hasEmpty) {
+                playSound(300, 0.2);
+                alert('⚠️ Please fill all cells before checking!');
+                setTimeout(() => renderGrid(), 100);
+            } else if (correct) {
+                playSound(800, 0.3);
+                alert('🎉 Congratulations! Puzzle solved correctly!');
+                // Don't auto-create new puzzle, let user decide
+            } else {
+                playSound(200, 0.3);
+                alert('❌ Some numbers are incorrect. Red cells show errors.');
+                setTimeout(() => {
+                    renderGrid();
+                }, 2000);
+            }
+        }
+
+        function getHint() {
+            const emptyCells = [];
+            for (let row = 0; row < SIZE; row++) {
+                for (let col = 0; col < SIZE; col++) {
+                    if (userGrid[row][col] === 0) {
+                        emptyCells.push({ row, col });
+                    }
+                }
+            }
+
+            if (emptyCells.length === 0) return;
+
+            const { row, col } = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+            userGrid[row][col] = solution[row][col];
+            playSound(600, 0.2);
+            renderGrid();
+        }
+
+        function autoSolve() {
+            userGrid = solution.map(row => [...row]);
+            playSound(700, 0.3);
+            renderGrid();
+        }
+
+        function newPuzzle() {
+            selectedCell = null;
+            generatePuzzle();
+            playSound(500, 0.15);
+            renderGrid();
+        }
+
+        function showInstructions() {
+            document.getElementById('modal').classList.add('active');
+            playSound(450, 0.1);
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+            playSound(450, 0.1);
+        }
+
+        initGrid();
+        newPuzzle();
+    </script>
+</body>
+</html>
