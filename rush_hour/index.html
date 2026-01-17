@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Rush Hour</title>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.container {
+  max-width: 100vw;
+  max-height: 100vh;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.header {
+  text-align: center;
+  color: white;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.header h1 {
+  font-size: clamp(20px, 5vw, 28px);
+  margin-bottom: 5px;
+}
+
+.info {
+  display: flex;
+  gap: 15px;
+  font-size: clamp(12px, 3vw, 14px);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.difficulty {
+  background: rgba(255,255,255,0.2);
+  padding: 3px 10px;
+  border-radius: 15px;
+  font-weight: bold;
+}
+
+.difficulty.easy { background: rgba(76, 175, 80, 0.4); }
+.difficulty.medium { background: rgba(255, 193, 7, 0.4); }
+.difficulty.hard { background: rgba(244, 67, 54, 0.4); }
+.difficulty.expert { background: rgba(156, 39, 176, 0.4); }
+
+.board-container {
+  background: rgba(255,255,255,0.95);
+  border-radius: 15px;
+  padding: 15px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.board {
+  width: min(80vw, 400px);
+  height: min(80vw, 400px);
+  background: #f0f0f0;
+  border: 3px solid #333;
+  border-radius: 10px;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+  gap: 2px;
+  padding: 2px;
+}
+
+.cell {
+  background: white;
+  border: 1px solid #ddd;
+}
+
+.exit {
+  position: absolute;
+  right: -5px;
+  top: calc(50% - calc(min(80vw, 400px) / 12));
+  width: 10px;
+  height: calc(min(80vw, 400px) / 6);
+  background: #4CAF50;
+  border-radius: 0 5px 5px 0;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+}
+
+.car {
+  position: absolute;
+  border-radius: 8px;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: white;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+  transition: box-shadow 0.2s;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  user-select: none;
+}
+
+.car:active {
+  cursor: grabbing;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+}
+
+.car.red {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+  z-index: 10;
+}
+
+.car.blue {
+  background: linear-gradient(135deg, #4facfe, #00f2fe);
+}
+
+.car.green {
+  background: linear-gradient(135deg, #43e97b, #38f9d7);
+}
+
+.car.yellow {
+  background: linear-gradient(135deg, #ffd89b, #19547b);
+}
+
+.car.purple {
+  background: linear-gradient(135deg, #a8edea, #fed6e3);
+  color: #333;
+}
+
+.car.orange {
+  background: linear-gradient(135deg, #fddb92, #d1fdff);
+  color: #333;
+}
+
+.car.pink {
+  background: linear-gradient(135deg, #ffecd2, #fcb69f);
+  color: #333;
+}
+
+.car.cyan {
+  background: linear-gradient(135deg, #8EC5FC, #E0C3FC);
+  color: #333;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  width: 100%;
+}
+
+.btn {
+  padding: 10px 15px;
+  border: none;
+  border-radius: 8px;
+  font-size: clamp(12px, 3vw, 14px);
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+  color: white;
+}
+
+.btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+
+.btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); }
+.btn-success { background: linear-gradient(135deg, #56ab2f, #a8e063); }
+.btn-warning { background: linear-gradient(135deg, #f093fb, #f5576c); }
+.btn-info { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.7);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.modal.active {
+  display: flex;
+}
+
+.modal-content {
+  background: white;
+  padding: 25px;
+  border-radius: 15px;
+  max-width: 400px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+}
+
+.modal-content h2 {
+  color: #667eea;
+  margin-bottom: 15px;
+  font-size: clamp(18px, 4vw, 24px);
+}
+
+.modal-content p, .modal-content li {
+  margin-bottom: 10px;
+  line-height: 1.6;
+  font-size: clamp(13px, 3vw, 15px);
+}
+
+.modal-content ul {
+  margin-left: 20px;
+}
+
+.close-modal {
+  margin-top: 15px;
+  width: 100%;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1>🚗 Rush Hour</h1>
+    <div class="info">
+      <span>Moves: <strong id="moves">0</strong></span>
+      <span>Level: <strong id="level">1</strong></span>
+      <span class="difficulty" id="difficulty">EASY</span>
+    </div>
+  </div>
+
+  <div class="board-container">
+    <div class="board" id="board">
+      <div class="exit"></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn btn-primary" id="btnNew">New Puzzle</button>
+    <button class="btn btn-info" id="btnHint">Hint</button>
+    <button class="btn btn-success" id="btnCheck">Check</button>
+    <button class="btn btn-warning" id="btnSolve">Auto-Solve</button>
+    <button class="btn btn-primary" id="btnHelp">Help</button>
+  </div>
+</div>
+
+<div class="modal" id="modal">
+  <div class="modal-content">
+    <h2>How to Play</h2>
+    <p>Slide the cars to free the <strong style="color: #ff6b6b;">red car</strong> and help it escape through the exit!</p>
+    <ul>
+      <li><strong>Goal:</strong> Move the red car to the exit on the right side</li>
+      <li><strong>Controls:</strong> Drag cars horizontally or vertically</li>
+      <li><strong>Rules:</strong> Cars can only move in their orientation (horizontal/vertical)</li>
+      <li><strong>Strategy:</strong> Plan ahead! Some puzzles need 15+ moves</li>
+      <li><strong>Difficulty:</strong> Puzzles get progressively harder</li>
+      <li><strong>Hint:</strong> Shows one possible move (use sparingly!)</li>
+    </ul>
+    <p style="margin-top: 15px;">Think strategically and complete puzzles in minimum moves!</p>
+    <button class="btn btn-primary close-modal" id="btnClose">Start Playing!</button>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  let audioCtx = null;
+
+  const audio = {
+    init: function() {
+      if (!audioCtx) {
+        try {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        } catch(e) {
+          console.log('Audio not supported');
+        }
+      }
+    },
+    move: function() {
+      if (!audioCtx) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.frequency.value = 300;
+        gain.gain.value = 0.1;
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        osc.stop(audioCtx.currentTime + 0.1);
+      } catch(e) {}
+    },
+    win: function() {
+      if (!audioCtx) return;
+      try {
+        const freqs = [400, 500, 600];
+        freqs.forEach(function(f, i) {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.frequency.value = f;
+          gain.gain.value = 0.1;
+          osc.start(audioCtx.currentTime + i * 0.1);
+          gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.1 + 0.2);
+          osc.stop(audioCtx.currentTime + i * 0.1 + 0.2);
+        });
+      } catch(e) {}
+    }
+  };
+
+  const puzzles = [
+    // EASY Level 1 - Just move red car right
+    {
+      diff: 'easy',
+      cars: [
+        {id: 'red', x: 0, y: 2, len: 2, dir: 'h', color: 'red'},
+        {id: 'b1', x: 5, y: 0, len: 2, dir: 'v', color: 'blue'}
+      ]
+    },
+    // EASY Level 2 - Move blocker down, then red right
+    {
+      diff: 'easy',
+      cars: [
+        {id: 'red', x: 0, y: 2, len: 2, dir: 'h', color: 'red'},
+        {id: 'b1', x: 2, y: 0, len: 2, dir: 'v', color: 'blue'},
+        {id: 'b2', x: 5, y: 3, len: 2, dir: 'v', color: 'green'}
+      ]
+    },
+    // EASY Level 3 - Clear vertical blocker
+    {
+      diff: 'easy',
+      cars: [
+        {id: 'red', x: 1, y: 2, len: 2, dir: 'h', color: 'red'},
+        {id: 'b1', x: 3, y: 0, len: 2, dir: 'v', color: 'blue'},
+        {id: 'b2', x: 0, y: 4, len: 2, dir: 'h', color: 'green'}
+      ]
+    },
+    // MEDIUM Level 4 - Multiple blockers
+    {
+      diff: 'medium',
+      cars: [
+        {id: 'red', x: 0, y: 2, len: 2, dir: 'h', color: 'red'},
+        {id: 'b1', x: 2, y: 0, len: 2, dir: 'v', color: 'blue'},
+        {id: 'b2', x: 3, y: 3, len: 2, dir: 'v', color: 'green'},
+        {id: 'b3', x: 0, y: 0, len: 2, dir: 'h', color: 'yellow'}
+      ]
+    },
+    // MEDIUM Level 5 - Chain moves
+    {
+      diff: 'medium',
+      cars: [
+        {id: 'red', x: 1, y: 2, len: 2, dir: 'h', color: 'red'},
+        {id: 'b1', x: 3, y: 1, len: 2, dir: 'v', color: 'blue'},
+        {id: 'b2', x: 0, y: 0, len: 2, dir: 'v', color: 'green'},
+        {id: 'b3', x: 4, y: 0, len: 2, dir: 'h', color: 'yellow'},
+        {id: 'b4', x: 5, y: 4, len: 2, dir: 'v', color: 'purple'}
+      ]
+    },
+    // HARD Level 6 - Strategic sequence
+    {
+      diff: 'hard',
+      cars: [
+        {id: 'red', x: 0, y: 2, len: 2, dir: 'h', color: 'red'},
+        {id: 'b1', x: 2, y: 1, len: 2, dir: 'v', color: 'blue'},
+        {id: 'b2', x: 3, y: 0, len: 2, dir: 'h', color: 'green'},
+        {id: 'b3', x: 4, y: 3, len: 2, dir: 'v', color: 'yellow'},
+        {id: 'b4', x: 0, y: 0, len: 2, dir: 'h', color: 'purple'},
+        {id: 'b5', x: 1, y: 4, len: 2, dir: 'h', color: 'orange'}
+      ]
+    },
+    // HARD Level 7 - Complex blocking
+    {
+      diff: 'hard',
+      cars: [
+        {id: 'red', x: 1, y: 2, len: 2, dir: 'h', color: 'red'},
+        {id: 'b1', x: 0, y: 0, len: 2, dir: 'v', color: 'blue'},
+        {id: 'b2', x: 3, y: 1, len: 2, dir: 'v', color: 'green'},
+        {id: 'b3', x: 1, y: 0, len: 2, dir: 'h', color: 'yellow'},
+        {id: 'b4', x: 4, y: 0, len: 2, dir: 'h', color: 'purple'},
+        {id: 'b5', x: 5, y: 3, len: 2, dir: 'v', color: 'orange'}
+      ]
+    },
+    // EXPERT Level 8 - Maximum challenge
+    {
+      diff: 'expert',
+      cars: [
+        {id: 'red', x: 0, y: 2, len: 2, dir: 'h', color: 'red'},
+        {id: 'b1', x: 2, y: 0, len: 2, dir: 'v', color: 'blue'},
+        {id: 'b2', x: 3, y: 0, len: 2, dir: 'h', color: 'green'},
+        {id: 'b3', x: 2, y: 3, len: 2, dir: 'v', color: 'yellow'},
+        {id: 'b4', x: 4, y: 3, len: 2, dir: 'v', color: 'purple'},
+        {id: 'b5', x: 0, y: 4, len: 2, dir: 'h', color: 'orange'},
+        {id: 'b6', x: 5, y: 1, len: 2, dir: 'v', color: 'pink'}
+      ]
+    }
+  ];
+
+  let cars = [];
+  let moves = 0;
+  let level = 0;
+  let dragData = null;
+  let solveInterval = null;
+
+  function init() {
+    audio.init();
+    createGrid();
+    newPuzzle();
+    
+    document.getElementById('btnNew').addEventListener('click', newPuzzle);
+    document.getElementById('btnHint').addEventListener('click', showHint);
+    document.getElementById('btnCheck').addEventListener('click', checkSolution);
+    document.getElementById('btnSolve').addEventListener('click', autoSolve);
+    document.getElementById('btnHelp').addEventListener('click', showInstructions);
+    document.getElementById('btnClose').addEventListener('click', closeModal);
+    
+    setTimeout(showInstructions, 500);
+  }
+
+  function createGrid() {
+    const board = document.getElementById('board');
+    for (let i = 0; i < 36; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      board.appendChild(cell);
+    }
+  }
+
+  function newPuzzle() {
+    if (solveInterval) {
+      clearInterval(solveInterval);
+      solveInterval = null;
+    }
+    
+    level = (level + 1) % puzzles.length;
+    moves = 0;
+    updateUI();
+    loadPuzzle(puzzles[level].cars);
+  }
+
+  function loadPuzzle(puzzle) {
+    const board = document.getElementById('board');
+    const oldCars = board.querySelectorAll('.car');
+    oldCars.forEach(function(c) { c.remove(); });
+    
+    cars = JSON.parse(JSON.stringify(puzzle));
+    
+    cars.forEach(function(car) {
+      const el = document.createElement('div');
+      el.className = 'car ' + car.color;
+      el.id = car.id;
+      el.textContent = car.id === 'red' ? '🚗' : '';
+      
+      updateCarPosition(el, car);
+      
+      el.addEventListener('mousedown', startDrag);
+      el.addEventListener('touchstart', startDrag);
+      
+      board.appendChild(el);
+    });
+  }
+
+  function updateCarPosition(el, car) {
+    const board = el.parentElement || document.getElementById('board');
+    const cellSize = board.offsetWidth / 6;
+    el.style.left = (car.x * cellSize) + 'px';
+    el.style.top = (car.y * cellSize) + 'px';
+    el.style.width = ((car.dir === 'h' ? car.len : 1) * cellSize - 4) + 'px';
+    el.style.height = ((car.dir === 'v' ? car.len : 1) * cellSize - 4) + 'px';
+  }
+
+  function startDrag(e) {
+    e.preventDefault();
+    const el = e.currentTarget;
+    const car = cars.find(function(c) { return c.id === el.id; });
+    
+    const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+    const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+    
+    dragData = {
+      car: car,
+      el: el,
+      startX: clientX,
+      startY: clientY,
+      origX: car.x,
+      origY: car.y
+    };
+    
+    document.addEventListener('mousemove', onDrag);
+    document.addEventListener('touchmove', onDrag);
+    document.addEventListener('mouseup', endDrag);
+    document.addEventListener('touchend', endDrag);
+  }
+
+  function onDrag(e) {
+    if (!dragData) return;
+    e.preventDefault();
+    
+    const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+    const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+    
+    const board = document.getElementById('board');
+    const cellSize = board.offsetWidth / 6;
+    
+    if (dragData.car.dir === 'h') {
+      const dx = Math.round((clientX - dragData.startX) / cellSize);
+      const newX = Math.max(0, Math.min(6 - dragData.car.len, dragData.origX + dx));
+      
+      if (canMove(dragData.car, newX, dragData.car.y)) {
+        dragData.car.x = newX;
+        updateCarPosition(dragData.el, dragData.car);
+      }
+    } else {
+      const dy = Math.round((clientY - dragData.startY) / cellSize);
+      const newY = Math.max(0, Math.min(6 - dragData.car.len, dragData.origY + dy));
+      
+      if (canMove(dragData.car, dragData.car.x, newY)) {
+        dragData.car.y = newY;
+        updateCarPosition(dragData.el, dragData.car);
+      }
+    }
+  }
+
+  function endDrag() {
+    if (!dragData) return;
+    
+    if (dragData.origX !== dragData.car.x || dragData.origY !== dragData.car.y) {
+      moves++;
+      updateUI();
+      audio.move();
+      
+      if (dragData.car.id === 'red' && dragData.car.x === 4) {
+        setTimeout(function() {
+          audio.win();
+          const diff = puzzles[level].diff.toUpperCase();
+          alert('🎉 ' + diff + ' puzzle completed in ' + moves + ' moves! ' + getPerformanceMessage(moves, diff));
+          newPuzzle();
+        }, 300);
+      }
+    }
+    
+    document.removeEventListener('mousemove', onDrag);
+    document.removeEventListener('touchmove', onDrag);
+    document.removeEventListener('mouseup', endDrag);
+    document.removeEventListener('touchend', endDrag);
+    
+    dragData = null;
+  }
+
+  function getPerformanceMessage(moves, diff) {
+    if (diff === 'EASY' && moves <= 6) return '⭐⭐⭐ Perfect!';
+    if (diff === 'MEDIUM' && moves <= 12) return '⭐⭐⭐ Excellent!';
+    if (diff === 'HARD' && moves <= 18) return '⭐⭐⭐ Amazing!';
+    if (diff === 'EXPERT' && moves <= 25) return '⭐⭐⭐ Genius!';
+    if (moves <= 30) return '⭐⭐ Great job!';
+    return '⭐ Keep practicing!';
+  }
+
+  function canMove(movingCar, newX, newY) {
+    for (let i = 0; i < cars.length; i++) {
+      const other = cars[i];
+      if (other.id === movingCar.id) continue;
+      
+      if (carsOverlap(
+        newX, newY, movingCar.len, movingCar.dir,
+        other.x, other.y, other.len, other.dir
+      )) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function carsOverlap(x1, y1, len1, dir1, x2, y2, len2, dir2) {
+    const getCells = function(x, y, len, dir) {
+      const cells = [];
+      for (let i = 0; i < len; i++) {
+        cells.push([x + (dir === 'h' ? i : 0), y + (dir === 'v' ? i : 0)]);
+      }
+      return cells;
+    };
+    
+    const cells1 = getCells(x1, y1, len1, dir1);
+    const cells2 = getCells(x2, y2, len2, dir2);
+    
+    for (let i = 0; i < cells1.length; i++) {
+      for (let j = 0; j < cells2.length; j++) {
+        if (cells1[i][0] === cells2[j][0] && cells1[i][1] === cells2[j][1]) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  function showHint() {
+    const red = cars.find(function(c) { return c.id === 'red'; });
+    const blockers = [];
+    
+    for (let i = 0; i < cars.length; i++) {
+      const other = cars[i];
+      if (other.id === 'red') continue;
+      
+      if (other.dir === 'v' && other.x > red.x && other.x < red.x + red.len && 
+          other.y <= red.y && other.y + other.len > red.y) {
+        blockers.push(other);
+      }
+    }
+    
+    if (blockers.length > 0) {
+      const blocker = blockers[0];
+      if (blocker.y > 0 && canMove(blocker, blocker.x, blocker.y - 1)) {
+        alert('💡 Hint: Move the ' + blocker.color + ' car UP to clear the path!');
+      } else if (blocker.y + blocker.len < 6 && canMove(blocker, blocker.x, blocker.y + 1)) {
+        alert('💡 Hint: Move the ' + blocker.color + ' car DOWN to clear the path!');
+      } else {
+        alert('💡 Hint: The ' + blocker.color + ' car is blocking, but you need to move other cars first!');
+      }
+    } else if (red.x < 4) {
+      alert('💡 Hint: The path is clear! Move the red car RIGHT to the exit!');
+    } else {
+      alert('💡 You\'re almost there! One more move to victory!');
+    }
+  }
+
+  function checkSolution() {
+    const red = cars.find(function(c) { return c.id === 'red'; });
+    if (red.x === 4) {
+      audio.win();
+      const diff = puzzles[level].diff.toUpperCase();
+      alert('🎉 ' + diff + ' puzzle solved in ' + moves + ' moves! ' + getPerformanceMessage(moves, diff));
+      newPuzzle();
+    } else {
+      alert('Not yet! The red car needs to reach x=4. Keep strategizing!');
+    }
+  }
+
+  function autoSolve() {
+    if (solveInterval) {
+      clearInterval(solveInterval);
+      solveInterval = null;
+      return;
+    }
+    
+    const solution = findSolution();
+    if (!solution || solution.length === 0) {
+      alert('❌ Could not find solution. Try manual solving!');
+      return;
+    }
+    
+    let stepIndex = 0;
+    solveInterval = setInterval(function() {
+      if (stepIndex >= solution.length) {
+        clearInterval(solveInterval);
+        solveInterval = null;
+        setTimeout(function() {
+          audio.win();
+          alert('✅ Auto-solved in ' + moves + ' moves!');
+          newPuzzle();
+        }, 500);
+        return;
+      }
+      
+      const step = solution[stepIndex];
+      const car = cars.find(function(c) { return c.id === step.id; });
+      
+      if (car) {
+        car.x = step.x;
+        car.y = step.y;
+        const el = document.getElementById(car.id);
+        updateCarPosition(el, car);
+        moves++;
+        updateUI();
+        audio.move();
+      }
+      
+      stepIndex++;
+    }, 400);
+  }
+
+  function findSolution() {
+    const initialState = JSON.stringify(cars);
+    const queue = [{state: cars, path: []}];
+    const visited = new Set([initialState]);
+    let iterations = 0;
+    const maxIterations = 5000;
+    
+    while (queue.length > 0 && iterations < maxIterations) {
+      iterations++;
+      const current = queue.shift();
+      const state = current.state;
+      const path = current.path;
+      
+      const red = state.find(function(c) { return c.id === 'red'; });
+      if (red.x === 4) {
+        return path;
+      }
+      
+      for (let i = 0; i < state.length; i++) {
+        const car = state[i];
+        const moves = getPossibleMoves(car, state);
+        
+        for (let j = 0; j < moves.length; j++) {
+          const move = moves[j];
+          const newState = JSON.parse(JSON.stringify(state));
+          const movedCar = newState.find(function(c) { return c.id === car.id; });
+          movedCar.x = move.x;
+          movedCar.y = move.y;
+          
+          const stateStr = JSON.stringify(newState);
+          if (!visited.has(stateStr)) {
+            visited.add(stateStr);
+            queue.push({
+              state: newState,
+              path: path.concat([{id: car.id, x: move.x, y: move.y}])
+            });
+          }
+        }
+      }
+    }
+    
+    return null;
+  }
+
+  function getPossibleMoves(car, state) {
+    const moves = [];
+    
+    if (car.dir === 'h') {
+      for (let x = 0; x <= 6 - car.len; x++) {
+        if (x !== car.x && canMoveInState(car, x, car.y, state)) {
+          moves.push({x: x, y: car.y});
+        }
+      }
+    } else {
+      for (let y = 0; y <= 6 - car.len; y++) {
+        if (y !== car.y && canMoveInState(car, car.x, y, state)) {
+          moves.push({x: car.x, y: y});
+        }
+      }
+    }
+    
+    return moves;
+  }
+
+  function canMoveInState(movingCar, newX, newY, state) {
+    for (let i = 0; i < state.length; i++) {
+      const other = state[i];
+      if (other.id === movingCar.id) continue;
+      
+      if (carsOverlap(
+        newX, newY, movingCar.len, movingCar.dir,
+        other.x, other.y, other.len, other.dir
+      )) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function updateUI() {
+    document.getElementById('moves').textContent = moves;
+    document.getElementById('level').textContent = level + 1;
+    const diffEl = document.getElementById('difficulty');
+    const diff = puzzles[level].diff;
+    diffEl.textContent = diff.toUpperCase();
+    diffEl.className = 'difficulty ' + diff;
+  }
+
+  function showInstructions() {
+    document.getElementById('modal').classList.add('active');
+  }
+
+  function closeModal() {
+    document.getElementById('modal').classList.remove('active');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+</body>
+</html>
