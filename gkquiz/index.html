@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Brain Quiz Game</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="container" role="main" aria-live="polite">
+    <h1>Test your love knowledge with fun trivia!</h1>
+    <button id="showInstructionsBtn" class="instructions-btn" aria-label="Show instructions">?</button>
+
+    <section class="config-controls" id="config-controls" aria-label="Quiz configuration">
+      <label class="config-label" for="numQuestions">Number of Questions</label>
+      <select id="numQuestions" class="config-select" name="numQuestions" aria-required="true">
+        <option value="5">5</option>
+        <option value="10" selected>10</option>
+        <option value="15">15</option>
+      </select>
+
+      <label class="config-label" for="categorySelect">Category</label>
+      <select id="categorySelect" class="config-select" name="categorySelect" aria-required="true">
+        <option value="">Any</option>
+        <option value="9">General Knowledge</option>
+        <option value="17">Science &amp; Nature</option>
+        <option value="21">Sports</option>
+      </select>
+
+      <button id="startGameBtn" class="config-button" type="button">Start Game</button>
+    </section>
+
+    <section class="loading-container" id="loading-container" aria-live="assertive" aria-label="Loading progress" hidden>
+      <!-- <div class="loading-bar"></div> -->
+    </section>
+
+    <section id="quiz" class="quiz" hidden aria-label="Quiz questions">
+      <div id="progress-container" aria-label="Progress">
+        <div id="progress-bar"></div>
+      </div>
+      <article id="question-container" aria-live="polite" aria-atomic="true">
+        <div id="question"></div>
+      </article>
+      <div id="answers" role="list"></div>
+      <div id="status" aria-live="polite"></div>
+      <button id="next-btn" disabled type="button" aria-disabled="true">Next</button>
+      <button id="restart-btn" hidden type="button">Restart</button>
+    </section>
+
+    <section id="result-container" hidden aria-live="polite" aria-label="Quiz results">
+      <h2>Results</h2>
+      <div id="result-message"></div>
+      <div id="final-score"></div>
+      <button id="restart-btn-2" class="small-restart-btn" type="button">Restart</button>
+    </section>
+
+    <div
+      class="modal"
+      id="modal"
+      aria-hidden="true"
+      role="dialog"
+      aria-labelledby="modalTitle"
+      aria-describedby="modalDesc"
+    >
+      <div class="modal-content">
+        <h2 id="modalTitle">How to play</h2>
+        <p id="modalDesc">
+          Answer each question before time runs out. Your answers generate a playful love compatibility
+          score.
+        </p>
+        <button id="closeModal" aria-label="Close Instructions" type="button">Close</button>
+      </div>
+    </div>
+  </main>
+  <script src="script.js"></script>
+</body>
+</html>
