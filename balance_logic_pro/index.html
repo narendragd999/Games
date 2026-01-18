@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Balance Logic Pro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        .container {
+            width: 100vw;
+            height: 100vh;
+            max-width: 450px;
+            display: flex;
+            flex-direction: column;
+            padding: 8px;
+            gap: 8px;
+        }
+
+        .header {
+            background: rgba(255,255,255,0.95);
+            border-radius: 10px;
+            padding: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 5px;
+        }
+
+        .btn {
+            padding: 8px 6px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .game-area {
+            flex: 1;
+            background: rgba(255,255,255,0.95);
+            border-radius: 10px;
+            padding: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .message {
+            text-align: center;
+            font-weight: bold;
+            padding: 6px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            display: none;
+            font-size: 13px;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+
+        .scales-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .scale {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .scale-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .scale-label {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 13px;
+        }
+
+        .balance-indicator {
+            font-size: 22px;
+        }
+
+        .pans {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+
+        .pan {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            min-height: 50px;
+            background: white;
+            border-radius: 6px;
+            padding: 6px;
+            border: 2px dashed #ddd;
+            align-content: flex-start;
+        }
+
+        .weight {
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            flex-shrink: 0;
+        }
+
+        .weight:active {
+            transform: scale(0.9);
+        }
+
+        .weight-1 { background: linear-gradient(135deg, #ff6b6b, #ee5a52); color: white; }
+        .weight-2 { background: linear-gradient(135deg, #4ecdc4, #44a3a0); color: white; }
+        .weight-3 { background: linear-gradient(135deg, #ffd93d, #f5c518); color: #333; }
+        .weight-4 { background: linear-gradient(135deg, #a8e6cf, #7ed6a8); color: #333; }
+        .weight-5 { background: linear-gradient(135deg, #ff8b94, #ff6f7b); color: white; }
+        .weight-6 { background: linear-gradient(135deg, #95e1d3, #76d7c4); color: #333; }
+        .weight-7 { background: linear-gradient(135deg, #ffaaa5, #ff8a80); color: white; }
+        .weight-8 { background: linear-gradient(135deg, #dab8ff, #c49fff); color: white; }
+        .weight-9 { background: linear-gradient(135deg, #f38181, #e74c3c); color: white; }
+
+        .available-weights {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            min-height: 60px;
+            align-content: flex-start;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .modal-text {
+            line-height: 1.6;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .close-modal {
+            margin-top: 15px;
+            width: 100%;
+        }
+
+        @media (max-height: 600px) {
+            .container {
+                padding: 5px;
+                gap: 5px;
+            }
+            .header {
+                padding: 8px;
+            }
+            .title {
+                font-size: 18px;
+                margin-bottom: 6px;
+            }
+            .btn {
+                padding: 6px 4px;
+                font-size: 11px;
+            }
+            .scale {
+                padding: 6px;
+            }
+            .weight {
+                width: 32px;
+                height: 32px;
+                font-size: 13px;
+            }
+            .pan {
+                min-height: 40px;
+                padding: 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title">⚖️ Balance Logic Pro</div>
+            <div class="controls">
+                <button class="btn btn-primary" onclick="newPuzzle()">New Puzzle</button>
+                <button class="btn btn-secondary" onclick="checkSolution()">Check</button>
+                <button class="btn btn-secondary" onclick="getHint()">Hint</button>
+                <button class="btn btn-secondary" onclick="autoSolve()">Solve</button>
+                <button class="btn btn-secondary" onclick="showInstructions()">Help</button>
+            </div>
+        </div>
+
+        <div class="game-area">
+            <div class="message" id="message"></div>
+            <div class="scales-container" id="scalesContainer"></div>
+            <div class="available-weights" id="availableWeights"></div>
+        </div>
+    </div>
+
+    <div class="modal" id="instructionsModal">
+        <div class="modal-content">
+            <div class="modal-title">How to Play</div>
+            <div class="modal-text">
+                <strong>Goal:</strong> Balance all scales by placing weights correctly.
+            </div>
+            <div class="modal-text">
+                <strong>Rules:</strong>
+                <br>• Each scale must be perfectly balanced (equal weight on both sides)
+                <br>• Tap a weight from the bottom to select it
+                <br>• Tap a pan to place the selected weight
+                <br>• Tap a weight in a pan to remove it back to available weights
+                <br>• Use all available weights to solve the puzzle
+            </div>
+            <div class="modal-text">
+                <strong>Controls:</strong>
+                <br>• <strong>New Puzzle:</strong> Generate a new challenge
+                <br>• <strong>Check:</strong> Verify if your solution is correct
+                <br>• <strong>Hint:</strong> Get help with one weight placement
+                <br>• <strong>Solve:</strong> Automatically solve the puzzle
+            </div>
+            <button class="btn btn-primary close-modal" onclick="hideInstructions()">Got It!</button>
+        </div>
+    </div>
+
+    <script>
+        const audio = {
+            place: () => {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = 400;
+                gain.gain.value = 0.1;
+                osc.start();
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+                osc.stop(ctx.currentTime + 0.1);
+            },
+            remove: () => {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = 300;
+                gain.gain.value = 0.1;
+                osc.start();
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+                osc.stop(ctx.currentTime + 0.1);
+            },
+            success: () => {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                [0, 0.1, 0.2].forEach((t, i) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.frequency.value = [400, 500, 600][i];
+                    gain.gain.value = 0.15;
+                    osc.start(ctx.currentTime + t);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + t + 0.15);
+                    osc.stop(ctx.currentTime + t + 0.15);
+                });
+            },
+            error: () => {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = 200;
+                gain.gain.value = 0.1;
+                osc.start();
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+                osc.stop(ctx.currentTime + 0.2);
+            }
+        };
+
+        let state = {
+            scales: [],
+            available: [],
+            solution: [],
+            selected: null
+        };
+
+        function generatePuzzle() {
+            const numScales = 3;
+            const scales = [];
+            const allWeights = [];
+            
+            for (let i = 0; i < numScales; i++) {
+                const targetSum = Math.floor(Math.random() * 8) + 6;
+                const left = [];
+                const right = [];
+                let leftSum = 0;
+                let rightSum = 0;
+                
+                while (leftSum < targetSum) {
+                    const w = Math.floor(Math.random() * 5) + 1;
+                    if (leftSum + w <= targetSum) {
+                        left.push(w);
+                        leftSum += w;
+                        allWeights.push(w);
+                    }
+                }
+                
+                while (rightSum < leftSum) {
+                    const w = Math.floor(Math.random() * 5) + 1;
+                    if (rightSum + w <= leftSum) {
+                        right.push(w);
+                        rightSum += w;
+                        allWeights.push(w);
+                    }
+                }
+                
+                if (rightSum < leftSum) {
+                    right.push(leftSum - rightSum);
+                    allWeights.push(leftSum - rightSum);
+                }
+                
+                scales.push({ left: [], right: [], solution: { left, right } });
+            }
+            
+            state.scales = scales;
+            state.available = allWeights.sort(() => Math.random() - 0.5);
+            state.solution = scales.map(s => s.solution);
+            state.selected = null;
+        }
+
+        function render() {
+            const scalesContainer = document.getElementById('scalesContainer');
+            scalesContainer.innerHTML = state.scales.map((scale, idx) => {
+                const leftSum = scale.left.reduce((a, b) => a + b, 0);
+                const rightSum = scale.right.reduce((a, b) => a + b, 0);
+                const indicator = leftSum === rightSum ? '⚖️' : leftSum > rightSum ? '⬅️' : '➡️';
+                
+                return `
+                    <div class="scale">
+                        <div class="scale-top">
+                            <span class="scale-label">Scale ${idx + 1}</span>
+                            <span class="balance-indicator">${indicator}</span>
+                        </div>
+                        <div class="pans">
+                            <div class="pan" onclick="panClick(${idx}, 'left')">
+                                ${scale.left.map((w, i) => `<div class="weight weight-${w}" onclick="event.stopPropagation(); removeWeight(${idx}, 'left', ${i})">${w}</div>`).join('')}
+                            </div>
+                            <div class="pan" onclick="panClick(${idx}, 'right')">
+                                ${scale.right.map((w, i) => `<div class="weight weight-${w}" onclick="event.stopPropagation(); removeWeight(${idx}, 'right', ${i})">${w}</div>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            const availableWeights = document.getElementById('availableWeights');
+            availableWeights.innerHTML = state.available.map((w, i) => 
+                `<div class="weight weight-${w} ${state.selected === i ? 'selected' : ''}" 
+                      onclick="selectWeight(${i})" 
+                      style="${state.selected === i ? 'transform: scale(1.1); box-shadow: 0 0 0 3px #667eea;' : ''}">${w}</div>`
+            ).join('') || '<div style="color: #999; padding: 10px; font-size: 13px;">All weights placed</div>';
+        }
+
+        function selectWeight(idx) {
+            state.selected = state.selected === idx ? null : idx;
+            audio.place();
+            render();
+        }
+
+        function panClick(scaleIdx, side) {
+            if (state.selected !== null) {
+                const weight = state.available[state.selected];
+                state.scales[scaleIdx][side].push(weight);
+                state.available.splice(state.selected, 1);
+                state.selected = null;
+                audio.place();
+                render();
+                
+                if (state.available.length === 0) {
+                    setTimeout(checkSolution, 500);
+                }
+            }
+        }
+
+        function removeWeight(scaleIdx, side, weightIdx) {
+            const weight = state.scales[scaleIdx][side][weightIdx];
+            state.scales[scaleIdx][side].splice(weightIdx, 1);
+            state.available.push(weight);
+            audio.remove();
+            render();
+        }
+
+        function checkSolution() {
+            const allBalanced = state.scales.every(scale => {
+                const leftSum = scale.left.reduce((a, b) => a + b, 0);
+                const rightSum = scale.right.reduce((a, b) => a + b, 0);
+                return leftSum === rightSum && leftSum > 0;
+            });
+
+            const msg = document.getElementById('message');
+            msg.className = 'message';
+            
+            if (allBalanced && state.available.length === 0) {
+                msg.textContent = '🎉 Perfect! All scales balanced!';
+                msg.classList.add('success');
+                audio.success();
+                setTimeout(() => {
+                    newPuzzle();
+                }, 2000);
+            } else {
+                msg.textContent = state.available.length > 0 ? '❌ Place all weights first!' : '❌ Not all scales are balanced!';
+                msg.classList.add('error');
+                audio.error();
+                setTimeout(() => msg.className = 'message', 2000);
+            }
+        }
+
+        function getHint() {
+            for (let i = 0; i < state.solution.length; i++) {
+                for (const side of ['left', 'right']) {
+                    for (const w of state.solution[i][side]) {
+                        const availIdx = state.available.indexOf(w);
+                        if (availIdx !== -1) {
+                            state.selected = availIdx;
+                            audio.place();
+                            render();
+                            
+                            const msg = document.getElementById('message');
+                            msg.className = 'message success';
+                            msg.textContent = `💡 Try placing weight ${w} in Scale ${i + 1}, ${side} pan`;
+                            setTimeout(() => msg.className = 'message', 3000);
+                            return;
+                        }
+                    }
+                }
+            }
+            
+            const msg = document.getElementById('message');
+            msg.className = 'message';
+            msg.textContent = 'No hints available - puzzle solved or in progress!';
+            msg.classList.add('error');
+            setTimeout(() => msg.className = 'message', 2000);
+        }
+
+        function autoSolve() {
+            state.scales = state.solution.map(s => ({ left: [...s.left], right: [...s.right], solution: s }));
+            state.available = [];
+            state.selected = null;
+            audio.success();
+            render();
+            
+            const msg = document.getElementById('message');
+            msg.className = 'message success';
+            msg.textContent = '✨ Puzzle solved automatically!';
+            setTimeout(() => {
+                msg.className = 'message';
+                newPuzzle();
+            }, 2000);
+        }
+
+        function newPuzzle() {
+            generatePuzzle();
+            render();
+            document.getElementById('message').className = 'message';
+        }
+
+        function showInstructions() {
+            document.getElementById('instructionsModal').classList.add('show');
+        }
+
+        function hideInstructions() {
+            document.getElementById('instructionsModal').classList.remove('show');
+        }
+
+        newPuzzle();
+    </script>
+</body>
+</html>
