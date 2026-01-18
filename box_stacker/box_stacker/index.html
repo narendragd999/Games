@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Box Stacker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            touch-action: none;
+        }
+        
+        .game-container {
+            width: 100%;
+            max-width: 480px;
+            height: 100vh;
+            background: rgba(255, 255, 255, 0.95);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        
+        .moves {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .game-board {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: hidden;
+        }
+        
+        .stack-container {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stack {
+            display: flex;
+            flex-direction: column-reverse;
+            align-items: center;
+            min-height: 200px;
+            position: relative;
+        }
+        
+        .base {
+            width: 80px;
+            height: 8px;
+            background: #333;
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+        
+        .box {
+            width: 70px;
+            height: 50px;
+            margin: 2px 0;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 20px;
+            color: white;
+            cursor: grab;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            user-select: none;
+        }
+        
+        .box:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+        
+        .box.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+        
+        .box.selected {
+            transform: translateY(-10px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+            animation: pulse 0.5s infinite;
+        }
+        
+        .stack.drag-over {
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 8px;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: translateY(-10px) scale(1); }
+            50% { transform: translateY(-10px) scale(1.05); }
+        }
+        
+        .box-1 { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .box-2 { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .box-3 { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+        .box-4 { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+        .box-5 { background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); }
+        
+        .controls {
+            padding: 15px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        button {
+            padding: 12px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.1s;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        button:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            color: white;
+        }
+        
+        .btn-info {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+        
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        
+        .modal-content h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .modal-content p {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        
+        .close-btn {
+            margin-top: 20px;
+            width: 100%;
+        }
+        
+        .message {
+            text-align: center;
+            padding: 10px;
+            margin: 10px 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            display: none;
+        }
+        
+        .message.success {
+            background: #43e97b;
+            color: white;
+            display: block;
+        }
+        
+        .message.error {
+            background: #f5576c;
+            color: white;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <h1>📦 Box Stacker</h1>
+            <div class="moves">Moves: <span id="moveCount">0</span></div>
+        </div>
+        
+        <div class="game-board">
+            <div class="stack-container" id="stackContainer"></div>
+        </div>
+        
+        <div class="message" id="message"></div>
+        
+        <div class="controls">
+            <button class="btn-primary" onclick="newPuzzle()">New Puzzle</button>
+            <button class="btn-secondary" onclick="getHint()">Get Hint</button>
+            <button class="btn-success" onclick="checkSolution()">Check</button>
+            <button class="btn-info" onclick="showInstructions()">Help</button>
+            <button class="btn-primary" onclick="autoSolve()" style="grid-column: span 2;">Auto Solve</button>
+        </div>
+    </div>
+    
+    <div class="modal" id="instructionsModal">
+        <div class="modal-content">
+            <h2>How to Play Box Stacker</h2>
+            <p><strong>Goal:</strong> Arrange all boxes in ascending order on the rightmost stack (1 at top, highest number at bottom).</p>
+            <p><strong>Rules:</strong></p>
+            <p>• Click a box to select it, then click another stack to move it</p>
+            <p>• You can only move the top box from each stack</p>
+            <p>• A larger box cannot be placed on a smaller box</p>
+            <p>• Use the middle stack as temporary storage</p>
+            <p><strong>Controls:</strong></p>
+            <p>• <strong>New Puzzle:</strong> Start a fresh game</p>
+            <p>• <strong>Get Hint:</strong> Shows next optimal move</p>
+            <p>• <strong>Check:</strong> Verify if you've won</p>
+            <p>• <strong>Auto Solve:</strong> Watch the computer solve it</p>
+            <button class="btn-primary close-btn" onclick="closeInstructions()">Got it!</button>
+        </div>
+    </div>
+    
+    <script>
+        const audio = {
+            move: () => {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = 400;
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.1);
+            },
+            win: () => {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                [523, 659, 784].forEach((freq, i) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.1, ctx.currentTime + i * 0.15);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.15 + 0.2);
+                    osc.start(ctx.currentTime + i * 0.15);
+                    osc.stop(ctx.currentTime + i * 0.15 + 0.2);
+                });
+            },
+            error: () => {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = 200;
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.2);
+            }
+        };
+        
+        let stacks = [[], [], []];
+        let selectedBox = null;
+        let selectedStack = null;
+        let moves = 0;
+        let numBoxes = 3;
+        
+        function initGame() {
+            numBoxes = 3 + Math.floor(Math.random() * 3);
+            stacks = [[], [], []];
+            for (let i = numBoxes; i >= 1; i--) {
+                stacks[0].push(i);
+            }
+            moves = 0;
+            selectedBox = null;
+            selectedStack = null;
+            render();
+        }
+        
+        function render() {
+            const container = document.getElementById('stackContainer');
+            container.innerHTML = '';
+            
+            stacks.forEach((stack, stackIndex) => {
+                const stackDiv = document.createElement('div');
+                stackDiv.className = 'stack';
+                stackDiv.dataset.stack = stackIndex;
+                
+                stack.forEach((boxNum, boxIndex) => {
+                    const box = document.createElement('div');
+                    box.className = `box box-${boxNum % 5 + 1}`;
+                    box.textContent = boxNum;
+                    box.draggable = (boxIndex === stack.length - 1);
+                    box.dataset.stack = stackIndex;
+                    box.dataset.value = boxNum;
+                    
+                    if (box.draggable) {
+                        box.addEventListener('dragstart', handleDragStart);
+                        box.addEventListener('dragend', handleDragEnd);
+                    }
+                    
+                    if (selectedStack === stackIndex && stack[stack.length - 1] === boxNum) {
+                        box.classList.add('selected');
+                    }
+                    
+                    stackDiv.appendChild(box);
+                });
+                
+                const base = document.createElement('div');
+                base.className = 'base';
+                stackDiv.appendChild(base);
+                
+                stackDiv.addEventListener('dragover', handleDragOver);
+                stackDiv.addEventListener('drop', handleDrop);
+                stackDiv.addEventListener('dragleave', handleDragLeave);
+                stackDiv.addEventListener('click', () => handleStackClick(stackIndex));
+                
+                container.appendChild(stackDiv);
+            });
+            
+            document.getElementById('moveCount').textContent = moves;
+        }
+        
+        let draggedBox = null;
+        let draggedFrom = null;
+        
+        function handleDragStart(e) {
+            draggedBox = parseInt(e.target.dataset.value);
+            draggedFrom = parseInt(e.target.dataset.stack);
+            e.target.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', e.target.innerHTML);
+            audio.move();
+        }
+        
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+        }
+        
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            e.currentTarget.classList.add('drag-over');
+            return false;
+        }
+        
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+        
+        function handleDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+            e.preventDefault();
+            
+            const targetStack = parseInt(e.currentTarget.dataset.stack);
+            e.currentTarget.classList.remove('drag-over');
+            
+            if (draggedFrom === targetStack) {
+                draggedBox = null;
+                draggedFrom = null;
+                render();
+                return;
+            }
+            
+            const targetTop = stacks[targetStack][stacks[targetStack].length - 1];
+            
+            if (stacks[targetStack].length === 0 || draggedBox < targetTop) {
+                stacks[targetStack].push(draggedBox);
+                stacks[draggedFrom].pop();
+                moves++;
+                audio.move();
+                
+                draggedBox = null;
+                draggedFrom = null;
+                render();
+                
+                if (checkWin()) {
+                    setTimeout(() => {
+                        audio.win();
+                        showMessage('🎉 Congratulations! You solved it in ' + moves + ' moves!', 'success');
+                    }, 300);
+                }
+            } else {
+                audio.error();
+                showMessage('Cannot place larger box on smaller box!', 'error');
+                draggedBox = null;
+                draggedFrom = null;
+                render();
+            }
+            
+            return false;
+        }
+        
+        function handleStackClick(stackIndex) {
+            if (stacks[stackIndex].length === 0) {
+                if (selectedStack !== null) {
+                    moveToStack(stackIndex);
+                }
+                return;
+            }
+            selectBox(stackIndex);
+        }
+        
+        function selectBox(stackIndex) {
+            if (stacks[stackIndex].length === 0) return;
+            
+            if (selectedStack === stackIndex) {
+                selectedBox = null;
+                selectedStack = null;
+            } else {
+                selectedBox = stacks[stackIndex][stacks[stackIndex].length - 1];
+                selectedStack = stackIndex;
+                audio.move();
+            }
+            render();
+        }
+        
+        function moveToStack(targetStack) {
+            if (selectedBox === null || selectedStack === null) return;
+            if (selectedStack === targetStack) {
+                selectedBox = null;
+                selectedStack = null;
+                render();
+                return;
+            }
+            
+            const targetTop = stacks[targetStack][stacks[targetStack].length - 1];
+            
+            if (stacks[targetStack].length === 0 || selectedBox < targetTop) {
+                stacks[targetStack].push(selectedBox);
+                stacks[selectedStack].pop();
+                moves++;
+                audio.move();
+                selectedBox = null;
+                selectedStack = null;
+                render();
+                
+                if (checkWin()) {
+                    setTimeout(() => {
+                        audio.win();
+                        showMessage('🎉 Congratulations! You solved it in ' + moves + ' moves!', 'success');
+                    }, 300);
+                }
+            } else {
+                audio.error();
+                showMessage('Cannot place larger box on smaller box!', 'error');
+            }
+        }
+        
+        function checkWin() {
+            return stacks[2].length === numBoxes && 
+                   stacks[2].every((box, i) => box === numBoxes - i);
+        }
+        
+        function showMessage(text, type) {
+            const msg = document.getElementById('message');
+            msg.textContent = text;
+            msg.className = `message ${type}`;
+            setTimeout(() => {
+                msg.className = 'message';
+            }, 3000);
+        }
+        
+        function newPuzzle() {
+            initGame();
+            showMessage('New puzzle generated!', 'success');
+        }
+        
+        function getHint() {
+            const solution = solveTowers(stacks[0].length, 0, 2, 1);
+            if (solution.length > 0) {
+                const [from, to] = solution[0];
+                showMessage(`Hint: Move box from stack ${from + 1} to stack ${to + 1}`, 'success');
+            }
+        }
+        
+        function checkSolution() {
+            if (checkWin()) {
+                audio.win();
+                showMessage('✓ Perfect! You solved it!', 'success');
+            } else {
+                audio.error();
+                showMessage('Not quite there yet. Keep trying!', 'error');
+            }
+        }
+        
+        function solveTowers(n, from, to, aux) {
+            if (n === 0) return [];
+            const moves = [];
+            moves.push(...solveTowers(n - 1, from, aux, to));
+            moves.push([from, to]);
+            moves.push(...solveTowers(n - 1, aux, to, from));
+            return moves;
+        }
+        
+        function autoSolve() {
+            const solution = solveTowers(stacks[0].length, 0, 2, 1);
+            let i = 0;
+            
+            const interval = setInterval(() => {
+                if (i >= solution.length) {
+                    clearInterval(interval);
+                    audio.win();
+                    showMessage('Auto-solved!', 'success');
+                    return;
+                }
+                
+                const [from, to] = solution[i];
+                const box = stacks[from].pop();
+                stacks[to].push(box);
+                moves++;
+                audio.move();
+                render();
+                i++;
+            }, 600);
+        }
+        
+        function showInstructions() {
+            document.getElementById('instructionsModal').classList.add('active');
+        }
+        
+        function closeInstructions() {
+            document.getElementById('instructionsModal').classList.remove('active');
+        }
+        
+        initGame();
+    </script>
+</body>
+</html>
