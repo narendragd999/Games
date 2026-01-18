@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Box Stacker Logic Puzzle</title>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.container {
+  width: 100%;
+  max-width: 450px;
+  padding: 10px;
+}
+
+.header {
+  text-align: center;
+  color: white;
+  margin-bottom: 10px;
+}
+
+h1 {
+  font-size: 24px;
+  margin-bottom: 5px;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.level-info {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.game-board {
+  background: rgba(255,255,255,0.95);
+  border-radius: 15px;
+  padding: 15px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  margin-bottom: 10px;
+}
+
+.grid-container {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 15px;
+  justify-content: center;
+}
+
+.clue-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.clue-cell {
+  width: 35px;
+  height: 35px;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: bold;
+  color: white;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+}
+
+.clue-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.grid {
+  display: grid;
+  gap: 8px;
+}
+
+.cell {
+  aspect-ratio: 1;
+  background: #f0f0f0;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+  position: relative;
+}
+
+.cell:active {
+  transform: scale(0.95);
+}
+
+.cell.has-box {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  border-color: #0099cc;
+}
+
+.cell.correct {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  border-color: #00cc88;
+  box-shadow: 0 0 15px rgba(67, 233, 123, 0.5);
+}
+
+.cell.error {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%);
+  border-color: #ff3333;
+  animation: shake 0.3s;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.hint-text {
+  text-align: center;
+  color: #666;
+  font-size: 13px;
+  margin-bottom: 10px;
+  min-height: 36px;
+  line-height: 1.4;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.btn {
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn:active {
+  transform: scale(0.95);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.btn-secondary {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.btn-success {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.btn-info {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+}
+
+.btn-full {
+  grid-column: 1 / -1;
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.7);
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal.active {
+  display: flex;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 15px;
+  padding: 25px;
+  max-width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+}
+
+.modal-content h2 {
+  color: #667eea;
+  margin-bottom: 15px;
+  font-size: 22px;
+}
+
+.modal-content p {
+  margin-bottom: 10px;
+  line-height: 1.6;
+  color: #555;
+}
+
+.modal-content ul {
+  margin-left: 20px;
+  margin-bottom: 15px;
+  color: #555;
+}
+
+.modal-content li {
+  margin-bottom: 8px;
+}
+
+.close-btn {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.success-message {
+  text-align: center;
+  padding: 15px;
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  color: white;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  font-weight: bold;
+  display: none;
+}
+
+.success-message.active {
+  display: block;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.example {
+  background: #f0f0f0;
+  padding: 10px;
+  border-radius: 8px;
+  margin: 10px 0;
+  font-size: 14px;
+}
+
+@media (max-width: 360px) {
+  h1 { font-size: 20px; }
+  .btn { padding: 10px; font-size: 12px; }
+  .clue-cell { width: 30px; height: 30px; font-size: 14px; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1>📦 Box Stacker Logic</h1>
+    <div class="level-info">Level <span id="levelNum">1</span></div>
+  </div>
+
+  <div class="game-board">
+    <div class="success-message" id="successMsg">🎉 Perfect Logic! Level Complete!</div>
+    <div class="hint-text" id="hintText">Use clues to deduce where boxes belong!</div>
+    
+    <div class="grid-container">
+      <div style="width: 35px;"></div>
+      <div class="clue-row" id="topClues"></div>
+    </div>
+    
+    <div class="grid-container">
+      <div class="clue-column" id="leftClues"></div>
+      <div class="grid" id="grid"></div>
+    </div>
+    
+    <div class="controls">
+      <button class="btn btn-primary" onclick="checkSolution()">✓ Check</button>
+      <button class="btn btn-secondary" onclick="showHint()">💡 Hint</button>
+      <button class="btn btn-success" onclick="autoSolve()">🤖 Solve</button>
+      <button class="btn btn-info" onclick="newPuzzle()">🔄 New</button>
+      <button class="btn btn-primary btn-full" onclick="showInstructions()">❓ How to Play</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="instructionsModal">
+  <div class="modal-content">
+    <h2>📦 Box Stacker Logic Puzzle</h2>
+    
+    <p><strong>🎯 Goal:</strong> Use logic to figure out which cells contain boxes!</p>
+    
+    <p><strong>📏 The Rules:</strong></p>
+    <ul>
+      <li><strong>Top clues:</strong> Show how many boxes are in each COLUMN</li>
+      <li><strong>Left clues:</strong> Show how many boxes are in each ROW</li>
+      <li>Tap cells to toggle boxes on/off (📦 or empty)</li>
+      <li>Use deduction - no guessing needed!</li>
+    </ul>
+    
+    <div class="example">
+      <strong>Example:</strong><br>
+      If a row's clue is "3" in a 4-cell grid, that row must have exactly 3 boxes.<br>
+      If a column's clue is "0", that entire column is empty!
+    </div>
+    
+    <p><strong>💡 Strategy Tips:</strong></p>
+    <ul>
+      <li>Start with rows/columns that are "0" or full (equal to grid size)</li>
+      <li>Look for intersections where you can deduce boxes</li>
+      <li>Keep track of remaining boxes needed in each row/column</li>
+      <li>Use the hint button if stuck - it shows logical next moves</li>
+    </ul>
+    
+    <p><strong>🎮 Controls:</strong></p>
+    <ul>
+      <li><strong>Check:</strong> Verify if your solution is correct</li>
+      <li><strong>Hint:</strong> Get a logical deduction hint</li>
+      <li><strong>Solve:</strong> See the complete solution</li>
+      <li><strong>New:</strong> Generate a new puzzle</li>
+    </ul>
+    
+    <button class="close-btn" onclick="closeInstructions()">Start Playing!</button>
+  </div>
+</div>
+
+<script>
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playSound(type) {
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  
+  if (type === 'click') {
+    osc.frequency.value = 400;
+    gain.gain.value = 0.1;
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.05);
+  } else if (type === 'success') {
+    osc.frequency.value = 600;
+    gain.gain.value = 0.15;
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.1);
+    
+    setTimeout(() => {
+      const osc2 = audioCtx.createOscillator();
+      const gain2 = audioCtx.createGain();
+      osc2.connect(gain2);
+      gain2.connect(audioCtx.destination);
+      osc2.frequency.value = 800;
+      gain2.gain.value = 0.15;
+      osc2.start();
+      osc2.stop(audioCtx.currentTime + 0.15);
+    }, 100);
+  } else if (type === 'error') {
+    osc.frequency.value = 200;
+    gain.gain.value = 0.1;
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.1);
+  }
+}
+
+let gridSize = 4;
+let currentGrid = [];
+let solutionGrid = [];
+let rowClues = [];
+let colClues = [];
+let level = 1;
+
+function initGrid() {
+  currentGrid = Array(gridSize).fill().map(() => Array(gridSize).fill(false));
+  generatePuzzle();
+  renderGrid();
+}
+
+function generatePuzzle() {
+  // Generate a random valid solution
+  solutionGrid = Array(gridSize).fill().map(() => 
+    Array(gridSize).fill().map(() => Math.random() > 0.5)
+  );
+  
+  // Calculate clues from solution
+  rowClues = solutionGrid.map(row => row.filter(cell => cell).length);
+  colClues = Array(gridSize).fill(0).map((_, col) => 
+    solutionGrid.filter(row => row[col]).length
+  );
+  
+  // Reset current grid
+  currentGrid = Array(gridSize).fill().map(() => Array(gridSize).fill(false));
+  
+  document.getElementById('hintText').textContent = 'Use clues to deduce where boxes belong!';
+  document.getElementById('successMsg').classList.remove('active');
+}
+
+function renderGrid() {
+  // Render top clues
+  const topClues = document.getElementById('topClues');
+  topClues.innerHTML = '';
+  colClues.forEach(clue => {
+    const cell = document.createElement('div');
+    cell.className = 'clue-cell';
+    cell.textContent = clue;
+    topClues.appendChild(cell);
+  });
+  
+  // Render left clues
+  const leftClues = document.getElementById('leftClues');
+  leftClues.innerHTML = '';
+  rowClues.forEach(clue => {
+    const cell = document.createElement('div');
+    cell.className = 'clue-cell';
+    cell.textContent = clue;
+    leftClues.appendChild(cell);
+  });
+  
+  // Render main grid
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  grid.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+  
+  for (let i = 0; i < gridSize; i++) {
+    for (let j = 0; j < gridSize; j++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      
+      if (currentGrid[i][j]) {
+        cell.classList.add('has-box');
+        cell.textContent = '📦';
+      }
+      
+      cell.onclick = () => clickCell(i, j);
+      grid.appendChild(cell);
+    }
+  }
+}
+
+function clickCell(row, col) {
+  playSound('click');
+  currentGrid[row][col] = !currentGrid[row][col];
+  renderGrid();
+  
+  // Auto-check if grid is full enough
+  const totalBoxes = currentGrid.flat().filter(x => x).length;
+  const requiredBoxes = solutionGrid.flat().filter(x => x).length;
+  
+  if (totalBoxes === requiredBoxes && isSolved()) {
+    setTimeout(() => {
+      playSound('success');
+      document.getElementById('successMsg').classList.add('active');
+      setTimeout(() => {
+        level++;
+        document.getElementById('levelNum').textContent = level;
+        if (level % 4 === 0 && gridSize < 6) {
+          gridSize++;
+        }
+        newPuzzle();
+      }, 1500);
+    }, 300);
+  }
+}
+
+function isSolved() {
+  for (let i = 0; i < gridSize; i++) {
+    for (let j = 0; j < gridSize; j++) {
+      if (currentGrid[i][j] !== solutionGrid[i][j]) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+function checkSolution() {
+  playSound('click');
+  
+  // Calculate current clues
+  const currentRowClues = currentGrid.map(row => row.filter(cell => cell).length);
+  const currentColClues = Array(gridSize).fill(0).map((_, col) => 
+    currentGrid.filter(row => row[col]).length
+  );
+  
+  // Check if clues match
+  let errors = [];
+  let allMatch = true;
+  
+  for (let i = 0; i < gridSize; i++) {
+    if (currentRowClues[i] !== rowClues[i]) {
+      errors.push(`Row ${i + 1}: has ${currentRowClues[i]}, needs ${rowClues[i]}`);
+      allMatch = false;
+    }
+    if (currentColClues[i] !== colClues[i]) {
+      errors.push(`Col ${i + 1}: has ${currentColClues[i]}, needs ${colClues[i]}`);
+      allMatch = false;
+    }
+  }
+  
+  if (allMatch && isSolved()) {
+    playSound('success');
+    document.getElementById('hintText').textContent = '✅ Perfect! All clues satisfied correctly!';
+    document.getElementById('hintText').style.color = '#43e97b';
+    
+    // Highlight correct cells
+    const cells = document.querySelectorAll('.cell');
+    cells.forEach(cell => cell.classList.add('correct'));
+  } else if (allMatch) {
+    playSound('error');
+    document.getElementById('hintText').textContent = '⚠️ Clues match but arrangement is wrong. Try different positions!';
+    document.getElementById('hintText').style.color = '#f5576c';
+  } else {
+    playSound('error');
+    document.getElementById('hintText').textContent = `❌ ${errors.slice(0, 2).join('. ')}`;
+    document.getElementById('hintText').style.color = '#f5576c';
+  }
+}
+
+function showHint() {
+  playSound('click');
+  
+  // Find a logical deduction
+  // Strategy 1: Find rows/cols that are complete or empty
+  for (let i = 0; i < gridSize; i++) {
+    const currentRowCount = currentGrid[i].filter(x => x).length;
+    if (rowClues[i] === 0 && currentRowCount === 0) {
+      let hasEmpty = false;
+      for (let j = 0; j < gridSize; j++) {
+        if (!currentGrid[i][j]) hasEmpty = true;
+      }
+      if (hasEmpty) {
+        document.getElementById('hintText').textContent = `💡 Row ${i + 1} should be empty (clue is 0). Make sure no boxes there!`;
+        document.getElementById('hintText').style.color = '#667eea';
+        return;
+      }
+    }
+    
+    if (rowClues[i] === gridSize && currentRowCount < gridSize) {
+      document.getElementById('hintText').textContent = `💡 Row ${i + 1} needs ALL boxes filled (clue is ${gridSize})!`;
+      document.getElementById('hintText').style.color = '#667eea';
+      return;
+    }
+  }
+  
+  for (let j = 0; j < gridSize; j++) {
+    const currentColCount = currentGrid.filter(row => row[j]).length;
+    if (colClues[j] === 0 && currentColCount === 0) {
+      let hasEmpty = false;
+      for (let i = 0; i < gridSize; i++) {
+        if (!currentGrid[i][j]) hasEmpty = true;
+      }
+      if (hasEmpty) {
+        document.getElementById('hintText').textContent = `💡 Column ${j + 1} should be empty (clue is 0)!`;
+        document.getElementById('hintText').style.color = '#667eea';
+        return;
+      }
+    }
+    
+    if (colClues[j] === gridSize && currentColCount < gridSize) {
+      document.getElementById('hintText').textContent = `💡 Column ${j + 1} needs ALL boxes filled (clue is ${gridSize})!`;
+      document.getElementById('hintText').style.color = '#667eea';
+      return;
+    }
+  }
+  
+  // Strategy 2: Find a specific cell that can be deduced
+  for (let i = 0; i < gridSize; i++) {
+    for (let j = 0; j < gridSize; j++) {
+      if (currentGrid[i][j] !== solutionGrid[i][j]) {
+        const rowNeeds = rowClues[i];
+        const colNeeds = colClues[j];
+        const action = solutionGrid[i][j] ? 'add a box to' : 'keep empty';
+        document.getElementById('hintText').textContent = `💡 Try row ${i + 1}, column ${j + 1}. Row needs ${rowNeeds} boxes, column needs ${colNeeds}.`;
+        document.getElementById('hintText').style.color = '#667eea';
+        return;
+      }
+    }
+  }
+  
+  document.getElementById('hintText').textContent = '💡 Look for rows/columns with 0 or maximum clues first!';
+  document.getElementById('hintText').style.color = '#667eea';
+}
+
+function autoSolve() {
+  playSound('click');
+  currentGrid = solutionGrid.map(row => [...row]);
+  renderGrid();
+  
+  const cells = document.querySelectorAll('.cell');
+  cells.forEach(cell => cell.classList.add('correct'));
+  
+  document.getElementById('hintText').textContent = '🤖 Puzzle solved! Study the pattern.';
+  document.getElementById('hintText').style.color = '#00f2fe';
+  
+  setTimeout(() => {
+    playSound('success');
+    setTimeout(() => {
+      level++;
+      document.getElementById('levelNum').textContent = level;
+      if (level % 4 === 0 && gridSize < 6) {
+        gridSize++;
+      }
+      newPuzzle();
+    }, 1500);
+  }, 500);
+}
+
+function newPuzzle() {
+  playSound('click');
+  generatePuzzle();
+  renderGrid();
+}
+
+function showInstructions() {
+  playSound('click');
+  document.getElementById('instructionsModal').classList.add('active');
+}
+
+function closeInstructions() {
+  playSound('click');
+  document.getElementById('instructionsModal').classList.remove('active');
+}
+
+// Initialize game
+initGrid();
+
+// Show instructions on first load
+setTimeout(() => {
+  if (!localStorage.getItem('boxStackerLogicPlayed')) {
+    showInstructions();
+    localStorage.setItem('boxStackerLogicPlayed', 'true');
+  }
+}, 500);
+</script>
+
+</body>
+</html>
