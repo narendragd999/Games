@@ -1,675 +1,583 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Box Stacker Logic Puzzle</title>
-<style>
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
-}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Balance Logic Pro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
 
-body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  overflow: hidden;
-  touch-action: none;
-}
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            touch-action: none;
+        }
 
-.container {
-  width: 100%;
-  max-width: 450px;
-  padding: 10px;
-}
+        .container {
+            width: 100vw;
+            height: 100vh;
+            max-width: 450px;
+            display: flex;
+            flex-direction: column;
+            padding: 8px;
+            gap: 8px;
+        }
 
-.header {
-  text-align: center;
-  color: white;
-  margin-bottom: 10px;
-}
+        .header {
+            background: rgba(255,255,255,0.95);
+            border-radius: 10px;
+            padding: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
 
-h1 {
-  font-size: 24px;
-  margin-bottom: 5px;
-  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-}
+        .title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 8px;
+        }
 
-.level-info {
-  font-size: 14px;
-  opacity: 0.9;
-}
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 5px;
+        }
 
-.game-board {
-  background: rgba(255,255,255,0.95);
-  border-radius: 15px;
-  padding: 15px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-  margin-bottom: 10px;
-}
+        .btn {
+            padding: 8px 6px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            white-space: nowrap;
+        }
 
-.grid-container {
-  display: flex;
-  gap: 5px;
-  margin-bottom: 15px;
-  justify-content: center;
-}
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
 
-.clue-column {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
 
-.clue-cell {
-  width: 35px;
-  height: 35px;
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  font-weight: bold;
-  color: white;
-  text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
-}
+        .btn:active {
+            transform: scale(0.95);
+        }
 
-.clue-row {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-}
+        .game-area {
+            flex: 1;
+            background: rgba(255,255,255,0.95);
+            border-radius: 10px;
+            padding: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
 
-.grid {
-  display: grid;
-  gap: 8px;
-}
+        .message {
+            text-align: center;
+            font-weight: bold;
+            padding: 6px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            display: none;
+            font-size: 13px;
+        }
 
-.cell {
-  aspect-ratio: 1;
-  background: #f0f0f0;
-  border: 2px solid #ddd;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28px;
-  cursor: pointer;
-  transition: all 0.2s;
-  user-select: none;
-  position: relative;
-}
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
 
-.cell:active {
-  transform: scale(0.95);
-}
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
 
-.cell.has-box {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-  border-color: #0099cc;
-}
+        .scales-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
 
-.cell.correct {
-  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-  border-color: #00cc88;
-  box-shadow: 0 0 15px rgba(67, 233, 123, 0.5);
-}
+        .scale {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
 
-.cell.error {
-  background: linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%);
-  border-color: #ff3333;
-  animation: shake 0.3s;
-}
+        .scale-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
 
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-5px); }
-  75% { transform: translateX(5px); }
-}
+        .scale-label {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 13px;
+        }
 
-.hint-text {
-  text-align: center;
-  color: #666;
-  font-size: 13px;
-  margin-bottom: 10px;
-  min-height: 36px;
-  line-height: 1.4;
-}
+        .balance-indicator {
+            font-size: 22px;
+        }
 
-.controls {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-  margin-bottom: 8px;
-}
+        .pans {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
 
-.btn {
-  padding: 12px;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.2s;
-  color: white;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
+        .pan {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            min-height: 50px;
+            background: white;
+            border-radius: 6px;
+            padding: 6px;
+            border: 2px dashed #ddd;
+            align-content: flex-start;
+        }
 
-.btn:active {
-  transform: scale(0.95);
-}
+        .weight {
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            flex-shrink: 0;
+        }
 
-.btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
+        .weight:active {
+            transform: scale(0.9);
+        }
 
-.btn-secondary {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-}
+        .weight-1 { background: linear-gradient(135deg, #ff6b6b, #ee5a52); color: white; }
+        .weight-2 { background: linear-gradient(135deg, #4ecdc4, #44a3a0); color: white; }
+        .weight-3 { background: linear-gradient(135deg, #ffd93d, #f5c518); color: #333; }
+        .weight-4 { background: linear-gradient(135deg, #a8e6cf, #7ed6a8); color: #333; }
+        .weight-5 { background: linear-gradient(135deg, #ff8b94, #ff6f7b); color: white; }
+        .weight-6 { background: linear-gradient(135deg, #95e1d3, #76d7c4); color: #333; }
+        .weight-7 { background: linear-gradient(135deg, #ffaaa5, #ff8a80); color: white; }
+        .weight-8 { background: linear-gradient(135deg, #dab8ff, #c49fff); color: white; }
+        .weight-9 { background: linear-gradient(135deg, #f38181, #e74c3c); color: white; }
 
-.btn-success {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-}
+        .available-weights {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            min-height: 60px;
+            align-content: flex-start;
+        }
 
-.btn-info {
-  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-}
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
 
-.btn-full {
-  grid-column: 1 / -1;
-}
+        .modal.show {
+            display: flex;
+        }
 
-.modal {
-  display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0,0,0,0.7);
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+        }
 
-.modal.active {
-  display: flex;
-}
+        .modal-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
 
-.modal-content {
-  background: white;
-  border-radius: 15px;
-  padding: 25px;
-  max-width: 90%;
-  max-height: 80vh;
-  overflow-y: auto;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-}
+        .modal-text {
+            line-height: 1.6;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
 
-.modal-content h2 {
-  color: #667eea;
-  margin-bottom: 15px;
-  font-size: 22px;
-}
+        .close-modal {
+            margin-top: 15px;
+            width: 100%;
+        }
 
-.modal-content p {
-  margin-bottom: 10px;
-  line-height: 1.6;
-  color: #555;
-}
-
-.modal-content ul {
-  margin-left: 20px;
-  margin-bottom: 15px;
-  color: #555;
-}
-
-.modal-content li {
-  margin-bottom: 8px;
-}
-
-.close-btn {
-  background: #667eea;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: bold;
-  width: 100%;
-  margin-top: 10px;
-}
-
-.success-message {
-  text-align: center;
-  padding: 15px;
-  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-  color: white;
-  border-radius: 10px;
-  margin-bottom: 10px;
-  font-weight: bold;
-  display: none;
-}
-
-.success-message.active {
-  display: block;
-  animation: slideIn 0.3s ease;
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateY(-20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.example {
-  background: #f0f0f0;
-  padding: 10px;
-  border-radius: 8px;
-  margin: 10px 0;
-  font-size: 14px;
-}
-
-@media (max-width: 360px) {
-  h1 { font-size: 20px; }
-  .btn { padding: 10px; font-size: 12px; }
-  .clue-cell { width: 30px; height: 30px; font-size: 14px; }
-}
-</style>
+        @media (max-height: 600px) {
+            .container {
+                padding: 5px;
+                gap: 5px;
+            }
+            .header {
+                padding: 8px;
+            }
+            .title {
+                font-size: 18px;
+                margin-bottom: 6px;
+            }
+            .btn {
+                padding: 6px 4px;
+                font-size: 11px;
+            }
+            .scale {
+                padding: 6px;
+            }
+            .weight {
+                width: 32px;
+                height: 32px;
+                font-size: 13px;
+            }
+            .pan {
+                min-height: 40px;
+                padding: 4px;
+            }
+        }
+    </style>
 </head>
 <body>
+    <div class="container">
+        <div class="header">
+            <div class="title">⚖️ Balance Logic Pro</div>
+            <div class="controls">
+                <button class="btn btn-primary" onclick="newPuzzle()">New Puzzle</button>
+                <button class="btn btn-secondary" onclick="checkSolution()">Check</button>
+                <button class="btn btn-secondary" onclick="getHint()">Hint</button>
+                <button class="btn btn-secondary" onclick="autoSolve()">Solve</button>
+                <button class="btn btn-secondary" onclick="showInstructions()">Help</button>
+            </div>
+        </div>
 
-<div class="container">
-  <div class="header">
-    <h1>📦 Box Stacker Logic</h1>
-    <div class="level-info">Level <span id="levelNum">1</span></div>
-  </div>
-
-  <div class="game-board">
-    <div class="success-message" id="successMsg">🎉 Perfect Logic! Level Complete!</div>
-    <div class="hint-text" id="hintText">Use clues to deduce where boxes belong!</div>
-    
-    <div class="grid-container">
-      <div style="width: 35px;"></div>
-      <div class="clue-row" id="topClues"></div>
+        <div class="game-area">
+            <div class="message" id="message"></div>
+            <div class="scales-container" id="scalesContainer"></div>
+            <div class="available-weights" id="availableWeights"></div>
+        </div>
     </div>
-    
-    <div class="grid-container">
-      <div class="clue-column" id="leftClues"></div>
-      <div class="grid" id="grid"></div>
+
+    <div class="modal" id="instructionsModal">
+        <div class="modal-content">
+            <div class="modal-title">How to Play</div>
+            <div class="modal-text">
+                <strong>Goal:</strong> Balance all scales by placing weights correctly.
+            </div>
+            <div class="modal-text">
+                <strong>Rules:</strong>
+                <br>• Each scale must be perfectly balanced (equal weight on both sides)
+                <br>• Tap a weight from the bottom to select it
+                <br>• Tap a pan to place the selected weight
+                <br>• Tap a weight in a pan to remove it back to available weights
+                <br>• Use all available weights to solve the puzzle
+            </div>
+            <div class="modal-text">
+                <strong>Controls:</strong>
+                <br>• <strong>New Puzzle:</strong> Generate a new challenge
+                <br>• <strong>Check:</strong> Verify if your solution is correct
+                <br>• <strong>Hint:</strong> Get help with one weight placement
+                <br>• <strong>Solve:</strong> Automatically solve the puzzle
+            </div>
+            <button class="btn btn-primary close-modal" onclick="hideInstructions()">Got It!</button>
+        </div>
     </div>
-    
-    <div class="controls">
-      <button class="btn btn-primary" onclick="checkSolution()">✓ Check</button>
-      <button class="btn btn-secondary" onclick="showHint()">💡 Hint</button>
-      <button class="btn btn-success" onclick="autoSolve()">🤖 Solve</button>
-      <button class="btn btn-info" onclick="newPuzzle()">🔄 New</button>
-      <button class="btn btn-primary btn-full" onclick="showInstructions()">❓ How to Play</button>
-    </div>
-  </div>
-</div>
 
-<div class="modal" id="instructionsModal">
-  <div class="modal-content">
-    <h2>📦 Box Stacker Logic Puzzle</h2>
-    
-    <p><strong>🎯 Goal:</strong> Use logic to figure out which cells contain boxes!</p>
-    
-    <p><strong>📏 The Rules:</strong></p>
-    <ul>
-      <li><strong>Top clues:</strong> Show how many boxes are in each COLUMN</li>
-      <li><strong>Left clues:</strong> Show how many boxes are in each ROW</li>
-      <li>Tap cells to toggle boxes on/off (📦 or empty)</li>
-      <li>Use deduction - no guessing needed!</li>
-    </ul>
-    
-    <div class="example">
-      <strong>Example:</strong><br>
-      If a row's clue is "3" in a 4-cell grid, that row must have exactly 3 boxes.<br>
-      If a column's clue is "0", that entire column is empty!
-    </div>
-    
-    <p><strong>💡 Strategy Tips:</strong></p>
-    <ul>
-      <li>Start with rows/columns that are "0" or full (equal to grid size)</li>
-      <li>Look for intersections where you can deduce boxes</li>
-      <li>Keep track of remaining boxes needed in each row/column</li>
-      <li>Use the hint button if stuck - it shows logical next moves</li>
-    </ul>
-    
-    <p><strong>🎮 Controls:</strong></p>
-    <ul>
-      <li><strong>Check:</strong> Verify if your solution is correct</li>
-      <li><strong>Hint:</strong> Get a logical deduction hint</li>
-      <li><strong>Solve:</strong> See the complete solution</li>
-      <li><strong>New:</strong> Generate a new puzzle</li>
-    </ul>
-    
-    <button class="close-btn" onclick="closeInstructions()">Start Playing!</button>
-  </div>
-</div>
+    <script>
+        const audio = {
+            place: () => {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = 400;
+                gain.gain.value = 0.1;
+                osc.start();
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+                osc.stop(ctx.currentTime + 0.1);
+            },
+            remove: () => {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = 300;
+                gain.gain.value = 0.1;
+                osc.start();
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+                osc.stop(ctx.currentTime + 0.1);
+            },
+            success: () => {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                [0, 0.1, 0.2].forEach((t, i) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.frequency.value = [400, 500, 600][i];
+                    gain.gain.value = 0.15;
+                    osc.start(ctx.currentTime + t);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + t + 0.15);
+                    osc.stop(ctx.currentTime + t + 0.15);
+                });
+            },
+            error: () => {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = 200;
+                gain.gain.value = 0.1;
+                osc.start();
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+                osc.stop(ctx.currentTime + 0.2);
+            }
+        };
 
-<script>
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let state = {
+            scales: [],
+            available: [],
+            solution: [],
+            selected: null
+        };
 
-function playSound(type) {
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
-  
-  if (type === 'click') {
-    osc.frequency.value = 400;
-    gain.gain.value = 0.1;
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.05);
-  } else if (type === 'success') {
-    osc.frequency.value = 600;
-    gain.gain.value = 0.15;
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.1);
-    
-    setTimeout(() => {
-      const osc2 = audioCtx.createOscillator();
-      const gain2 = audioCtx.createGain();
-      osc2.connect(gain2);
-      gain2.connect(audioCtx.destination);
-      osc2.frequency.value = 800;
-      gain2.gain.value = 0.15;
-      osc2.start();
-      osc2.stop(audioCtx.currentTime + 0.15);
-    }, 100);
-  } else if (type === 'error') {
-    osc.frequency.value = 200;
-    gain.gain.value = 0.1;
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.1);
-  }
-}
-
-let gridSize = 4;
-let currentGrid = [];
-let solutionGrid = [];
-let rowClues = [];
-let colClues = [];
-let level = 1;
-
-function initGrid() {
-  currentGrid = Array(gridSize).fill().map(() => Array(gridSize).fill(false));
-  generatePuzzle();
-  renderGrid();
-}
-
-function generatePuzzle() {
-  // Generate a random valid solution
-  solutionGrid = Array(gridSize).fill().map(() => 
-    Array(gridSize).fill().map(() => Math.random() > 0.5)
-  );
-  
-  // Calculate clues from solution
-  rowClues = solutionGrid.map(row => row.filter(cell => cell).length);
-  colClues = Array(gridSize).fill(0).map((_, col) => 
-    solutionGrid.filter(row => row[col]).length
-  );
-  
-  // Reset current grid
-  currentGrid = Array(gridSize).fill().map(() => Array(gridSize).fill(false));
-  
-  document.getElementById('hintText').textContent = 'Use clues to deduce where boxes belong!';
-  document.getElementById('successMsg').classList.remove('active');
-}
-
-function renderGrid() {
-  // Render top clues
-  const topClues = document.getElementById('topClues');
-  topClues.innerHTML = '';
-  colClues.forEach(clue => {
-    const cell = document.createElement('div');
-    cell.className = 'clue-cell';
-    cell.textContent = clue;
-    topClues.appendChild(cell);
-  });
-  
-  // Render left clues
-  const leftClues = document.getElementById('leftClues');
-  leftClues.innerHTML = '';
-  rowClues.forEach(clue => {
-    const cell = document.createElement('div');
-    cell.className = 'clue-cell';
-    cell.textContent = clue;
-    leftClues.appendChild(cell);
-  });
-  
-  // Render main grid
-  const grid = document.getElementById('grid');
-  grid.innerHTML = '';
-  grid.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
-  
-  for (let i = 0; i < gridSize; i++) {
-    for (let j = 0; j < gridSize; j++) {
-      const cell = document.createElement('div');
-      cell.className = 'cell';
-      
-      if (currentGrid[i][j]) {
-        cell.classList.add('has-box');
-        cell.textContent = '📦';
-      }
-      
-      cell.onclick = () => clickCell(i, j);
-      grid.appendChild(cell);
-    }
-  }
-}
-
-function clickCell(row, col) {
-  playSound('click');
-  currentGrid[row][col] = !currentGrid[row][col];
-  renderGrid();
-  
-  // Auto-check if grid is full enough
-  const totalBoxes = currentGrid.flat().filter(x => x).length;
-  const requiredBoxes = solutionGrid.flat().filter(x => x).length;
-  
-  if (totalBoxes === requiredBoxes && isSolved()) {
-    setTimeout(() => {
-      playSound('success');
-      document.getElementById('successMsg').classList.add('active');
-      setTimeout(() => {
-        level++;
-        document.getElementById('levelNum').textContent = level;
-        if (level % 4 === 0 && gridSize < 6) {
-          gridSize++;
+        function generatePuzzle() {
+            const numScales = 3;
+            const scales = [];
+            const allWeights = [];
+            
+            for (let i = 0; i < numScales; i++) {
+                const targetSum = Math.floor(Math.random() * 8) + 6;
+                const left = [];
+                const right = [];
+                let leftSum = 0;
+                let rightSum = 0;
+                
+                while (leftSum < targetSum) {
+                    const w = Math.floor(Math.random() * 5) + 1;
+                    if (leftSum + w <= targetSum) {
+                        left.push(w);
+                        leftSum += w;
+                        allWeights.push(w);
+                    }
+                }
+                
+                while (rightSum < leftSum) {
+                    const w = Math.floor(Math.random() * 5) + 1;
+                    if (rightSum + w <= leftSum) {
+                        right.push(w);
+                        rightSum += w;
+                        allWeights.push(w);
+                    }
+                }
+                
+                if (rightSum < leftSum) {
+                    right.push(leftSum - rightSum);
+                    allWeights.push(leftSum - rightSum);
+                }
+                
+                scales.push({ left: [], right: [], solution: { left, right } });
+            }
+            
+            state.scales = scales;
+            state.available = allWeights.sort(() => Math.random() - 0.5);
+            state.solution = scales.map(s => s.solution);
+            state.selected = null;
         }
+
+        function render() {
+            const scalesContainer = document.getElementById('scalesContainer');
+            scalesContainer.innerHTML = state.scales.map((scale, idx) => {
+                const leftSum = scale.left.reduce((a, b) => a + b, 0);
+                const rightSum = scale.right.reduce((a, b) => a + b, 0);
+                const indicator = leftSum === rightSum ? '⚖️' : leftSum > rightSum ? '⬅️' : '➡️';
+                
+                return `
+                    <div class="scale">
+                        <div class="scale-top">
+                            <span class="scale-label">Scale ${idx + 1}</span>
+                            <span class="balance-indicator">${indicator}</span>
+                        </div>
+                        <div class="pans">
+                            <div class="pan" onclick="panClick(${idx}, 'left')">
+                                ${scale.left.map((w, i) => `<div class="weight weight-${w}" onclick="event.stopPropagation(); removeWeight(${idx}, 'left', ${i})">${w}</div>`).join('')}
+                            </div>
+                            <div class="pan" onclick="panClick(${idx}, 'right')">
+                                ${scale.right.map((w, i) => `<div class="weight weight-${w}" onclick="event.stopPropagation(); removeWeight(${idx}, 'right', ${i})">${w}</div>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            const availableWeights = document.getElementById('availableWeights');
+            availableWeights.innerHTML = state.available.map((w, i) => 
+                `<div class="weight weight-${w} ${state.selected === i ? 'selected' : ''}" 
+                      onclick="selectWeight(${i})" 
+                      style="${state.selected === i ? 'transform: scale(1.1); box-shadow: 0 0 0 3px #667eea;' : ''}">${w}</div>`
+            ).join('') || '<div style="color: #999; padding: 10px; font-size: 13px;">All weights placed</div>';
+        }
+
+        function selectWeight(idx) {
+            state.selected = state.selected === idx ? null : idx;
+            audio.place();
+            render();
+        }
+
+        function panClick(scaleIdx, side) {
+            if (state.selected !== null) {
+                const weight = state.available[state.selected];
+                state.scales[scaleIdx][side].push(weight);
+                state.available.splice(state.selected, 1);
+                state.selected = null;
+                audio.place();
+                render();
+                
+                if (state.available.length === 0) {
+                    setTimeout(checkSolution, 500);
+                }
+            }
+        }
+
+        function removeWeight(scaleIdx, side, weightIdx) {
+            const weight = state.scales[scaleIdx][side][weightIdx];
+            state.scales[scaleIdx][side].splice(weightIdx, 1);
+            state.available.push(weight);
+            audio.remove();
+            render();
+        }
+
+        function checkSolution() {
+            const allBalanced = state.scales.every(scale => {
+                const leftSum = scale.left.reduce((a, b) => a + b, 0);
+                const rightSum = scale.right.reduce((a, b) => a + b, 0);
+                return leftSum === rightSum && leftSum > 0;
+            });
+
+            const msg = document.getElementById('message');
+            msg.className = 'message';
+            
+            if (allBalanced && state.available.length === 0) {
+                msg.textContent = '🎉 Perfect! All scales balanced!';
+                msg.classList.add('success');
+                audio.success();
+                setTimeout(() => {
+                    newPuzzle();
+                }, 2000);
+            } else {
+                msg.textContent = state.available.length > 0 ? '❌ Place all weights first!' : '❌ Not all scales are balanced!';
+                msg.classList.add('error');
+                audio.error();
+                setTimeout(() => msg.className = 'message', 2000);
+            }
+        }
+
+        function getHint() {
+            for (let i = 0; i < state.solution.length; i++) {
+                for (const side of ['left', 'right']) {
+                    for (const w of state.solution[i][side]) {
+                        const availIdx = state.available.indexOf(w);
+                        if (availIdx !== -1) {
+                            state.selected = availIdx;
+                            audio.place();
+                            render();
+                            
+                            const msg = document.getElementById('message');
+                            msg.className = 'message success';
+                            msg.textContent = `💡 Try placing weight ${w} in Scale ${i + 1}, ${side} pan`;
+                            setTimeout(() => msg.className = 'message', 3000);
+                            return;
+                        }
+                    }
+                }
+            }
+            
+            const msg = document.getElementById('message');
+            msg.className = 'message';
+            msg.textContent = 'No hints available - puzzle solved or in progress!';
+            msg.classList.add('error');
+            setTimeout(() => msg.className = 'message', 2000);
+        }
+
+        function autoSolve() {
+            state.scales = state.solution.map(s => ({ left: [...s.left], right: [...s.right], solution: s }));
+            state.available = [];
+            state.selected = null;
+            audio.success();
+            render();
+            
+            const msg = document.getElementById('message');
+            msg.className = 'message success';
+            msg.textContent = '✨ Puzzle solved automatically!';
+            setTimeout(() => {
+                msg.className = 'message';
+                newPuzzle();
+            }, 2000);
+        }
+
+        function newPuzzle() {
+            generatePuzzle();
+            render();
+            document.getElementById('message').className = 'message';
+        }
+
+        function showInstructions() {
+            document.getElementById('instructionsModal').classList.add('show');
+        }
+
+        function hideInstructions() {
+            document.getElementById('instructionsModal').classList.remove('show');
+        }
+
         newPuzzle();
-      }, 1500);
-    }, 300);
-  }
-}
-
-function isSolved() {
-  for (let i = 0; i < gridSize; i++) {
-    for (let j = 0; j < gridSize; j++) {
-      if (currentGrid[i][j] !== solutionGrid[i][j]) {
-        return false;
-      }
-    }
-  }
-  return true;
-}
-
-function checkSolution() {
-  playSound('click');
-  
-  // Calculate current clues
-  const currentRowClues = currentGrid.map(row => row.filter(cell => cell).length);
-  const currentColClues = Array(gridSize).fill(0).map((_, col) => 
-    currentGrid.filter(row => row[col]).length
-  );
-  
-  // Check if clues match
-  let errors = [];
-  let allMatch = true;
-  
-  for (let i = 0; i < gridSize; i++) {
-    if (currentRowClues[i] !== rowClues[i]) {
-      errors.push(`Row ${i + 1}: has ${currentRowClues[i]}, needs ${rowClues[i]}`);
-      allMatch = false;
-    }
-    if (currentColClues[i] !== colClues[i]) {
-      errors.push(`Col ${i + 1}: has ${currentColClues[i]}, needs ${colClues[i]}`);
-      allMatch = false;
-    }
-  }
-  
-  if (allMatch && isSolved()) {
-    playSound('success');
-    document.getElementById('hintText').textContent = '✅ Perfect! All clues satisfied correctly!';
-    document.getElementById('hintText').style.color = '#43e97b';
-    
-    // Highlight correct cells
-    const cells = document.querySelectorAll('.cell');
-    cells.forEach(cell => cell.classList.add('correct'));
-  } else if (allMatch) {
-    playSound('error');
-    document.getElementById('hintText').textContent = '⚠️ Clues match but arrangement is wrong. Try different positions!';
-    document.getElementById('hintText').style.color = '#f5576c';
-  } else {
-    playSound('error');
-    document.getElementById('hintText').textContent = `❌ ${errors.slice(0, 2).join('. ')}`;
-    document.getElementById('hintText').style.color = '#f5576c';
-  }
-}
-
-function showHint() {
-  playSound('click');
-  
-  // Find a logical deduction
-  // Strategy 1: Find rows/cols that are complete or empty
-  for (let i = 0; i < gridSize; i++) {
-    const currentRowCount = currentGrid[i].filter(x => x).length;
-    if (rowClues[i] === 0 && currentRowCount === 0) {
-      let hasEmpty = false;
-      for (let j = 0; j < gridSize; j++) {
-        if (!currentGrid[i][j]) hasEmpty = true;
-      }
-      if (hasEmpty) {
-        document.getElementById('hintText').textContent = `💡 Row ${i + 1} should be empty (clue is 0). Make sure no boxes there!`;
-        document.getElementById('hintText').style.color = '#667eea';
-        return;
-      }
-    }
-    
-    if (rowClues[i] === gridSize && currentRowCount < gridSize) {
-      document.getElementById('hintText').textContent = `💡 Row ${i + 1} needs ALL boxes filled (clue is ${gridSize})!`;
-      document.getElementById('hintText').style.color = '#667eea';
-      return;
-    }
-  }
-  
-  for (let j = 0; j < gridSize; j++) {
-    const currentColCount = currentGrid.filter(row => row[j]).length;
-    if (colClues[j] === 0 && currentColCount === 0) {
-      let hasEmpty = false;
-      for (let i = 0; i < gridSize; i++) {
-        if (!currentGrid[i][j]) hasEmpty = true;
-      }
-      if (hasEmpty) {
-        document.getElementById('hintText').textContent = `💡 Column ${j + 1} should be empty (clue is 0)!`;
-        document.getElementById('hintText').style.color = '#667eea';
-        return;
-      }
-    }
-    
-    if (colClues[j] === gridSize && currentColCount < gridSize) {
-      document.getElementById('hintText').textContent = `💡 Column ${j + 1} needs ALL boxes filled (clue is ${gridSize})!`;
-      document.getElementById('hintText').style.color = '#667eea';
-      return;
-    }
-  }
-  
-  // Strategy 2: Find a specific cell that can be deduced
-  for (let i = 0; i < gridSize; i++) {
-    for (let j = 0; j < gridSize; j++) {
-      if (currentGrid[i][j] !== solutionGrid[i][j]) {
-        const rowNeeds = rowClues[i];
-        const colNeeds = colClues[j];
-        const action = solutionGrid[i][j] ? 'add a box to' : 'keep empty';
-        document.getElementById('hintText').textContent = `💡 Try row ${i + 1}, column ${j + 1}. Row needs ${rowNeeds} boxes, column needs ${colNeeds}.`;
-        document.getElementById('hintText').style.color = '#667eea';
-        return;
-      }
-    }
-  }
-  
-  document.getElementById('hintText').textContent = '💡 Look for rows/columns with 0 or maximum clues first!';
-  document.getElementById('hintText').style.color = '#667eea';
-}
-
-function autoSolve() {
-  playSound('click');
-  currentGrid = solutionGrid.map(row => [...row]);
-  renderGrid();
-  
-  const cells = document.querySelectorAll('.cell');
-  cells.forEach(cell => cell.classList.add('correct'));
-  
-  document.getElementById('hintText').textContent = '🤖 Puzzle solved! Study the pattern.';
-  document.getElementById('hintText').style.color = '#00f2fe';
-  
-  setTimeout(() => {
-    playSound('success');
-    setTimeout(() => {
-      level++;
-      document.getElementById('levelNum').textContent = level;
-      if (level % 4 === 0 && gridSize < 6) {
-        gridSize++;
-      }
-      newPuzzle();
-    }, 1500);
-  }, 500);
-}
-
-function newPuzzle() {
-  playSound('click');
-  generatePuzzle();
-  renderGrid();
-}
-
-function showInstructions() {
-  playSound('click');
-  document.getElementById('instructionsModal').classList.add('active');
-}
-
-function closeInstructions() {
-  playSound('click');
-  document.getElementById('instructionsModal').classList.remove('active');
-}
-
-// Initialize game
-initGrid();
-
-// Show instructions on first load
-setTimeout(() => {
-  if (!localStorage.getItem('boxStackerLogicPlayed')) {
-    showInstructions();
-    localStorage.setItem('boxStackerLogicPlayed', 'true');
-  }
-}, 500);
-</script>
-
+    </script>
 </body>
 </html>
