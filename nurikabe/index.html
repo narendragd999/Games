@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nurikabe Puzzle</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            height: 100%;
+            max-height: 100vh;
+            justify-content: center;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 12px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            font-size: 24px;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .difficulty {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 8px;
+        }
+
+        .diff-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            background: #667eea;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .diff-btn.active {
+            background: #764ba2;
+            transform: scale(1.05);
+        }
+
+        .game-board {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            flex-shrink: 0;
+        }
+
+        #puzzle {
+            display: grid;
+            gap: 2px;
+            background: #333;
+            border: 3px solid #333;
+            border-radius: 8px;
+            margin: 0 auto;
+            touch-action: none;
+            max-width: 100%;
+        }
+
+        .cell {
+            aspect-ratio: 1;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s;
+            position: relative;
+            min-width: 0;
+        }
+
+        .cell.number {
+            background: #e8f5e9;
+            color: #2e7d32;
+            cursor: default;
+        }
+
+        .cell.black {
+            background: #333;
+        }
+
+        .cell.white {
+            background: #fff;
+        }
+
+        .cell.marked {
+            background: #bbdefb;
+        }
+
+        .cell:not(.number):active {
+            transform: scale(0.95);
+        }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 12px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        button {
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            background: #667eea;
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        button:hover {
+            background: #764ba2;
+        }
+
+        .btn-info {
+            background: #4caf50;
+        }
+
+        .btn-info:hover {
+            background: #45a049;
+        }
+
+        .btn-danger {
+            background: #f44336;
+        }
+
+        .btn-danger:hover {
+            background: #da190b;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            max-width: 400px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 22px;
+        }
+
+        .modal p {
+            margin-bottom: 12px;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .modal ul {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+
+        .modal li {
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+
+        .close-btn {
+            margin-top: 15px;
+            width: 100%;
+        }
+
+        .status {
+            text-align: center;
+            padding: 8px;
+            border-radius: 8px;
+            font-weight: 600;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .status.success {
+            background: #c8e6c9;
+            color: #2e7d32;
+        }
+
+        .status.error {
+            background: #ffcdd2;
+            color: #c62828;
+        }
+
+        @media (max-width: 360px) {
+            h1 { font-size: 20px; }
+            button { font-size: 11px; padding: 8px; }
+            .diff-btn { font-size: 10px; padding: 5px 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧩 Nurikabe Puzzle</h1>
+            <div class="difficulty">
+                <button class="diff-btn active" data-size="5">Easy</button>
+                <button class="diff-btn" data-size="7">Medium</button>
+                <button class="diff-btn" data-size="9">Hard</button>
+            </div>
+        </div>
+
+        <div class="game-board">
+            <div id="puzzle"></div>
+            <div id="status"></div>
+        </div>
+
+        <div class="controls">
+            <div class="btn-group">
+                <button onclick="newPuzzle()">🔄 New Puzzle</button>
+                <button onclick="checkSolution()">✓ Check</button>
+                <button onclick="getHint()" class="btn-info">💡 Hint</button>
+                <button onclick="solvePuzzle()" class="btn-danger">🎯 Solve</button>
+                <button onclick="showInstructions()" style="grid-column: 1 / -1;">❓ How to Play</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="instructionsModal" class="modal">
+        <div class="modal-content">
+            <h2>How to Play Nurikabe</h2>
+            <p><strong>Goal:</strong> Create islands of white cells around numbered cells, with black cells forming a continuous sea.</p>
+            <p><strong>Rules:</strong></p>
+            <ul>
+                <li>Each numbered cell belongs to a white island of that exact size</li>
+                <li>Islands cannot touch horizontally or vertically (only diagonally is OK)</li>
+                <li>All black cells must be connected horizontally or vertically</li>
+                <li>No 2×2 blocks of black cells are allowed</li>
+            </ul>
+            <p><strong>Controls:</strong></p>
+            <ul>
+                <li>Tap once: Mark as black</li>
+                <li>Tap twice: Mark as white</li>
+                <li>Tap three times: Clear marking</li>
+            </ul>
+            <button class="close-btn" onclick="hideInstructions()">Got it!</button>
+        </div>
+    </div>
+
+    <script>
+        let gridSize = 5;
+        let grid = [];
+        let solution = [];
+        let numbers = [];
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(frequency, duration = 100) {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = frequency;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + duration / 1000);
+        }
+
+        function generatePuzzle() {
+            grid = Array(gridSize).fill().map(() => Array(gridSize).fill(0));
+            solution = Array(gridSize).fill().map(() => Array(gridSize).fill(0));
+            numbers = [];
+
+            // Generate solution
+            const numIslands = Math.floor(gridSize * gridSize / 5);
+            for (let i = 0; i < numIslands; i++) {
+                let row, col;
+                do {
+                    row = Math.floor(Math.random() * gridSize);
+                    col = Math.floor(Math.random() * gridSize);
+                } while (solution[row][col] !== 0);
+
+                const size = Math.floor(Math.random() * 3) + 2;
+                floodFillIsland(row, col, i + 1, size);
+                numbers.push({ row, col, size: countIsland(i + 1) });
+            }
+
+            // Fill remaining with black
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    if (solution[i][j] === 0) solution[i][j] = -1;
+                }
+            }
+
+            // Copy numbers to grid
+            numbers.forEach(num => {
+                grid[num.row][num.col] = num.size;
+            });
+        }
+
+        function floodFillIsland(row, col, id, maxSize) {
+            const queue = [[row, col]];
+            const visited = new Set();
+            let count = 0;
+
+            while (queue.length > 0 && count < maxSize) {
+                const [r, c] = queue.shift();
+                const key = `${r},${c}`;
+
+                if (r < 0 || r >= gridSize || c < 0 || c >= gridSize || 
+                    visited.has(key) || solution[r][c] !== 0) continue;
+
+                visited.add(key);
+                solution[r][c] = id;
+                count++;
+
+                if (count < maxSize && Math.random() > 0.3) {
+                    const dirs = [[0,1],[1,0],[0,-1],[-1,0]];
+                    dirs.sort(() => Math.random() - 0.5);
+                    dirs.forEach(([dr, dc]) => queue.push([r + dr, c + dc]));
+                }
+            }
+        }
+
+        function countIsland(id) {
+            let count = 0;
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    if (solution[i][j] === id) count++;
+                }
+            }
+            return count;
+        }
+
+        function renderPuzzle() {
+            const puzzle = document.getElementById('puzzle');
+            puzzle.innerHTML = '';
+            puzzle.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+            
+            const containerWidth = puzzle.parentElement.clientWidth - 30;
+            const cellSize = Math.floor(containerWidth / gridSize) - 2;
+            
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.style.fontSize = `${Math.max(cellSize * 0.5, 12)}px`;
+                    
+                    if (grid[i][j] > 0) {
+                        cell.className += ' number';
+                        cell.textContent = grid[i][j];
+                    } else {
+                        cell.onclick = () => toggleCell(i, j);
+                    }
+                    
+                    puzzle.appendChild(cell);
+                }
+            }
+        }
+
+        function toggleCell(row, col) {
+            const idx = row * gridSize + col;
+            const cells = document.querySelectorAll('.cell');
+            const cell = cells[idx];
+
+            if (cell.classList.contains('black')) {
+                cell.classList.remove('black');
+                cell.classList.add('white');
+                playSound(600, 80);
+            } else if (cell.classList.contains('white')) {
+                cell.classList.remove('white');
+                playSound(500, 80);
+            } else {
+                cell.classList.add('black');
+                playSound(400, 80);
+            }
+        }
+
+        function checkSolution() {
+            const cells = document.querySelectorAll('.cell');
+            let correct = true;
+            const status = document.getElementById('status');
+
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    const idx = i * gridSize + j;
+                    const cell = cells[idx];
+                    
+                    if (grid[i][j] === 0) {
+                        const isBlack = cell.classList.contains('black');
+                        const shouldBeBlack = solution[i][j] === -1;
+                        
+                        if (isBlack !== shouldBeBlack) {
+                            correct = false;
+                            break;
+                        }
+                    }
+                }
+                if (!correct) break;
+            }
+
+            if (correct) {
+                status.className = 'status success';
+                status.textContent = '🎉 Congratulations! Puzzle solved!';
+                playSound(800, 200);
+                setTimeout(() => playSound(1000, 200), 150);
+            } else {
+                status.className = 'status error';
+                status.textContent = '❌ Not quite right. Keep trying!';
+                playSound(200, 300);
+            }
+
+            setTimeout(() => status.textContent = '', 3000);
+        }
+
+        function getHint() {
+            const cells = document.querySelectorAll('.cell');
+            const emptyCells = [];
+
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    const idx = i * gridSize + j;
+                    const cell = cells[idx];
+                    
+                    if (grid[i][j] === 0 && !cell.classList.contains('black') && 
+                        !cell.classList.contains('white')) {
+                        emptyCells.push({ i, j, idx });
+                    }
+                }
+            }
+
+            if (emptyCells.length > 0) {
+                const hint = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                const cell = cells[hint.idx];
+                
+                if (solution[hint.i][hint.j] === -1) {
+                    cell.classList.add('black');
+                } else {
+                    cell.classList.add('white');
+                }
+                
+                playSound(700, 150);
+            }
+        }
+
+        function solvePuzzle() {
+            const cells = document.querySelectorAll('.cell');
+            
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    const idx = i * gridSize + j;
+                    const cell = cells[idx];
+                    
+                    if (grid[i][j] === 0) {
+                        cell.classList.remove('black', 'white');
+                        if (solution[i][j] === -1) {
+                            cell.classList.add('black');
+                        } else {
+                            cell.classList.add('white');
+                        }
+                    }
+                }
+            }
+            
+            playSound(600, 100);
+            setTimeout(() => playSound(800, 150), 100);
+        }
+
+        function newPuzzle() {
+            generatePuzzle();
+            renderPuzzle();
+            document.getElementById('status').textContent = '';
+            playSound(500, 100);
+        }
+
+        function showInstructions() {
+            document.getElementById('instructionsModal').classList.add('active');
+            playSound(600, 100);
+        }
+
+        function hideInstructions() {
+            document.getElementById('instructionsModal').classList.remove('active');
+            playSound(500, 100);
+        }
+
+        document.querySelectorAll('.diff-btn').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                gridSize = parseInt(btn.dataset.size);
+                newPuzzle();
+                playSound(550, 100);
+            };
+        });
+
+        // Initialize
+        newPuzzle();
+
+        // Prevent zoom on double-tap
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', (e) => {
+            const now = Date.now();
+            if (now - lastTouchEnd <= 300) {
+                e.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+    </script>
+</body>
+</html>
