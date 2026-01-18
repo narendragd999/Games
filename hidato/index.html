@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hidato Puzzle</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            justify-content: center;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .board {
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            margin-bottom: 10px;
+        }
+
+        .grid {
+            display: grid;
+            gap: 5px;
+            margin: 0 auto;
+        }
+
+        .cell {
+            aspect-ratio: 1;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: white;
+            user-select: none;
+        }
+
+        .cell.fixed {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            cursor: default;
+        }
+
+        .cell.empty {
+            background: #f0f0f0;
+        }
+
+        .cell.active {
+            background: #fff3cd;
+            border-color: #ffc107;
+            transform: scale(1.05);
+        }
+
+        .cell.hint {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+
+        .cell.error {
+            background: #f8d7da;
+            border-color: #dc3545;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 12px;
+            font-size: 14px;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            color: white;
+        }
+
+        button:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .btn-new {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .btn-hint {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+
+        .btn-check {
+            background: linear-gradient(135deg, #ffc107 0%, #ff6b6b 100%);
+        }
+
+        .btn-solve {
+            background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        }
+
+        .btn-help {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        }
+
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+        }
+
+        .key {
+            padding: 15px;
+            font-size: 18px;
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        }
+
+        .key-del {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            max-width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+
+        .modal-content h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .modal-content p {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .close-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 100%;
+            margin-top: 15px;
+        }
+
+        .message {
+            text-align: center;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            min-height: 24px;
+            margin-bottom: 10px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔢 Hidato Puzzle</h1>
+        </div>
+        
+        <div class="message" id="message"></div>
+        
+        <div class="board">
+            <div class="grid" id="grid"></div>
+        </div>
+        
+        <div class="controls">
+            <button class="btn-new" onclick="newPuzzle()">🎲 New</button>
+            <button class="btn-hint" onclick="getHint()">💡 Hint</button>
+            <button class="btn-check" onclick="checkSolution()">✓ Check</button>
+            <button class="btn-solve" onclick="autoSolve()">🤖 Solve</button>
+            <button class="btn-help" onclick="showInstructions()">❓ Help</button>
+        </div>
+        
+        <div class="keypad" id="keypad"></div>
+    </div>
+
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <h2>How to Play Hidato</h2>
+            <p><strong>Goal:</strong> Fill the grid with consecutive numbers that connect horizontally, vertically, or diagonally.</p>
+            <p><strong>Rules:</strong></p>
+            <p>• Numbers must form a continuous path from 1 to the highest number</p>
+            <p>• Each number must be adjacent to the next number (including diagonally)</p>
+            <p>• Some cells are blocked (gray) and cannot be filled</p>
+            <p>• Fixed numbers (colored) cannot be changed</p>
+            <p><strong>Controls:</strong></p>
+            <p>• Tap a white cell to select it</p>
+            <p>• Tap a number to fill the selected cell</p>
+            <p>• Tap 'Del' to clear a cell</p>
+            <p>• Use 'Hint' for help on one cell</p>
+            <p>• Use 'Check' to verify your solution</p>
+            <p>• Use 'Solve' to see the complete solution</p>
+            <button class="close-btn" onclick="closeModal()">Got it!</button>
+        </div>
+    </div>
+
+    <script>
+        const audio = {
+            place: () => new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTcIG2m98OScTgwOUKXh8LhjHAU2kdfy0HotBSl+zPLaizsKElyx6OyrWBUIQ5zd8sFuJAUuhM/z3I4+CRZiuO3mnVINC1Gn5PC5ZRwGN5HY8s96LAUofsvz24k4CBhltO3po1QNDlKm4/G2YhwFN47W8tB6LQUpfsvy3Is5CRVbr+nur1cUCECY3PLEcSYEK4PP8t2OPwoWYrfs56BUDQ5SqOPxuWQcBDWP1vLPei4FKoHO89uJNwgXZLLs6aZUDA1QpuLwtWMcBzqT2fPPei4FKH7L8tuJOQkVXrTs66lXFAdAmNzywnElBSuBzvLcjT4JFmK56+mjVQ0OUanm8bllHAY4lNrz0Xwu').play().catch(()=>{}),
+            success: () => new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=').play().catch(()=>{}),
+            error: () => new Audio('data:audio/wav;base64,UklGRjQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YRAAAAAAAAA=').play().catch(()=>{})
+        };
+
+        let grid = [];
+        let solution = [];
+        let size = 5;
+        let selectedCell = null;
+        let maxNum = 0;
+
+        function createGrid() {
+            const gridEl = document.getElementById('grid');
+            gridEl.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+            gridEl.innerHTML = '';
+            
+            for (let i = 0; i < size * size; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.dataset.index = i;
+                cell.onclick = () => selectCell(i);
+                gridEl.appendChild(cell);
+            }
+        }
+
+        function createKeypad() {
+            const keypad = document.getElementById('keypad');
+            keypad.innerHTML = '';
+            
+            for (let i = 1; i <= maxNum; i++) {
+                const key = document.createElement('button');
+                key.className = 'key';
+                key.textContent = i;
+                key.onclick = () => placeNumber(i);
+                keypad.appendChild(key);
+            }
+            
+            const delKey = document.createElement('button');
+            delKey.className = 'key key-del';
+            delKey.textContent = 'Del';
+            delKey.onclick = () => deleteNumber();
+            keypad.appendChild(delKey);
+        }
+
+        function generatePuzzle() {
+            grid = Array(size * size).fill(0);
+            solution = Array(size * size).fill(0);
+            
+            // Create some blocked cells
+            const blocked = Math.floor(size * size * 0.15);
+            for (let i = 0; i < blocked; i++) {
+                let pos = Math.floor(Math.random() * size * size);
+                grid[pos] = -1;
+                solution[pos] = -1;
+            }
+            
+            // Generate solution path
+            let path = [];
+            let pos = Math.floor(Math.random() * size * size);
+            while (grid[pos] === -1) {
+                pos = Math.floor(Math.random() * size * size);
+            }
+            
+            path.push(pos);
+            solution[pos] = 1;
+            
+            let num = 2;
+            while (path.length < size * size - blocked) {
+                let neighbors = getNeighbors(pos).filter(n => solution[n] === 0);
+                if (neighbors.length === 0) {
+                    // Backtrack
+                    if (path.length === 1) break;
+                    path.pop();
+                    pos = path[path.length - 1];
+                    num--;
+                } else {
+                    pos = neighbors[Math.floor(Math.random() * neighbors.length)];
+                    path.push(pos);
+                    solution[pos] = num++;
+                }
+            }
+            
+            maxNum = num - 1;
+            
+            // Show some numbers as clues
+            const clues = Math.floor((size * size - blocked) * 0.3);
+            grid = [...solution];
+            
+            let hidden = [];
+            for (let i = 0; i < size * size; i++) {
+                if (grid[i] > 0) hidden.push(i);
+            }
+            
+            for (let i = 0; i < hidden.length - clues; i++) {
+                let idx = Math.floor(Math.random() * hidden.length);
+                if (grid[hidden[idx]] !== 1 && grid[hidden[idx]] !== maxNum) {
+                    grid[hidden[idx]] = 0;
+                    hidden.splice(idx, 1);
+                }
+            }
+        }
+
+        function getNeighbors(pos) {
+            let neighbors = [];
+            let row = Math.floor(pos / size);
+            let col = pos % size;
+            
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                    if (dr === 0 && dc === 0) continue;
+                    let nr = row + dr;
+                    let nc = col + dc;
+                    if (nr >= 0 && nr < size && nc >= 0 && nc < size) {
+                        let npos = nr * size + nc;
+                        if (grid[npos] !== -1) neighbors.push(npos);
+                    }
+                }
+            }
+            return neighbors;
+        }
+
+        function renderGrid() {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach((cell, i) => {
+                cell.className = 'cell';
+                if (grid[i] === -1) {
+                    cell.className += ' empty';
+                    cell.textContent = '';
+                } else if (solution[i] > 0 && grid[i] === solution[i] && grid[i] !== 0) {
+                    cell.className += ' fixed';
+                    cell.textContent = grid[i];
+                } else if (grid[i] > 0) {
+                    cell.textContent = grid[i];
+                } else {
+                    cell.textContent = '';
+                }
+                
+                if (selectedCell === i && grid[i] !== -1 && !cell.classList.contains('fixed')) {
+                    cell.className += ' active';
+                }
+            });
+        }
+
+        function selectCell(index) {
+            if (grid[index] === -1) return;
+            const cell = document.querySelectorAll('.cell')[index];
+            if (cell.classList.contains('fixed')) return;
+            
+            selectedCell = index;
+            renderGrid();
+            audio.place();
+        }
+
+        function placeNumber(num) {
+            if (selectedCell === null) {
+                showMessage('Select a cell first!', 'error');
+                return;
+            }
+            
+            grid[selectedCell] = num;
+            audio.place();
+            renderGrid();
+            selectedCell = null;
+            
+            if (checkComplete()) {
+                setTimeout(() => {
+                    if (checkCorrect()) {
+                        showMessage('🎉 Congratulations! Puzzle solved!', 'success');
+                        audio.success();
+                        setTimeout(newPuzzle, 3000);
+                    }
+                }, 100);
+            }
+        }
+
+        function deleteNumber() {
+            if (selectedCell === null) return;
+            const cell = document.querySelectorAll('.cell')[selectedCell];
+            if (cell.classList.contains('fixed')) return;
+            
+            grid[selectedCell] = 0;
+            audio.place();
+            renderGrid();
+        }
+
+        function getHint() {
+            let empty = [];
+            for (let i = 0; i < grid.length; i++) {
+                if (grid[i] === 0) empty.push(i);
+            }
+            
+            if (empty.length === 0) {
+                showMessage('No empty cells!', 'info');
+                return;
+            }
+            
+            let pos = empty[Math.floor(Math.random() * empty.length)];
+            grid[pos] = solution[pos];
+            
+            const cell = document.querySelectorAll('.cell')[pos];
+            cell.classList.add('hint');
+            setTimeout(() => cell.classList.remove('hint'), 1000);
+            
+            audio.place();
+            renderGrid();
+            showMessage('Hint added!', 'success');
+        }
+
+        function checkSolution() {
+            if (!checkComplete()) {
+                showMessage('Puzzle not complete yet!', 'error');
+                audio.error();
+                return;
+            }
+            
+            if (checkCorrect()) {
+                showMessage('✓ Correct! Well done!', 'success');
+                audio.success();
+            } else {
+                showMessage('✗ Some numbers are incorrect!', 'error');
+                audio.error();
+                highlightErrors();
+            }
+        }
+
+        function checkComplete() {
+            return grid.every((v, i) => v !== 0 || solution[i] === -1);
+        }
+
+        function checkCorrect() {
+            return grid.every((v, i) => v === solution[i]);
+        }
+
+        function highlightErrors() {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach((cell, i) => {
+                if (grid[i] !== solution[i] && grid[i] !== 0 && grid[i] !== -1) {
+                    cell.classList.add('error');
+                }
+            });
+            
+            setTimeout(() => {
+                cells.forEach(cell => cell.classList.remove('error'));
+            }, 2000);
+        }
+
+        function autoSolve() {
+            grid = [...solution];
+            renderGrid();
+            showMessage('Puzzle solved automatically!', 'success');
+            audio.success();
+            setTimeout(newPuzzle, 3000);
+        }
+
+        function showMessage(msg, type) {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = msg;
+            messageEl.style.color = type === 'error' ? '#ff6b6b' : 
+                                    type === 'success' ? '#51cf66' : 'white';
+        }
+
+        function showInstructions() {
+            document.getElementById('modal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+        }
+
+        function newPuzzle() {
+            selectedCell = null;
+            showMessage('', '');
+            generatePuzzle();
+            createKeypad();
+            renderGrid();
+        }
+
+        // Initialize
+        createGrid();
+        newPuzzle();
+    </script>
+</body>
+</html>
