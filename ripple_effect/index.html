@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ripple Effect Puzzle</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        .container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            max-width: 500px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .btn {
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            background: white;
+            color: #667eea;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            transition: transform 0.1s, box-shadow 0.1s;
+            touch-action: manipulation;
+        }
+
+        .btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .btn.secondary {
+            background: rgba(255,255,255,0.9);
+        }
+
+        .game-board {
+            background: white;
+            border-radius: 12px;
+            padding: 10px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .grid {
+            display: grid;
+            gap: 2px;
+            background: #333;
+            border: 3px solid #333;
+            border-radius: 4px;
+        }
+
+        .cell {
+            background: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            transition: background 0.2s;
+        }
+
+        .cell.filled {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .cell.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .cell.correct {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            max-width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        }
+
+        .modal-content h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .modal-content p {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .modal-content ul {
+            margin-left: 20px;
+            margin-bottom: 10px;
+        }
+
+        .close-btn {
+            margin-top: 15px;
+            width: 100%;
+        }
+
+        .status {
+            text-align: center;
+            color: white;
+            font-size: 14px;
+            margin-top: 8px;
+            min-height: 20px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌊 Ripple Effect</h1>
+        </div>
+
+        <div class="controls">
+            <button class="btn" onclick="game.newPuzzle()">New Puzzle</button>
+            <button class="btn secondary" onclick="game.checkSolution()">Check</button>
+            <button class="btn secondary" onclick="game.getHint()">Hint</button>
+            <button class="btn secondary" onclick="game.autoSolve()">Solve</button>
+            <button class="btn secondary" onclick="game.showInstructions()">Help</button>
+            <button class="btn secondary" onclick="game.clearBoard()">Clear</button>
+        </div>
+
+        <div class="game-board">
+            <div class="grid" id="grid"></div>
+        </div>
+
+        <div class="status" id="status"></div>
+    </div>
+
+    <div class="modal" id="instructionsModal">
+        <div class="modal-content">
+            <h2>How to Play</h2>
+            <p><strong>Ripple Effect</strong> is a logic puzzle where you fill a grid with numbers following these rules:</p>
+            <ul>
+                <li>Each room must contain numbers from 1 to the size of that room</li>
+                <li>If a number appears in a row or column, the same number cannot appear within that many cells away</li>
+                <li>For example, if you place a "3", no other "3" can be within 3 cells in the same row or column</li>
+            </ul>
+            <p><strong>Controls:</strong></p>
+            <ul>
+                <li>Tap a cell to cycle through numbers (1 to room size)</li>
+                <li>Tap again to clear the cell</li>
+                <li>Use "Hint" for help on a single cell</li>
+                <li>Use "Check" to validate your solution</li>
+                <li>Use "Solve" to see the complete solution</li>
+            </ul>
+            <button class="btn close-btn" onclick="game.hideInstructions()">Got it!</button>
+        </div>
+    </div>
+
+    <script>
+        const game = {
+            size: 5,
+            rooms: [],
+            solution: [],
+            userGrid: [],
+            roomColors: ['#ffebee', '#e3f2fd', '#e8f5e9', '#fff3e0', '#f3e5f5', '#e0f2f1'],
+            
+            init() {
+                this.generatePuzzle();
+                this.render();
+                this.playSound('start');
+            },
+
+            generatePuzzle() {
+                this.rooms = this.generateRooms();
+                this.solution = this.solvePuzzle();
+                this.userGrid = Array(this.size).fill(null).map(() => Array(this.size).fill(0));
+            },
+
+            generateRooms() {
+                const rooms = Array(this.size).fill(null).map(() => Array(this.size).fill(-1));
+                let roomId = 0;
+                const roomSizes = {};
+
+                // Simple room generation
+                for (let i = 0; i < this.size; i++) {
+                    for (let j = 0; j < this.size; j++) {
+                        if (rooms[i][j] === -1) {
+                            const size = Math.floor(Math.random() * 3) + 2;
+                            this.fillRoom(rooms, i, j, roomId, size, roomSizes);
+                            roomId++;
+                        }
+                    }
+                }
+
+                this.roomSizes = roomSizes;
+                return rooms;
+            },
+
+            fillRoom(rooms, startI, startJ, roomId, targetSize, roomSizes) {
+                const cells = [[startI, startJ]];
+                rooms[startI][startJ] = roomId;
+                let currentSize = 1;
+
+                while (currentSize < targetSize && currentSize < 5) {
+                    const candidates = [];
+                    
+                    for (const [i, j] of cells) {
+                        [[0,1],[1,0],[0,-1],[-1,0]].forEach(([di, dj]) => {
+                            const ni = i + di, nj = j + dj;
+                            if (ni >= 0 && ni < this.size && nj >= 0 && nj < this.size && 
+                                rooms[ni][nj] === -1) {
+                                candidates.push([ni, nj]);
+                            }
+                        });
+                    }
+
+                    if (candidates.length === 0) break;
+
+                    const [ni, nj] = candidates[Math.floor(Math.random() * candidates.length)];
+                    rooms[ni][nj] = roomId;
+                    cells.push([ni, nj]);
+                    currentSize++;
+                }
+
+                roomSizes[roomId] = currentSize;
+            },
+
+            solvePuzzle() {
+                const grid = Array(this.size).fill(null).map(() => Array(this.size).fill(0));
+                
+                const isValid = (i, j, num) => {
+                    // Check ripple effect in row
+                    for (let k = Math.max(0, j - num); k <= Math.min(this.size - 1, j + num); k++) {
+                        if (k !== j && grid[i][k] === num) return false;
+                    }
+                    
+                    // Check ripple effect in column
+                    for (let k = Math.max(0, i - num); k <= Math.min(this.size - 1, i + num); k++) {
+                        if (k !== i && grid[k][j] === num) return false;
+                    }
+                    
+                    return true;
+                };
+
+                const solve = (pos) => {
+                    if (pos === this.size * this.size) return true;
+                    
+                    const i = Math.floor(pos / this.size);
+                    const j = pos % this.size;
+                    const roomId = this.rooms[i][j];
+                    const maxNum = this.roomSizes[roomId];
+                    
+                    const nums = Array.from({length: maxNum}, (_, k) => k + 1);
+                    for (let n = 0; n < nums.length; n++) {
+                        const num = nums[n];
+                        if (isValid(i, j, num)) {
+                            grid[i][j] = num;
+                            if (solve(pos + 1)) return true;
+                            grid[i][j] = 0;
+                        }
+                    }
+                    
+                    return false;
+                };
+
+                solve(0);
+                return grid;
+            },
+
+            render() {
+                const gridEl = document.getElementById('grid');
+                const cellSize = Math.min(
+                    (window.innerWidth - 40) / this.size,
+                    (window.innerHeight - 250) / this.size
+                );
+                
+                gridEl.style.gridTemplateColumns = `repeat(${this.size}, ${cellSize}px)`;
+                gridEl.innerHTML = '';
+
+                for (let i = 0; i < this.size; i++) {
+                    for (let j = 0; j < this.size; j++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        cell.style.width = `${cellSize}px`;
+                        cell.style.height = `${cellSize}px`;
+                        cell.style.background = this.roomColors[this.rooms[i][j] % this.roomColors.length];
+                        
+                        if (this.userGrid[i][j] > 0) {
+                            cell.textContent = this.userGrid[i][j];
+                            cell.classList.add('filled');
+                        }
+                        
+                        cell.onclick = () => this.cellClick(i, j);
+                        gridEl.appendChild(cell);
+                    }
+                }
+            },
+
+            cellClick(i, j) {
+                const roomId = this.rooms[i][j];
+                const maxNum = this.roomSizes[roomId];
+                
+                this.userGrid[i][j] = (this.userGrid[i][j] % maxNum) + 1;
+                if (this.userGrid[i][j] > maxNum) {
+                    this.userGrid[i][j] = 0;
+                }
+                
+                this.playSound('click');
+                this.render();
+            },
+
+            checkSolution() {
+                let correct = true;
+                let filled = true;
+
+                for (let i = 0; i < this.size; i++) {
+                    for (let j = 0; j < this.size; j++) {
+                        if (this.userGrid[i][j] === 0) {
+                            filled = false;
+                        } else if (this.userGrid[i][j] !== this.solution[i][j]) {
+                            correct = false;
+                        }
+                    }
+                }
+
+                if (!filled) {
+                    this.showStatus('Puzzle not complete yet!', 'warning');
+                    this.playSound('error');
+                } else if (correct) {
+                    this.showStatus('🎉 Perfect! You solved it!', 'success');
+                    this.playSound('success');
+                } else {
+                    this.showStatus('Not quite right. Keep trying!', 'error');
+                    this.playSound('error');
+                }
+            },
+
+            getHint() {
+                const empty = [];
+                for (let i = 0; i < this.size; i++) {
+                    for (let j = 0; j < this.size; j++) {
+                        if (this.userGrid[i][j] === 0 || this.userGrid[i][j] !== this.solution[i][j]) {
+                            empty.push([i, j]);
+                        }
+                    }
+                }
+
+                if (empty.length > 0) {
+                    const [i, j] = empty[Math.floor(Math.random() * empty.length)];
+                    this.userGrid[i][j] = this.solution[i][j];
+                    this.render();
+                    this.showStatus('Hint added!', 'success');
+                    this.playSound('hint');
+                } else {
+                    this.showStatus('Puzzle is already complete!', 'success');
+                }
+            },
+
+            autoSolve() {
+                this.userGrid = this.solution.map(row => [...row]);
+                this.render();
+                this.showStatus('Puzzle solved!', 'success');
+                this.playSound('success');
+            },
+
+            clearBoard() {
+                this.userGrid = Array(this.size).fill(null).map(() => Array(this.size).fill(0));
+                this.render();
+                this.showStatus('Board cleared!', 'success');
+                this.playSound('click');
+            },
+
+            newPuzzle() {
+                this.generatePuzzle();
+                this.render();
+                this.showStatus('New puzzle generated!', 'success');
+                this.playSound('start');
+            },
+
+            showInstructions() {
+                document.getElementById('instructionsModal').classList.add('active');
+            },
+
+            hideInstructions() {
+                document.getElementById('instructionsModal').classList.remove('active');
+            },
+
+            showStatus(message, type) {
+                const status = document.getElementById('status');
+                status.textContent = message;
+                status.style.color = type === 'error' ? '#ffcdd2' : type === 'warning' ? '#fff9c4' : '#c8e6c9';
+            },
+
+            playSound(type) {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                
+                const freq = {
+                    click: 800,
+                    success: 1200,
+                    error: 400,
+                    hint: 1000,
+                    start: 600
+                }[type] || 800;
+                
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+                
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.1);
+            }
+        };
+
+        window.onload = () => game.init();
+        window.onresize = () => game.render();
+    </script>
+</body>
+</html>
