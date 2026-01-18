@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lock Picker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            height: 100vh;
+            max-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .game-box {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            max-height: 95vh;
+            overflow-y: auto;
+        }
+
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 12px;
+        }
+
+        h1 {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .difficulty {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .target-section {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%);
+            border: 2px solid #ffc107;
+            border-radius: 12px;
+            padding: 15px;
+        }
+
+        .target-label {
+            font-size: 11px;
+            color: #856404;
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .target-combo {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .target-digit {
+            width: 40px;
+            height: 40px;
+            background: white;
+            border: 2px solid #ffc107;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+            color: #333;
+            box-shadow: 0 2px 5px rgba(255, 193, 7, 0.3);
+        }
+
+        .current-section {
+            background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+            border: 2px solid #0c5460;
+            border-radius: 12px;
+            padding: 15px;
+        }
+
+        .current-label {
+            font-size: 11px;
+            color: #0c5460;
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .current-combo {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .current-digit {
+            width: 40px;
+            height: 40px;
+            background: white;
+            border: 2px solid #0c5460;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 5px rgba(12, 84, 96, 0.2);
+        }
+
+        .current-digit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(12, 84, 96, 0.3);
+        }
+
+        .current-digit.correct {
+            background: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+            font-weight: bold;
+        }
+
+        .tumbler-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin: 10px 0;
+        }
+
+        .tumbler {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+            min-height: 75px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .tumbler:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .tumbler-label {
+            font-size: 10px;
+            opacity: 0.6;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .tumbler-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            padding: 11px 18px;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            flex: 1;
+            min-width: 110px;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+            flex: 1;
+            min-width: 100px;
+            border: 1px solid #ddd;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-small {
+            padding: 8px 12px;
+            font-size: 11px;
+            min-width: auto;
+            flex: 0;
+        }
+
+        .status {
+            text-align: center;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: bold;
+            min-height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+
+        .modal-content h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        .modal-content h3 {
+            color: #764ba2;
+            margin-top: 15px;
+            font-size: 16px;
+        }
+
+        .modal-content p {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .modal-content ul {
+            margin-left: 20px;
+            margin-bottom: 15px;
+            color: #555;
+            font-size: 13px;
+        }
+
+        .modal-content li {
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+
+        .close-btn {
+            width: 30px;
+            height: 30px;
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .close-btn:hover {
+            background: #e0e0e0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 12px;
+            }
+
+            .game-box {
+                padding: 18px;
+                gap: 14px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .target-digit, .current-digit {
+                width: 36px;
+                height: 36px;
+                font-size: 16px;
+            }
+
+            button {
+                padding: 9px 14px;
+                font-size: 11px;
+            }
+
+            .tumbler {
+                min-height: 65px;
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="game-box">
+            <div class="header">
+                <h1>🔐 Lock Picker</h1>
+                <div class="difficulty" id="difficulty">Difficulty: Medium</div>
+            </div>
+
+            <!-- TARGET COMBINATION DISPLAY -->
+            <div class="target-section">
+                <div class="target-label">🎯 Target Combination:</div>
+                <div class="target-combo" id="targetCombo"></div>
+            </div>
+
+            <!-- CURRENT COMBINATION DISPLAY -->
+            <div class="current-section">
+                <div class="current-label">🔓 Your Current Combination:</div>
+                <div class="current-combo" id="currentCombo"></div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+
+            <div class="tumbler-grid" id="tumblerGrid"></div>
+
+            <div class="status info" id="status">Click digits above to adjust or click tumblers below</div>
+
+            <div class="controls">
+                <button class="btn-primary" onclick="checkSolution()">Check Solution</button>
+                <button class="btn-secondary btn-small" onclick="getHint()">💡 Hint</button>
+                <button class="btn-secondary btn-small" onclick="autoSolve()">🎯 Auto</button>
+            </div>
+
+            <div class="controls">
+                <button class="btn-secondary" onclick="newPuzzle()">New Puzzle</button>
+                <button class="btn-secondary" onclick="showInstructions()">❓ How to Play</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="instructionsModal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeInstructions()">&times;</button>
+            <h2>How to Play</h2>
+            <p>Welcome to Lock Picker! Your goal is to crack the lock by matching the target combination.</p>
+            
+            <h3>Rules:</h3>
+            <ul>
+                <li><strong>Match the Target:</strong> The yellow box shows the combination you need to achieve</li>
+                <li><strong>Adjust Your Combination:</strong> The blue box shows your current progress</li>
+                <li><strong>Two Ways to Adjust:</strong> Click any blue digit above OR click a tumbler below to cycle through values (0-9)</li>
+                <li><strong>Complete the Lock:</strong> All digits must match the target to unlock</li>
+                <li><strong>Green Indicators:</strong> Correct digits turn green in your combination</li>
+            </ul>
+
+            <h3>What Makes This Challenging?</h3>
+            <ul>
+                <li><strong>Memory Challenge:</strong> Remember the target numbers while adjusting each tumbler</li>
+                <li><strong>Time Pressure:</strong> Can you solve it quickly? Try to beat your time!</li>
+                <li><strong>Difficulty Scaling:</strong> Easy (3 digits), Medium (6 digits), Hard (9 digits) - more tumblers = harder!</li>
+                <li><strong>Cycling Through Values:</strong> Each digit cycles 0→1→2...→9→0, so finding the right number takes strategy</li>
+                <li><strong>Focus & Attention:</strong> With multiple tumblers, keeping track of all positions requires concentration</li>
+                <li><strong>Pattern Recognition:</strong> Can you spot patterns in the target to solve faster?</li>
+            </ul>
+
+            <h3>Features:</h3>
+            <ul>
+                <li><strong>Check Solution:</strong> Verify if your combination is correct</li>
+                <li><strong>Hint:</strong> Reveals one correct tumbler position</li>
+                <li><strong>Auto-Solve:</strong> Automatically solves the puzzle for you</li>
+                <li><strong>New Puzzle:</strong> Generate a new lock to crack</li>
+                <li><strong>Progress Bar:</strong> Visual feedback showing how many digits are correct</li>
+            </ul>
+
+            <h3>Tips to Score Higher:</h3>
+            <ul>
+                <li>Take a mental snapshot of the target before adjusting</li>
+                <li>Work left to right or in groups to avoid confusion</li>
+                <li>Use hints sparingly - only when truly stuck</li>
+                <li>Hard mode rewards patience and precision!</li>
+            </ul>
+
+            <button class="btn-primary" style="margin-top: 20px; width: 100%;" onclick="closeInstructions()">Got it!</button>
+        </div>
+    </div>
+
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(frequency = 800, duration = 100) {
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.frequency.value = frequency;
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration / 1000);
+                osc.start(audioCtx.currentTime);
+                osc.stop(audioCtx.currentTime + duration / 1000);
+            } catch (e) {}
+        }
+
+        let gameState = {
+            target: [],
+            current: [],
+            difficulty: 'medium',
+            hintsUsed: 0,
+            maxHints: 3
+        };
+
+        const difficultySettings = {
+            easy: { count: 3, name: 'Easy' },
+            medium: { count: 6, name: 'Medium' },
+            hard: { count: 9, name: 'Hard' }
+        };
+
+        function generatePuzzle(difficulty = 'medium') {
+            const settings = difficultySettings[difficulty];
+            const count = settings.count;
+            
+            gameState.target = Array.from({ length: count }, () => Math.floor(Math.random() * 10));
+            gameState.current = Array.from({ length: count }, () => Math.floor(Math.random() * 10));
+            
+            // Ensure puzzle is solvable and different from current
+            while (JSON.stringify(gameState.target) === JSON.stringify(gameState.current)) {
+                gameState.current = Array.from({ length: count }, () => Math.floor(Math.random() * 10));
+            }
+            
+            gameState.difficulty = difficulty;
+            gameState.hintsUsed = 0;
+            gameState.maxHints = Math.ceil(count / 2);
+            updateDifficulty();
+            renderAll();
+            setStatus('New puzzle! Match the target combination above!', 'info');
+        }
+
+        function renderAll() {
+            renderTargetCombo();
+            renderCurrentCombo();
+            renderTumblers();
+            updateProgress();
+        }
+
+        function renderTargetCombo() {
+            const target = document.getElementById('targetCombo');
+            target.innerHTML = '';
+            gameState.target.forEach((value) => {
+                const digit = document.createElement('div');
+                digit.className = 'target-digit';
+                digit.textContent = value;
+                target.appendChild(digit);
+            });
+        }
+
+        function renderCurrentCombo() {
+            const current = document.getElementById('currentCombo');
+            current.innerHTML = '';
+            gameState.current.forEach((value, index) => {
+                const digit = document.createElement('div');
+                digit.className = 'current-digit';
+                if (value === gameState.target[index]) {
+                    digit.classList.add('correct');
+                }
+                digit.textContent = value;
+                digit.onclick = () => adjustTumbler(index);
+                current.appendChild(digit);
+            });
+        }
+
+        function renderTumblers() {
+            const grid = document.getElementById('tumblerGrid');
+            grid.innerHTML = '';
+            
+            gameState.current.forEach((value, index) => {
+                const tumbler = document.createElement('div');
+                tumbler.className = 'tumbler';
+                tumbler.innerHTML = `
+                    <div class="tumbler-label">T${index + 1}</div>
+                    <div class="tumbler-value">${value}</div>
+                `;
+                tumbler.onclick = () => adjustTumbler(index);
+                grid.appendChild(tumbler);
+            });
+        }
+
+        function updateProgress() {
+            const correct = gameState.target.reduce((sum, val, i) => sum + (val === gameState.current[i] ? 1 : 0), 0);
+            const percentage = (correct / gameState.target.length) * 100;
+            document.getElementById('progressFill').style.width = percentage + '%';
+        }
+
+        function adjustTumbler(index) {
+            gameState.current[index] = (gameState.current[index] + 1) % 10;
+            playSound(600 + gameState.current[index] * 30, 80);
+            renderAll();
+        }
+
+        function checkSolution() {
+            if (JSON.stringify(gameState.target) === JSON.stringify(gameState.current)) {
+                setStatus('✨ UNLOCKED! Puzzle Solved! Click "New Puzzle" for another challenge!', 'success');
+                playSound(1200, 200);
+                playSound(1400, 200);
+            } else {
+                const correct = gameState.target.reduce((sum, val, i) => sum + (val === gameState.current[i] ? 1 : 0), 0);
+                setStatus(`❌ Not quite! ${correct}/${gameState.target.length} correct. Keep trying!`, 'error');
+                playSound(400, 100);
+            }
+        }
+
+        function getHint() {
+            if (gameState.hintsUsed >= gameState.maxHints) {
+                setStatus('💡 No more hints available!', 'error');
+                playSound(300, 150);
+                return;
+            }
+            
+            let incorrect = [];
+            gameState.target.forEach((val, i) => {
+                if (val !== gameState.current[i]) {
+                    incorrect.push(i);
+                }
+            });
+            
+            if (incorrect.length === 0) {
+                setStatus('All correct! Just check your solution!', 'success');
+                return;
+            }
+            
+            const randomIndex = incorrect[Math.floor(Math.random() * incorrect.length)];
+            gameState.current[randomIndex] = gameState.target[randomIndex];
+            gameState.hintsUsed++;
+            
+            playSound(900, 150);
+            renderAll();
+            setStatus(`💡 Hint used! Tumbler ${randomIndex + 1} revealed (${gameState.hintsUsed}/${gameState.maxHints})`, 'info');
+        }
+
+        function autoSolve() {
+            gameState.current = [...gameState.target];
+            playSound(1100, 100);
+            playSound(1200, 100);
+            renderAll();
+            setStatus('🎯 Auto-solve activated! Puzzle solved!', 'success');
+        }
+
+        function newPuzzle() {
+            generatePuzzle(gameState.difficulty);
+        }
+
+        function updateDifficulty() {
+            document.getElementById('difficulty').textContent = `Difficulty: ${difficultySettings[gameState.difficulty].name}`;
+        }
+
+        function setStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+
+        function showInstructions() {
+            document.getElementById('instructionsModal').classList.add('active');
+        }
+
+        function closeInstructions() {
+            document.getElementById('instructionsModal').classList.remove('active');
+        }
+
+        // Initialize game
+        generatePuzzle('medium');
+    </script>
+</body>
+</html>
