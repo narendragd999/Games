@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Number Placement</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100vw;
+            height: 100vh;
+            max-width: 500px;
+            background: rgba(255, 255, 255, 0.98);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding-bottom: max(0px, env(safe-area-inset-bottom));
+            padding-top: max(5px, env(safe-area-inset-top));
+            padding-left: max(0px, env(safe-area-inset-left));
+            padding-right: max(0px, env(safe-area-inset-right));
+        }
+
+        .header {
+            text-align: center;
+            padding: 8px 10px;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 20px;
+            margin-bottom: 2px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 10px;
+        }
+
+        .message {
+            text-align: center;
+            padding: 6px 10px;
+            font-weight: 600;
+            font-size: 11px;
+            flex-shrink: 0;
+            min-height: 16px;
+            margin: 0;
+        }
+
+        .message.success {
+            background: #c8e6c9;
+            color: #2e7d32;
+        }
+
+        .message.error {
+            background: #ffcdd2;
+            color: #c62828;
+        }
+
+        .content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 8px 10px;
+            min-height: 0;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+            margin-bottom: 8px;
+            flex-shrink: 0;
+        }
+
+        button {
+            padding: 7px 8px;
+            border: none;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            min-height: 32px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            grid-column: 1 / -1;
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+            font-size: 10px;
+        }
+
+        .btn-secondary:active {
+            background: #d0d0d0;
+        }
+
+        .grid-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            min-height: 0;
+        }
+
+        .puzzle-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 4px;
+            margin-bottom: 6px;
+            aspect-ratio: 1;
+            flex-shrink: 0;
+        }
+
+        .cell {
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 18px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            background: white;
+            color: #333;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .cell:active {
+            transform: scale(0.95);
+        }
+
+        .cell.selected {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+            box-shadow: 0 0 8px rgba(102, 126, 234, 0.4);
+        }
+
+        .cell.filled {
+            background: #e8f5e9;
+            border-color: #4caf50;
+            color: #1b5e20;
+        }
+
+        .cell.error {
+            background: #ffebee;
+            border-color: #f44336;
+            animation: shake 0.3s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-3px); }
+            75% { transform: translateX(3px); }
+        }
+
+        .numbers-input {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        .num-btn {
+            padding: 8px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            background: white;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.15s;
+            min-height: 40px;
+        }
+
+        .num-btn:active {
+            border-color: #667eea;
+            background: #f5f5ff;
+            transform: scale(0.95);
+        }
+
+        .num-btn.used {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            max-width: 90%;
+            max-height: 75vh;
+            overflow-y: auto;
+            text-align: center;
+        }
+
+        .modal-content h2 {
+            margin-bottom: 12px;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .modal-content p {
+            margin-bottom: 8px;
+            color: #666;
+            text-align: left;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .modal-content button {
+            margin-top: 12px;
+            min-width: 100px;
+        }
+
+        @media (max-height: 600px) {
+            .header {
+                padding: 5px 8px;
+            }
+
+            .header h1 {
+                font-size: 18px;
+                margin-bottom: 0;
+            }
+
+            .header p {
+                font-size: 9px;
+            }
+
+            button {
+                padding: 6px 6px;
+                font-size: 9px;
+                min-height: 28px;
+            }
+
+            .controls {
+                gap: 4px;
+                margin-bottom: 6px;
+            }
+
+            .puzzle-grid {
+                gap: 3px;
+                margin-bottom: 5px;
+            }
+
+            .cell {
+                font-size: 16px;
+                border-radius: 5px;
+            }
+
+            .numbers-input {
+                gap: 3px;
+            }
+
+            .num-btn {
+                padding: 6px;
+                font-size: 12px;
+                min-height: 36px;
+            }
+        }
+
+        @media (max-height: 500px) {
+            .header {
+                padding: 3px 6px;
+            }
+
+            .header h1 {
+                font-size: 16px;
+            }
+
+            .content {
+                padding: 4px 6px;
+            }
+
+            .controls {
+                margin-bottom: 4px;
+            }
+
+            button {
+                padding: 4px 4px;
+                font-size: 8px;
+                min-height: 24px;
+            }
+
+            .puzzle-grid {
+                gap: 2px;
+                margin-bottom: 4px;
+            }
+
+            .cell {
+                font-size: 14px;
+            }
+
+            .numbers-input {
+                gap: 2px;
+                margin-bottom: 4px;
+            }
+
+            .num-btn {
+                padding: 4px;
+                font-size: 11px;
+                min-height: 32px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎮 Number Placement</h1>
+            <p>Place 1-4 in each row & column</p>
+        </div>
+
+        <div class="message" id="message"></div>
+
+        <div class="content">
+            <div class="controls">
+                <button class="btn-secondary" onclick="game.showHint()">💡 Hint</button>
+                <button class="btn-secondary" onclick="game.checkSolution()">✓ Check</button>
+                <button class="btn-secondary" onclick="game.autoSolve()">🤖 Auto</button>
+                <button class="btn-secondary" onclick="game.showInstructions()" style="font-size: 9px;">? Rules</button>
+                <button class="btn-primary" onclick="game.newPuzzle()">🆕 NEW GAME</button>
+            </div>
+
+            <div class="grid-container">
+                <div class="puzzle-grid" id="grid"></div>
+                <div class="numbers-input" id="numbers"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <h2 id="modalTitle"></h2>
+            <div id="modalBody"></div>
+            <button class="btn-primary" onclick="document.getElementById('modal').classList.remove('active')">Close</button>
+        </div>
+    </div>
+
+    <script>
+        const game = {
+            grid: [],
+            solution: [],
+            selected: null,
+            lastHintCell: null,
+
+            init() {
+                this.newPuzzle();
+            },
+
+            newPuzzle() {
+                this.generatePuzzle();
+                this.selected = null;
+                this.lastHintCell = null;
+                this.render();
+                this.showMessage('');
+                this.playSound('new');
+            },
+
+            generatePuzzle() {
+                this.solution = this.generateSolution();
+                this.grid = this.solution.map(row => [...row]);
+                const difficulty = Math.random() > 0.5 ? 10 : 12;
+                for (let i = 0; i < difficulty; i++) {
+                    const r = Math.floor(Math.random() * 4);
+                    const c = Math.floor(Math.random() * 4);
+                    this.grid[r][c] = 0;
+                }
+            },
+
+            generateSolution() {
+                const solution = Array(4).fill(null).map(() => Array(4).fill(0));
+                
+                const fillGrid = () => {
+                    for (let i = 0; i < 4; i++) {
+                        for (let j = 0; j < 4; j++) {
+                            if (solution[i][j] === 0) {
+                                const nums = [1, 2, 3, 4].sort(() => Math.random() - 0.5);
+                                for (let num of nums) {
+                                    if (this.isValid(solution, i, j, num)) {
+                                        solution[i][j] = num;
+                                        if (fillGrid()) return true;
+                                        solution[i][j] = 0;
+                                    }
+                                }
+                                return false;
+                            }
+                        }
+                    }
+                    return true;
+                };
+                fillGrid();
+                return solution;
+            },
+
+            isValid(grid, row, col, num) {
+                for (let i = 0; i < 4; i++) {
+                    if (grid[row][i] === num || grid[i][col] === num) return false;
+                }
+                return true;
+            },
+
+            cellClick(r, c) {
+                if (this.grid[r][c] !== 0) return;
+                this.selected = [r, c];
+                this.render();
+            },
+
+            placeNumber(num) {
+                if (!this.selected) return;
+                const [r, c] = this.selected;
+                if (this.grid[r][c] === 0) {
+                    this.grid[r][c] = num;
+                    this.playSound('place');
+                    this.selected = null;
+                    this.render();
+                }
+            },
+
+            showHint() {
+                let found = false;
+                for (let i = 0; i < 4; i++) {
+                    for (let j = 0; j < 4; j++) {
+                        if (this.grid[i][j] === 0) {
+                            this.grid[i][j] = this.solution[i][j];
+                            this.lastHintCell = [i, j];
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (found) break;
+                }
+                if (found) {
+                    this.playSound('hint');
+                    this.showMessage('💡 Hint revealed!');
+                } else {
+                    this.showMessage('No empty cells!');
+                }
+                this.render();
+            },
+
+            checkSolution() {
+                let isCorrect = true;
+                for (let i = 0; i < 4; i++) {
+                    for (let j = 0; j < 4; j++) {
+                        if (this.grid[i][j] !== this.solution[i][j]) {
+                            isCorrect = false;
+                            break;
+                        }
+                    }
+                }
+                if (isCorrect) {
+                    this.showMessage('✓ Perfect! Puzzle solved!');
+                    this.playSound('success');
+                    setTimeout(() => this.newPuzzle(), 1500);
+                } else {
+                    this.showMessage('✗ Incorrect! Keep trying.');
+                    this.playSound('error');
+                }
+            },
+
+            autoSolve() {
+                this.grid = this.solution.map(row => [...row]);
+                this.showMessage('🤖 Auto-solved!');
+                this.playSound('success');
+                this.render();
+            },
+
+            showInstructions() {
+                const modal = document.getElementById('modal');
+                document.getElementById('modalTitle').textContent = 'How to Play';
+                document.getElementById('modalBody').innerHTML = `
+                    <p><strong>🎯 Goal:</strong> Fill empty cells with numbers 1-4</p>
+                    <p><strong>📋 Rules:</strong></p>
+                    <p>✓ Each row has 1, 2, 3, and 4</p>
+                    <p>✓ Each column has 1, 2, 3, and 4</p>
+                    <p><strong>🎮 Play:</strong></p>
+                    <p>1. Tap an empty cell</p>
+                    <p>2. Tap a number to place it</p>
+                    <p>3. Use Hint to reveal</p>
+                    <p>4. Tap Check to verify</p>
+                `;
+                modal.classList.add('active');
+            },
+
+            showMessage(msg) {
+                const el = document.getElementById('message');
+                el.textContent = msg;
+                el.className = 'message';
+                if (msg.includes('✗')) el.classList.add('error');
+                if (msg.includes('✓')) el.classList.add('success');
+            },
+
+            render() {
+                const gridEl = document.getElementById('grid');
+                gridEl.innerHTML = '';
+                for (let i = 0; i < 4; i++) {
+                    for (let j = 0; j < 4; j++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        cell.textContent = this.grid[i][j] || '';
+                        
+                        if (this.selected && this.selected[0] === i && this.selected[1] === j) {
+                            cell.classList.add('selected');
+                        }
+                        if (this.grid[i][j] !== 0) {
+                            cell.classList.add('filled');
+                        }
+                        cell.onclick = () => this.cellClick(i, j);
+                        gridEl.appendChild(cell);
+                    }
+                }
+
+                const numsEl = document.getElementById('numbers');
+                numsEl.innerHTML = '';
+                for (let num = 1; num <= 4; num++) {
+                    const btn = document.createElement('button');
+                    btn.className = 'num-btn';
+                    btn.textContent = num;
+                    const count = this.grid.flat().filter(x => x === num).length;
+                    if (count >= 4) btn.classList.add('used');
+                    btn.onclick = () => !btn.classList.contains('used') && this.placeNumber(num);
+                    numsEl.appendChild(btn);
+                }
+            },
+
+            playSound(type) {
+                try {
+                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    const now = ctx.currentTime;
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+
+                    if (type === 'place') {
+                        osc.frequency.value = 800;
+                        gain.gain.setValueAtTime(0.1, now);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                        osc.start(now);
+                        osc.stop(now + 0.1);
+                    } else if (type === 'hint') {
+                        osc.frequency.value = 600;
+                        gain.gain.setValueAtTime(0.1, now);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                        osc.start(now);
+                        osc.stop(now + 0.15);
+                    } else if (type === 'success') {
+                        osc.frequency.setValueAtTime(523, now);
+                        osc.frequency.setValueAtTime(659, now + 0.1);
+                        gain.gain.setValueAtTime(0.1, now);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                        osc.start(now);
+                        osc.stop(now + 0.2);
+                    } else if (type === 'error') {
+                        osc.frequency.value = 300;
+                        gain.gain.setValueAtTime(0.1, now);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                        osc.start(now);
+                        osc.stop(now + 0.2);
+                    } else if (type === 'new') {
+                        osc.frequency.setValueAtTime(440, now);
+                        osc.frequency.setValueAtTime(550, now + 0.05);
+                        gain.gain.setValueAtTime(0.08, now);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                        osc.start(now);
+                        osc.stop(now + 0.15);
+                    }
+                } catch (e) {}
+            }
+        };
+
+        game.init();
+    </script>
+</body>
+</html>
