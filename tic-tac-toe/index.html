@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tic-Tac-Toe</title>
+    <style>
+        body {
+            background: linear-gradient(to bottom, #f0f0f0, #a0a0a0);
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        #board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            width: 90vmin;
+            height: 90vmin;
+            max-width: 300px;
+            max-height: 300px;
+            border: 2px solid #333;
+            background: white;
+        }
+        .cell {
+            border: 1px solid #333;
+            font-size: 20vmin;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+        }
+        #controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        button {
+            margin: 5px;
+            padding: 8px 12px;
+            font-size: 14px;
+            cursor: pointer;
+            border: 1px solid #333;
+            background: #ddd;
+            border-radius: 4px;
+        }
+        #instructions {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        #popup {
+            background: white;
+            padding: 20px;
+            max-width: 80%;
+            border-radius: 8px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="instructions">
+        <div id="popup">
+            <h2>Instructions</h2>
+            <p>Tic-Tac-Toe: Two players, X and O, take turns marking spaces in a 3x3 grid.</p>
+            <p>The player who succeeds in placing three of their marks in a horizontal, vertical, or diagonal row wins.</p>
+            <p>In this version, you play as X against AI as O. Tap cells to play.</p>
+            <p>Use buttons for new game, hint (highlight suggested move), check status, auto-solve (AI plays both sides to finish), and instructions.</p>
+            <button onclick="closePopup()">Close</button>
+        </div>
+    </div>
+    <div id="board">
+        <div class="cell" data-index="0" onclick="makeMove(parseInt(this.dataset.index))"></div>
+        <div class="cell" data-index="1" onclick="makeMove(parseInt(this.dataset.index))"></div>
+        <div class="cell" data-index="2" onclick="makeMove(parseInt(this.dataset.index))"></div>
+        <div class="cell" data-index="3" onclick="makeMove(parseInt(this.dataset.index))"></div>
+        <div class="cell" data-index="4" onclick="makeMove(parseInt(this.dataset.index))"></div>
+        <div class="cell" data-index="5" onclick="makeMove(parseInt(this.dataset.index))"></div>
+        <div class="cell" data-index="6" onclick="makeMove(parseInt(this.dataset.index))"></div>
+        <div class="cell" data-index="7" onclick="makeMove(parseInt(this.dataset.index))"></div>
+        <div class="cell" data-index="8" onclick="makeMove(parseInt(this.dataset.index))"></div>
+    </div>
+    <div id="controls">
+        <button onclick="newGame()">New Game</button>
+        <button onclick="hint()">Hint</button>
+        <button onclick="checkSolution()">Check</button>
+        <button onclick="autoSolve()">Solve</button>
+        <button onclick="showInstructions()">Instructions</button>
+    </div>
+    <script>
+        let board = Array(9).fill(null);
+        let player = 'X'; // Human: X, AI: O
+        let gameOver = false;
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            const osc = audioCtx.createOscillator();
+            osc.connect(audioCtx.destination);
+            if (type === 'move') osc.frequency.value = 440;
+            else if (type === 'win') osc.frequency.value = 880;
+            else if (type === 'draw') osc.frequency.value = 220;
+            osc.start();
+            setTimeout(() => osc.stop(), 200);
+        }
+
+        function makeMove(index) {
+            if (board[index] !== null || gameOver) return;
+            board[index] = player;
+            renderBoard();
+            playSound('move');
+            if (checkWin(board, player)) {
+                alert(`${player} wins!`);
+                playSound('win');
+                gameOver = true;
+                autoNew();
+                return;
+            }
+            if (isDraw(board)) {
+                alert('Draw!');
+                playSound('draw');
+                gameOver = true;
+                autoNew();
+                return;
+            }
+            player = player === 'X' ? 'O' : 'X';
+            if (player === 'O' && !gameOver) aiMove();
+        }
+
+        function aiMove() {
+            const best = minimax(board, 'O');
+            makeMove(best.index);
+        }
+
+        function minimax(newBoard, p) {
+            const avail = available(newBoard);
+            if (checkWin(newBoard, 'X')) return { score: p === 'X' ? 10 : -10 };
+            if (checkWin(newBoard, 'O')) return { score: p === 'O' ? 10 : -10 };
+            if (avail.length === 0) return { score: 0 };
+
+            const moves = [];
+            for (let i of avail) {
+                newBoard[i] = p;
+                const res = minimax(newBoard, p === 'X' ? 'O' : 'X');
+                moves.push({ index: i, score: res.score });
+                newBoard[i] = null;
+            }
+
+            let bestMove;
+            if (p === 'O') { // Maximizer (assuming O is maximizer)
+                let maxScore = -Infinity;
+                for (let m of moves) {
+                    if (m.score > maxScore) {
+                        maxScore = m.score;
+                        bestMove = m;
+                    }
+                }
+            } else { // Minimizer
+                let minScore = Infinity;
+                for (let m of moves) {
+                    if (m.score < minScore) {
+                        minScore = m.score;
+                        bestMove = m;
+                    }
+                }
+            }
+            return bestMove;
+        }
+
+        function available(b) {
+            return b.map((v, i) => v === null ? i : null).filter(x => x !== null);
+        }
+
+        function checkWin(b, p) {
+            const wins = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8],
+                [0, 3, 6], [1, 4, 7], [2, 5, 8],
+                [0, 4, 8], [2, 4, 6]
+            ];
+            return wins.some(w => w.every(i => b[i] === p));
+        }
+
+        function isDraw(b) {
+            return !b.includes(null);
+        }
+
+        function renderBoard() {
+            document.querySelectorAll('.cell').forEach((c, i) => {
+                c.textContent = board[i] || '';
+            });
+        }
+
+        function newGame() {
+            board.fill(null);
+            player = 'X';
+            gameOver = false;
+            renderBoard();
+        }
+
+        function autoNew() {
+            setTimeout(newGame, 2000);
+        }
+
+        function hint() {
+            if (gameOver || player !== 'X') return; // Hint only for human
+            const best = minimax(board, 'X');
+            const cell = document.querySelector(`[data-index="${best.index}"]`);
+            cell.style.backgroundColor = 'yellow';
+            setTimeout(() => { cell.style.backgroundColor = ''; }, 1000);
+        }
+
+        function checkSolution() {
+            if (checkWin(board, 'X')) alert('X wins!');
+            else if (checkWin(board, 'O')) alert('O wins!');
+            else if (isDraw(board)) alert('Draw!');
+            else alert('Game ongoing.');
+        }
+
+        function autoSolve() {
+            if (gameOver) return;
+            function step() {
+                if (gameOver) return;
+                const best = minimax(board, player);
+                makeMove(best.index);
+                setTimeout(step, 500);
+            }
+            step();
+        }
+
+        function showInstructions() {
+            document.getElementById('instructions').style.display = 'flex';
+        }
+
+        function closePopup() {
+            document.getElementById('instructions').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
