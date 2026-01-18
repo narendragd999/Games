@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Anagrams Puzzle</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 12px;
+            gap: 10px;
+        }
+
+        .header {
+            text-align: center;
+            padding: 8px 0;
+        }
+
+        h1 {
+            font-size: 24px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            margin-bottom: 4px;
+        }
+
+        .score {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .game-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            justify-content: center;
+            min-height: 0;
+        }
+
+        .clue-box {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .clue-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            opacity: 0.8;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+
+        .scrambled {
+            font-size: 28px;
+            font-weight: bold;
+            letter-spacing: 4px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .hint-text {
+            font-size: 13px;
+            margin-top: 8px;
+            font-style: italic;
+            opacity: 0.9;
+            min-height: 20px;
+        }
+
+        .input-area {
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        #userInput {
+            width: 100%;
+            padding: 14px;
+            font-size: 20px;
+            border: none;
+            border-radius: 8px;
+            text-align: center;
+            background: white;
+            color: #333;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        #userInput:focus {
+            outline: 3px solid rgba(255,255,255,0.5);
+        }
+
+        .buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        button {
+            padding: 12px;
+            font-size: 14px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.9);
+            color: #667eea;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .btn-info {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            color: white;
+        }
+
+        .controls {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .icon-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .icon-btn:active {
+            transform: scale(0.9);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 24px;
+            border-radius: 16px;
+            max-width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+        }
+
+        .modal h2 {
+            margin-bottom: 16px;
+            font-size: 22px;
+        }
+
+        .modal p {
+            margin-bottom: 12px;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .close-btn {
+            margin-top: 16px;
+            width: 100%;
+        }
+
+        .feedback {
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+            min-height: 24px;
+            padding: 8px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .feedback.correct {
+            background: rgba(67, 233, 123, 0.3);
+            color: #43e97b;
+        }
+
+        .feedback.incorrect {
+            background: rgba(245, 87, 108, 0.3);
+            color: #f5576c;
+        }
+
+        @media (max-height: 600px) {
+            h1 { font-size: 20px; }
+            .scrambled { font-size: 24px; }
+            #userInput { font-size: 18px; padding: 12px; }
+            button { padding: 10px; font-size: 13px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Anagrams Puzzle</h1>
+            <div class="score">Score: <span id="score">0</span> | Streak: <span id="streak">0</span></div>
+        </div>
+
+        <div class="game-area">
+            <div class="clue-box">
+                <div class="clue-label">Unscramble this word</div>
+                <div class="scrambled" id="scrambled"></div>
+                <div class="hint-text" id="hintText"></div>
+            </div>
+
+            <div class="feedback" id="feedback"></div>
+
+            <div class="input-area">
+                <input type="text" id="userInput" placeholder="TYPE HERE" autocomplete="off">
+                <div class="buttons">
+                    <button class="btn-primary" onclick="checkAnswer()">✓ Check</button>
+                    <button class="btn-secondary" onclick="newPuzzle()">⟳ New</button>
+                    <button class="btn-success" onclick="showHint()">💡 Hint</button>
+                    <button class="btn-info" onclick="autoSolve()">🔍 Solve</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="icon-btn" onclick="toggleSound()">
+                <span id="soundIcon">🔊</span>
+            </button>
+            <button class="icon-btn" onclick="showInstructions()">❓</button>
+        </div>
+    </div>
+
+    <div class="modal" id="instructionsModal">
+        <div class="modal-content">
+            <h2>📖 How to Play</h2>
+            <p><strong>Objective:</strong> Unscramble the letters to form a valid word.</p>
+            <p><strong>✓ Check:</strong> Submit your answer to see if it's correct.</p>
+            <p><strong>⟳ New:</strong> Get a new puzzle to solve.</p>
+            <p><strong>💡 Hint:</strong> Reveal a helpful clue about the word.</p>
+            <p><strong>🔍 Solve:</strong> Show the correct answer.</p>
+            <p><strong>Scoring:</strong> Earn points for correct answers and build your streak!</p>
+            <button class="btn-primary close-btn" onclick="closeInstructions()">Got it!</button>
+        </div>
+    </div>
+
+    <script>
+        let words = [];
+        let current = null;
+        let score = 0;
+        let streak = 0;
+        let soundOn = true;
+        let hintShown = false;
+        let loading = false;
+
+        // Fallback words in case API fails
+        const fallbackWords = [
+            {word: 'LISTEN', hint: 'Pay attention with your ears'},
+            {word: 'SILENT', hint: 'Making no sound'},
+            {word: 'EARTH', hint: 'Our planet'},
+            {word: 'HEART', hint: 'Organ that pumps blood'},
+            {word: 'ANGEL', hint: 'Heavenly being'},
+            {word: 'GLEAN', hint: 'Gather or collect'},
+            {word: 'OCEAN', hint: 'Large body of saltwater'},
+            {word: 'CANOE', hint: 'Small narrow boat'},
+            {word: 'STUDY', hint: 'Learn or examine'},
+            {word: 'DUSTY', hint: 'Covered in fine particles'},
+            {word: 'STREAM', hint: 'Small river'},
+            {word: 'MASTER', hint: 'Expert or skilled person'},
+            {word: 'BREAD', hint: 'Baked food staple'},
+            {word: 'BEARD', hint: 'Facial hair'},
+            {word: 'NIGHT', hint: 'Time when it\'s dark'},
+            {word: 'THING', hint: 'An object or item'},
+            {word: 'STONE', hint: 'Hard solid rock'},
+            {word: 'NOTES', hint: 'Brief records'},
+            {word: 'DRAWER', hint: 'Storage compartment'},
+            {word: 'REWARD', hint: 'Prize or payment'},
+            {word: 'LEMON', hint: 'Sour yellow citrus'},
+            {word: 'MELON', hint: 'Sweet juicy fruit'},
+            {word: 'FRIEND', hint: 'Close companion'},
+            {word: 'FINDER', hint: 'One who discovers'},
+            {word: 'PLAYER', hint: 'One who plays games'},
+            {word: 'PARLEY', hint: 'Conference or discussion'},
+            {word: 'DANGER', hint: 'Risk or threat'},
+            {word: 'GARDEN', hint: 'Place to grow plants'},
+            {word: 'SECURE', hint: 'Safe and protected'},
+            {word: 'RESCUE', hint: 'Save from danger'}
+        ];
+
+        // Fetch random words from Random Word API
+        async function fetchWords() {
+            if (loading) return;
+            loading = true;
+            
+            try {
+                const response = await fetch('https://random-word-api.herokuapp.com/word?number=50&length=5');
+                const apiWords = await response.json();
+                
+                // Convert API words to our format and fetch definitions
+                const newWords = [];
+                for (let word of apiWords.slice(0, 20)) {
+                    try {
+                        const defResponse = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+                        const defData = await defResponse.json();
+                        
+                        let hint = 'A common English word';
+                        if (defData && defData[0] && defData[0].meanings && defData[0].meanings[0]) {
+                            hint = defData[0].meanings[0].definitions[0].definition;
+                            // Truncate long definitions
+                            if (hint.length > 60) {
+                                hint = hint.substring(0, 57) + '...';
+                            }
+                        }
+                        
+                        newWords.push({
+                            word: word.toUpperCase(),
+                            hint: hint
+                        });
+                    } catch (e) {
+                        // Skip words that fail to get definitions
+                        continue;
+                    }
+                }
+                
+                if (newWords.length > 10) {
+                    words = [...newWords, ...fallbackWords];
+                } else {
+                    words = fallbackWords;
+                }
+            } catch (error) {
+                console.log('Using fallback words');
+                words = fallbackWords;
+            }
+            
+            loading = false;
+        }
+
+        const audio = new AudioContext();
+
+        function playSound(freq, duration) {
+            if (!soundOn) return;
+            const osc = audio.createOscillator();
+            const gain = audio.createGain();
+            osc.connect(gain);
+            gain.connect(audio.destination);
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.1, audio.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audio.currentTime + duration);
+            osc.start();
+            osc.stop(audio.currentTime + duration);
+        }
+
+        function scramble(word) {
+            let arr = word.split('');
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            const scrambled = arr.join('');
+            return scrambled === word ? scramble(word) : scrambled;
+        }
+
+        function newPuzzle() {
+            if (words.length === 0) {
+                words = fallbackWords;
+            }
+            current = words[Math.floor(Math.random() * words.length)];
+            document.getElementById('scrambled').textContent = scramble(current.word);
+            document.getElementById('userInput').value = '';
+            document.getElementById('feedback').textContent = '';
+            document.getElementById('feedback').className = 'feedback';
+            document.getElementById('hintText').textContent = '';
+            hintShown = false;
+            playSound(400, 0.1);
+            
+            // Fetch more words if running low
+            if (words.length < 15 && !loading) {
+                fetchWords();
+            }
+        }
+
+        function checkAnswer() {
+            const input = document.getElementById('userInput').value.toUpperCase().trim();
+            const feedback = document.getElementById('feedback');
+            
+            if (!input) {
+                feedback.textContent = 'Please enter an answer!';
+                feedback.className = 'feedback incorrect';
+                playSound(200, 0.2);
+                return;
+            }
+
+            if (input === current.word) {
+                feedback.textContent = '🎉 Correct!';
+                feedback.className = 'feedback correct';
+                score += hintShown ? 5 : 10;
+                streak++;
+                updateScore();
+                playSound(800, 0.1);
+                setTimeout(() => playSound(1000, 0.15), 100);
+                setTimeout(newPuzzle, 1500);
+            } else {
+                feedback.textContent = '❌ Try again!';
+                feedback.className = 'feedback incorrect';
+                streak = 0;
+                updateScore();
+                playSound(200, 0.3);
+            }
+        }
+
+        function showHint() {
+            document.getElementById('hintText').textContent = '💡 ' + current.hint;
+            hintShown = true;
+            playSound(600, 0.1);
+        }
+
+        function autoSolve() {
+            document.getElementById('userInput').value = current.word;
+            document.getElementById('feedback').textContent = '🔍 Answer revealed!';
+            document.getElementById('feedback').className = 'feedback';
+            streak = 0;
+            updateScore();
+            playSound(500, 0.2);
+            setTimeout(newPuzzle, 2000);
+        }
+
+        function updateScore() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('streak').textContent = streak;
+        }
+
+        function toggleSound() {
+            soundOn = !soundOn;
+            document.getElementById('soundIcon').textContent = soundOn ? '🔊' : '🔇';
+            playSound(400, 0.1);
+        }
+
+        function showInstructions() {
+            document.getElementById('instructionsModal').style.display = 'flex';
+            playSound(500, 0.1);
+        }
+
+        function closeInstructions() {
+            document.getElementById('instructionsModal').style.display = 'none';
+            playSound(600, 0.1);
+        }
+
+        document.getElementById('userInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') checkAnswer();
+        });
+
+        // Initialize game
+        fetchWords().then(() => {
+            newPuzzle();
+        });
+    </script>
+</body>
+</html>
