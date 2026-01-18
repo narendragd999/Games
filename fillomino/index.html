@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fillomino Puzzle</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 10px;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        h1 {
+            color: #667eea;
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        button {
+            padding: 10px;
+            font-size: 14px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.1s, box-shadow 0.1s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .grid-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 15px;
+            touch-action: none;
+        }
+
+        .grid {
+            display: grid;
+            gap: 2px;
+            background: #ccc;
+            padding: 2px;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .cell {
+            width: 45px;
+            height: 45px;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+            user-select: none;
+        }
+
+        .cell.given {
+            background: #e0e7ff;
+            color: #4c51bf;
+        }
+
+        .cell.filled {
+            background: #c7d2fe;
+            color: #3730a3;
+        }
+
+        .cell.error {
+            background: #fecaca;
+            color: #991b1b;
+        }
+
+        .cell.correct {
+            background: #bbf7d0;
+            color: #166534;
+        }
+
+        .number-pad {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .number-btn {
+            padding: 12px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .number-btn.selected {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+        }
+
+        .status {
+            text-align: center;
+            padding: 10px;
+            border-radius: 10px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 20px;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .modal-content p {
+            margin-bottom: 10px;
+            line-height: 1.6;
+            color: #374151;
+        }
+
+        .modal-content ul {
+            margin: 10px 0 10px 20px;
+            color: #374151;
+        }
+
+        .close-btn {
+            width: 100%;
+            margin-top: 15px;
+        }
+
+        @media (max-width: 400px) {
+            .cell {
+                width: 38px;
+                height: 38px;
+                font-size: 16px;
+            }
+            
+            h1 {
+                font-size: 20px;
+            }
+            
+            button {
+                font-size: 12px;
+                padding: 8px;
+            }
+            
+            .number-btn {
+                padding: 10px;
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔢 Fillomino Puzzle</h1>
+        </div>
+
+        <div class="status" id="status">Select a number and fill the grid</div>
+
+        <div class="number-pad" id="numberPad"></div>
+
+        <div class="grid-container">
+            <div class="grid" id="grid"></div>
+        </div>
+
+        <div class="controls">
+            <button onclick="newPuzzle()">🎲 New Puzzle</button>
+            <button onclick="getHint()">💡 Hint</button>
+            <button onclick="checkSolution()">✓ Check</button>
+            <button onclick="autoSolve()">🤖 Auto-Solve</button>
+            <button onclick="clearAll()">🗑️ Clear</button>
+            <button onclick="showInstructions()">❓ Help</button>
+        </div>
+    </div>
+
+    <div class="modal" id="instructionsModal">
+        <div class="modal-content">
+            <h2>How to Play Fillomino</h2>
+            <p><strong>Goal:</strong> Fill the grid so that each polyomino (connected region) contains exactly the number of cells indicated by the number inside it.</p>
+            <p><strong>Rules:</strong></p>
+            <ul>
+                <li>Each polyomino is a group of orthogonally connected cells</li>
+                <li>If a cell shows "3", it must be part of a 3-cell region</li>
+                <li>All cells in a region must contain the same number</li>
+                <li>Two polyominoes with the same number cannot touch (even diagonally is okay)</li>
+            </ul>
+            <p><strong>How to Play:</strong></p>
+            <ul>
+                <li>Tap a number from the pad, then tap empty cells to fill them</li>
+                <li>Tap a filled cell to clear it</li>
+                <li>Use hints if you get stuck</li>
+                <li>Check your solution when complete</li>
+            </ul>
+            <button class="close-btn" onclick="hideInstructions()">Got It!</button>
+        </div>
+    </div>
+
+    <script>
+        const GRID_SIZE = 7;
+        let puzzle = [];
+        let solution = [];
+        let userGrid = [];
+        let selectedNumber = null;
+        let audioContext;
+
+        // Initialize audio
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(frequency, duration) {
+            initAudio();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = frequency;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + duration);
+        }
+
+        function generatePuzzle() {
+            const grid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(0));
+            const regions = [];
+            const used = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(false));
+
+            function isValid(r, c) {
+                return r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE;
+            }
+
+            function getNeighbors(r, c) {
+                return [[r-1,c], [r+1,c], [r,c-1], [r,c+1]].filter(([nr,nc]) => isValid(nr,nc));
+            }
+
+            function createRegion(size, startR, startC) {
+                const region = [[startR, startC]];
+                used[startR][startC] = true;
+                
+                while (region.length < size) {
+                    const candidates = [];
+                    for (const [r, c] of region) {
+                        for (const [nr, nc] of getNeighbors(r, c)) {
+                            if (!used[nr][nc] && !candidates.some(([cr,cc]) => cr === nr && cc === nc)) {
+                                candidates.push([nr, nc]);
+                            }
+                        }
+                    }
+                    
+                    if (candidates.length === 0) break;
+                    
+                    const [nr, nc] = candidates[Math.floor(Math.random() * candidates.length)];
+                    region.push([nr, nc]);
+                    used[nr][nc] = true;
+                }
+                
+                return region;
+            }
+
+            // Generate regions
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    if (!used[r][c]) {
+                        const size = Math.floor(Math.random() * 4) + 1; // 1-4 size regions
+                        const region = createRegion(size, r, c);
+                        regions.push({size: region.length, cells: region});
+                        region.forEach(([rr, cc]) => {
+                            grid[rr][cc] = region.length;
+                        });
+                    }
+                }
+            }
+
+            // Create puzzle by showing some numbers
+            const puzzleGrid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(0));
+            regions.forEach(region => {
+                // Show 1-2 numbers per region
+                const numToShow = Math.min(region.cells.length, Math.random() > 0.5 ? 2 : 1);
+                const shuffled = [...region.cells].sort(() => Math.random() - 0.5);
+                for (let i = 0; i < numToShow; i++) {
+                    const [r, c] = shuffled[i];
+                    puzzleGrid[r][c] = region.size;
+                }
+            });
+
+            return { puzzle: puzzleGrid, solution: grid };
+        }
+
+        function initGame() {
+            const generated = generatePuzzle();
+            puzzle = generated.puzzle;
+            solution = generated.solution;
+            userGrid = puzzle.map(row => [...row]);
+            selectedNumber = null;
+            renderGrid();
+            renderNumberPad();
+            updateStatus('Select a number and fill the grid');
+        }
+
+        function renderNumberPad() {
+            const pad = document.getElementById('numberPad');
+            pad.innerHTML = '';
+            
+            for (let i = 1; i <= 9; i++) {
+                const btn = document.createElement('button');
+                btn.className = 'number-btn';
+                btn.textContent = i;
+                btn.onclick = () => selectNumber(i);
+                pad.appendChild(btn);
+            }
+            
+            const clearBtn = document.createElement('button');
+            clearBtn.className = 'number-btn';
+            clearBtn.textContent = '✕';
+            clearBtn.onclick = () => selectNumber(null);
+            pad.appendChild(clearBtn);
+        }
+
+        function selectNumber(num) {
+            selectedNumber = num;
+            playSound(400, 0.1);
+            
+            document.querySelectorAll('.number-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            
+            if (num !== null) {
+                event.target.classList.add('selected');
+            }
+        }
+
+        function renderGrid() {
+            const gridEl = document.getElementById('grid');
+            gridEl.innerHTML = '';
+            gridEl.style.gridTemplateColumns = `repeat(${GRID_SIZE}, 1fr)`;
+            
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    
+                    if (puzzle[r][c] > 0) {
+                        cell.classList.add('given');
+                        cell.textContent = puzzle[r][c];
+                    } else if (userGrid[r][c] > 0) {
+                        cell.classList.add('filled');
+                        cell.textContent = userGrid[r][c];
+                    }
+                    
+                    cell.onclick = () => cellClick(r, c);
+                    gridEl.appendChild(cell);
+                }
+            }
+        }
+
+        function cellClick(r, c) {
+            if (puzzle[r][c] > 0) return; // Can't change given cells
+            
+            if (selectedNumber === null) {
+                userGrid[r][c] = 0;
+                playSound(300, 0.1);
+            } else {
+                userGrid[r][c] = selectedNumber;
+                playSound(500, 0.1);
+            }
+            
+            renderGrid();
+        }
+
+        function checkSolution() {
+            let allFilled = true;
+            let hasErrors = false;
+            
+            const cells = document.querySelectorAll('.cell');
+            let idx = 0;
+            
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    const cell = cells[idx++];
+                    cell.classList.remove('error', 'correct');
+                    
+                    if (userGrid[r][c] === 0 && puzzle[r][c] === 0) {
+                        allFilled = false;
+                    } else if (userGrid[r][c] !== solution[r][c] && puzzle[r][c] === 0) {
+                        cell.classList.add('error');
+                        hasErrors = true;
+                    } else if (puzzle[r][c] === 0) {
+                        cell.classList.add('correct');
+                    }
+                }
+            }
+            
+            if (!allFilled) {
+                updateStatus('⚠️ Puzzle not complete yet');
+                playSound(200, 0.2);
+            } else if (hasErrors) {
+                updateStatus('❌ Some cells are incorrect');
+                playSound(150, 0.3);
+            } else {
+                updateStatus('🎉 Perfect! You solved it!');
+                playSound(600, 0.1);
+                setTimeout(() => playSound(700, 0.1), 100);
+                setTimeout(() => playSound(800, 0.2), 200);
+                setTimeout(() => newPuzzle(), 2000);
+            }
+        }
+
+        function getHint() {
+            const emptyCells = [];
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    if (puzzle[r][c] === 0 && userGrid[r][c] === 0) {
+                        emptyCells.push([r, c]);
+                    }
+                }
+            }
+            
+            if (emptyCells.length === 0) {
+                updateStatus('No empty cells to hint!');
+                return;
+            }
+            
+            const [r, c] = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+            userGrid[r][c] = solution[r][c];
+            renderGrid();
+            playSound(600, 0.15);
+            updateStatus(`💡 Hint: Cell filled with ${solution[r][c]}`);
+        }
+
+        function autoSolve() {
+            userGrid = solution.map(row => [...row]);
+            renderGrid();
+            playSound(700, 0.2);
+            updateStatus('🤖 Puzzle auto-solved!');
+            setTimeout(() => newPuzzle(), 2000);
+        }
+
+        function clearAll() {
+            userGrid = puzzle.map(row => [...row]);
+            renderGrid();
+            playSound(300, 0.15);
+            updateStatus('Grid cleared');
+        }
+
+        function newPuzzle() {
+            playSound(500, 0.1);
+            initGame();
+        }
+
+        function updateStatus(msg) {
+            document.getElementById('status').textContent = msg;
+        }
+
+        function showInstructions() {
+            document.getElementById('instructionsModal').classList.add('active');
+            playSound(450, 0.1);
+        }
+
+        function hideInstructions() {
+            document.getElementById('instructionsModal').classList.remove('active');
+            playSound(450, 0.1);
+        }
+
+        // Initialize on load
+        window.onload = () => {
+            initGame();
+        };
+
+        // Handle touch for mobile
+        document.addEventListener('touchstart', initAudio, { once: true });
+    </script>
+</body>
+</html>
