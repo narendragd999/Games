@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Jigsaw Puzzle</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        .header {
+            padding: 10px 15px;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: white;
+            font-size: 22px;
+            font-weight: 700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .info-btn {
+            background: rgba(255, 255, 255, 0.3);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .info-btn:active {
+            transform: scale(0.9);
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .game-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+            overflow: hidden;
+        }
+
+        .status {
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            text-align: center;
+            padding: 8px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .puzzle-area {
+            flex: 1;
+            width: 100%;
+            max-width: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+            position: relative;
+        }
+
+        .puzzle-board {
+            position: relative;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            touch-action: none;
+        }
+
+        .puzzle-piece {
+            position: absolute;
+            cursor: move;
+            transition: all 0.2s;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background-size: cover;
+            background-repeat: no-repeat;
+            touch-action: none;
+        }
+
+        .puzzle-piece:active {
+            cursor: grabbing;
+            z-index: 1000;
+            transform: scale(1.05);
+        }
+
+        .puzzle-piece.placed {
+            border: 1px solid rgba(76, 175, 80, 0.8);
+            box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+        }
+
+        .puzzle-piece.hint {
+            animation: pulse 1s;
+            border: 2px solid #fbc02d;
+            box-shadow: 0 0 15px rgba(251, 192, 45, 0.8);
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            width: 100%;
+            max-width: 400px;
+            padding: 0 10px;
+            margin-bottom: 8px;
+        }
+
+        button {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        button:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .btn-new {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .btn-hint {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .btn-check {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .btn-solve {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+
+        .difficulty-selector {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px;
+            border-radius: 8px;
+        }
+
+        .difficulty-btn {
+            padding: 8px 12px;
+            font-size: 12px;
+            background: rgba(255, 255, 255, 0.3);
+            flex: 1;
+        }
+
+        .difficulty-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 24px;
+        }
+
+        .modal p {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 12px;
+        }
+
+        .modal ul {
+            margin-left: 20px;
+            margin-bottom: 15px;
+            color: #555;
+        }
+
+        .modal li {
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+
+        .close-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 100%;
+            margin-top: 15px;
+        }
+
+        .preview-image {
+            width: 100%;
+            max-width: 150px;
+            border-radius: 8px;
+            margin: 10px auto;
+            display: block;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>JIGSAW PUZZLE</h1>
+        <button class="info-btn" onclick="showInstructions()">?</button>
+    </div>
+
+    <div class="game-container">
+        <div class="status" id="status">Select difficulty and start!</div>
+        
+        <div class="difficulty-selector">
+            <button class="difficulty-btn active" onclick="setDifficulty(3)">Easy 3×3</button>
+            <button class="difficulty-btn" onclick="setDifficulty(4)">Medium 4×4</button>
+            <button class="difficulty-btn" onclick="setDifficulty(5)">Hard 5×5</button>
+        </div>
+
+        <div class="puzzle-area">
+            <div class="puzzle-board" id="puzzleBoard"></div>
+        </div>
+
+        <div class="controls">
+            <button class="btn-new" onclick="newGame()">New Puzzle</button>
+            <button class="btn-hint" onclick="getHint()">Hint</button>
+            <button class="btn-check" onclick="checkSolution()">Check</button>
+            <button class="btn-solve" onclick="autoSolve()">Solve</button>
+        </div>
+    </div>
+
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <h2>How to Play Jigsaw Puzzle</h2>
+            <p><strong>Goal:</strong> Arrange all puzzle pieces to recreate the original image.</p>
+            
+            <p><strong>Rules:</strong></p>
+            <ul>
+                <li>Drag and drop pieces to move them</li>
+                <li>Pieces snap into place when positioned correctly</li>
+                <li>Green border indicates correctly placed pieces</li>
+            </ul>
+
+            <p><strong>Controls:</strong></p>
+            <ul>
+                <li><strong>Drag piece:</strong> Touch and hold, then move</li>
+                <li><strong>New Puzzle:</strong> Generate a new random puzzle</li>
+                <li><strong>Hint:</strong> Highlights a misplaced piece</li>
+                <li><strong>Check:</strong> Shows which pieces are correct</li>
+                <li><strong>Solve:</strong> Automatically solves the puzzle</li>
+            </ul>
+
+            <p><strong>Difficulty:</strong></p>
+            <ul>
+                <li><strong>Easy:</strong> 3×3 grid (9 pieces)</li>
+                <li><strong>Medium:</strong> 4×4 grid (16 pieces)</li>
+                <li><strong>Hard:</strong> 5×5 grid (25 pieces)</li>
+            </ul>
+
+            <p><strong>Tips:</strong></p>
+            <ul>
+                <li>Start with corner and edge pieces</li>
+                <li>Look for distinctive colors or patterns</li>
+                <li>Work section by section</li>
+            </ul>
+
+            <button class="close-btn" onclick="closeInstructions()">Got It!</button>
+        </div>
+    </div>
+
+    <script>
+        function playTone(freq, duration) {
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.1, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+            osc.start();
+            osc.stop(ctx.currentTime + duration);
+        }
+
+        let gridSize = 3;
+        let pieces = [];
+        let draggedPiece = null;
+        let offsetX = 0, offsetY = 0;
+        let boardSize = 0;
+        let pieceSize = 0;
+        let currentImage = null;
+
+        // Create canvas-based images with patterns
+        function createPatternImage(pattern) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 300;
+            canvas.height = 300;
+            const ctx = canvas.getContext('2d');
+            
+            switch(pattern) {
+                case 0: // Smiley Face
+                    ctx.fillStyle = '#FF6B6B';
+                    ctx.fillRect(0, 0, 300, 300);
+                    ctx.fillStyle = '#FFE66D';
+                    ctx.beginPath();
+                    ctx.arc(150, 150, 80, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#4ECDC4';
+                    ctx.beginPath();
+                    ctx.arc(120, 130, 15, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(180, 130, 15, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#4ECDC4';
+                    ctx.lineWidth = 8;
+                    ctx.beginPath();
+                    ctx.arc(150, 160, 40, 0, Math.PI);
+                    ctx.stroke();
+                    break;
+                    
+                case 1: // Robot
+                    const gradient = ctx.createLinearGradient(0, 0, 300, 300);
+                    gradient.addColorStop(0, '#95E1D3');
+                    gradient.addColorStop(1, '#F38181');
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(0, 0, 300, 300);
+                    ctx.fillStyle = '#EAFFD0';
+                    ctx.beginPath();
+                    ctx.arc(150, 100, 40, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#EAFFD0';
+                    ctx.fillRect(120, 140, 60, 80, 10);
+                    ctx.fillStyle = '#FCE38A';
+                    ctx.fillRect(110, 150, 35, 60);
+                    ctx.fillRect(155, 150, 35, 60);
+                    ctx.fillStyle = '#AA96DA';
+                    ctx.beginPath();
+                    ctx.arc(130, 90, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(170, 90, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                    break;
+                    
+                case 2: // Landscape
+                    ctx.fillStyle = '#87CEEB';
+                    ctx.fillRect(0, 0, 300, 300);
+                    ctx.fillStyle = '#98D8C8';
+                    ctx.fillRect(0, 200, 300, 100);
+                    ctx.fillStyle = '#FFD93D';
+                    ctx.beginPath();
+                    ctx.arc(80, 80, 35, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#A8E6CF';
+                    ctx.beginPath();
+                    ctx.moveTo(150, 50);
+                    ctx.lineTo(170, 100);
+                    ctx.lineTo(130, 100);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.fillStyle = '#6C5B7B';
+                    ctx.fillRect(140, 100, 20, 40);
+                    ctx.fillStyle = '#FF6B9D';
+                    ctx.beginPath();
+                    ctx.moveTo(200, 120);
+                    ctx.lineTo(240, 160);
+                    ctx.lineTo(200, 160);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.fillStyle = '#C06C84';
+                    ctx.fillRect(210, 160, 20, 40);
+                    break;
+                    
+                case 3: // Character
+                    ctx.fillStyle = '#355C7D';
+                    ctx.fillRect(0, 0, 300, 300);
+                    ctx.fillStyle = '#F67280';
+                    ctx.beginPath();
+                    ctx.arc(150, 80, 50, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = 'white';
+                    ctx.beginPath();
+                    ctx.ellipse(130, 75, 8, 12, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.ellipse(170, 75, 8, 12, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = 'black';
+                    ctx.beginPath();
+                    ctx.ellipse(130, 75, 4, 6, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.ellipse(170, 75, 4, 6, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(150, 95, 20, 0, Math.PI);
+                    ctx.stroke();
+                    ctx.fillStyle = '#F67280';
+                    ctx.beginPath();
+                    ctx.ellipse(150, 150, 45, 40, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#C06C84';
+                    ctx.fillRect(130, 190, 15, 50);
+                    ctx.fillRect(155, 190, 15, 50);
+                    ctx.fillStyle = '#6C5B7B';
+                    ctx.beginPath();
+                    ctx.ellipse(137, 240, 12, 8, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.ellipse(162, 240, 12, 8, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    break;
+                    
+                case 4: // House
+                    ctx.fillStyle = '#FAD02C';
+                    ctx.fillRect(0, 0, 300, 300);
+                    ctx.fillStyle = '#E63946';
+                    ctx.fillRect(50, 100, 200, 150);
+                    ctx.fillStyle = '#87CEEB';
+                    ctx.fillRect(100, 120, 40, 50);
+                    ctx.fillRect(160, 120, 40, 50);
+                    ctx.fillStyle = '#774936';
+                    ctx.fillRect(125, 190, 50, 60);
+                    ctx.fillStyle = '#D62828';
+                    ctx.beginPath();
+                    ctx.moveTo(150, 20);
+                    ctx.lineTo(50, 100);
+                    ctx.lineTo(250, 100);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.fillStyle = '#A8DADC';
+                    ctx.fillRect(140, 40, 20, 40);
+                    break;
+            }
+            
+            return canvas.toDataURL();
+        }
+        
+        const images = [
+            createPatternImage(0),
+            createPatternImage(1),
+            createPatternImage(2),
+            createPatternImage(3),
+            createPatternImage(4)
+        ];
+
+        function setDifficulty(size) {
+            gridSize = size;
+            const btns = document.querySelectorAll('.difficulty-btn');
+            btns.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            playTone(500, 0.1);
+            newGame();
+        }
+
+        function newGame() {
+            playTone(500, 0.1);
+            
+            // Select random image
+            currentImage = images[Math.floor(Math.random() * images.length)];
+            
+            // Calculate board size to fit screen
+            const maxSize = Math.min(window.innerWidth - 40, window.innerHeight - 300);
+            boardSize = Math.min(maxSize, 400);
+            pieceSize = boardSize / gridSize;
+            
+            const board = document.getElementById('puzzleBoard');
+            board.style.width = boardSize + 'px';
+            board.style.height = boardSize + 'px';
+            board.innerHTML = '';
+            
+            // Create pieces
+            pieces = [];
+            const positions = [];
+            
+            for (let i = 0; i < gridSize * gridSize; i++) {
+                positions.push(i);
+            }
+            
+            // Shuffle positions
+            for (let i = positions.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [positions[i], positions[j]] = [positions[j], positions[i]];
+            }
+            
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    const index = i * gridSize + j;
+                    const piece = document.createElement('div');
+                    piece.className = 'puzzle-piece';
+                    piece.style.width = pieceSize + 'px';
+                    piece.style.height = pieceSize + 'px';
+                    
+                    // Set background image with offset
+                    piece.style.backgroundImage = `url("${currentImage}")`;
+                    piece.style.backgroundPosition = `-${j * pieceSize}px -${i * pieceSize}px`;
+                    piece.style.backgroundSize = `${boardSize}px ${boardSize}px`;
+                    
+                    // Place at shuffled position
+                    const shuffledPos = positions[index];
+                    const shuffledRow = Math.floor(shuffledPos / gridSize);
+                    const shuffledCol = shuffledPos % gridSize;
+                    
+                    piece.style.left = (shuffledCol * pieceSize) + 'px';
+                    piece.style.top = (shuffledRow * pieceSize) + 'px';
+                    
+                    piece.dataset.correctRow = i;
+                    piece.dataset.correctCol = j;
+                    piece.dataset.currentRow = shuffledRow;
+                    piece.dataset.currentCol = shuffledCol;
+                    
+                    piece.addEventListener('mousedown', startDrag);
+                    piece.addEventListener('touchstart', startDrag, { passive: false });
+                    
+                    board.appendChild(piece);
+                    pieces.push(piece);
+                }
+            }
+            
+            document.getElementById('status').textContent = `Drag pieces to solve the ${gridSize}×${gridSize} puzzle!`;
+        }
+
+        function startDrag(e) {
+            e.preventDefault();
+            playTone(400, 0.05);
+            
+            draggedPiece = e.target;
+            draggedPiece.style.zIndex = 1000;
+            
+            const rect = draggedPiece.getBoundingClientRect();
+            const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+            const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+            
+            offsetX = clientX - rect.left;
+            offsetY = clientY - rect.top;
+            
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('touchmove', drag, { passive: false });
+            document.addEventListener('mouseup', endDrag);
+            document.addEventListener('touchend', endDrag);
+        }
+
+        function drag(e) {
+            if (!draggedPiece) return;
+            e.preventDefault();
+            
+            const board = document.getElementById('puzzleBoard');
+            const boardRect = board.getBoundingClientRect();
+            
+            const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+            const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+            
+            let newX = clientX - boardRect.left - offsetX;
+            let newY = clientY - boardRect.top - offsetY;
+            
+            // Keep within board bounds
+            newX = Math.max(0, Math.min(newX, boardSize - pieceSize));
+            newY = Math.max(0, Math.min(newY, boardSize - pieceSize));
+            
+            draggedPiece.style.left = newX + 'px';
+            draggedPiece.style.top = newY + 'px';
+        }
+
+        function endDrag(e) {
+            if (!draggedPiece) return;
+            
+            document.removeEventListener('mousemove', drag);
+            document.removeEventListener('touchmove', drag);
+            document.removeEventListener('mouseup', endDrag);
+            document.removeEventListener('touchend', endDrag);
+            
+            // Snap to grid
+            const currentLeft = parseFloat(draggedPiece.style.left);
+            const currentTop = parseFloat(draggedPiece.style.top);
+            
+            const col = Math.round(currentLeft / pieceSize);
+            const row = Math.round(currentTop / pieceSize);
+            
+            // Check if position is occupied by another piece
+            const occupiedPiece = pieces.find(p => 
+                p !== draggedPiece && 
+                parseInt(p.dataset.currentRow) === row && 
+                parseInt(p.dataset.currentCol) === col
+            );
+            
+            if (occupiedPiece) {
+                // Swap positions
+                const tempRow = parseInt(draggedPiece.dataset.currentRow);
+                const tempCol = parseInt(draggedPiece.dataset.currentCol);
+                
+                occupiedPiece.style.left = (tempCol * pieceSize) + 'px';
+                occupiedPiece.style.top = (tempRow * pieceSize) + 'px';
+                occupiedPiece.dataset.currentRow = tempRow;
+                occupiedPiece.dataset.currentCol = tempCol;
+            }
+            
+            draggedPiece.style.left = (col * pieceSize) + 'px';
+            draggedPiece.style.top = (row * pieceSize) + 'px';
+            draggedPiece.dataset.currentRow = row;
+            draggedPiece.dataset.currentCol = col;
+            
+            // Check if correct position
+            if (row == draggedPiece.dataset.correctRow && col == draggedPiece.dataset.correctCol) {
+                draggedPiece.classList.add('placed');
+                playTone(600, 0.1);
+            } else {
+                draggedPiece.classList.remove('placed');
+            }
+            
+            draggedPiece.style.zIndex = '';
+            draggedPiece = null;
+            
+            checkWin();
+        }
+
+        function checkWin() {
+            const allPlaced = pieces.every(piece => 
+                parseInt(piece.dataset.currentRow) == piece.dataset.correctRow &&
+                parseInt(piece.dataset.currentCol) == piece.dataset.correctCol
+            );
+            
+            if (allPlaced) {
+                playTone(800, 0.3);
+                document.getElementById('status').textContent = '🎉 Puzzle Complete! Great job!';
+            }
+        }
+
+        function getHint() {
+            playTone(600, 0.1);
+            
+            pieces.forEach(p => p.classList.remove('hint'));
+            
+            const misplacedPieces = pieces.filter(piece => 
+                parseInt(piece.dataset.currentRow) != piece.dataset.correctRow ||
+                parseInt(piece.dataset.currentCol) != piece.dataset.correctCol
+            );
+            
+            if (misplacedPieces.length === 0) {
+                document.getElementById('status').textContent = 'All pieces are in the right place!';
+                return;
+            }
+            
+            const randomPiece = misplacedPieces[Math.floor(Math.random() * misplacedPieces.length)];
+            randomPiece.classList.add('hint');
+            
+            const correctRow = parseInt(randomPiece.dataset.correctRow) + 1;
+            const correctCol = parseInt(randomPiece.dataset.correctCol) + 1;
+            document.getElementById('status').textContent = `Hint: Highlighted piece belongs in row ${correctRow}, column ${correctCol}`;
+            
+            setTimeout(() => {
+                randomPiece.classList.remove('hint');
+            }, 2000);
+        }
+
+        function checkSolution() {
+            playTone(500, 0.1);
+            
+            let correct = 0;
+            pieces.forEach(piece => {
+                if (parseInt(piece.dataset.currentRow) == piece.dataset.correctRow &&
+                    parseInt(piece.dataset.currentCol) == piece.dataset.correctCol) {
+                    piece.classList.add('placed');
+                    correct++;
+                } else {
+                    piece.classList.remove('placed');
+                }
+            });
+            
+            const total = gridSize * gridSize;
+            document.getElementById('status').textContent = `${correct}/${total} pieces correct`;
+            
+            if (correct === total) {
+                playTone(800, 0.3);
+                document.getElementById('status').textContent = '🎉 Puzzle Complete!';
+            }
+        }
+
+        function autoSolve() {
+            playTone(700, 0.15);
+            
+            pieces.forEach(piece => {
+                const correctRow = parseInt(piece.dataset.correctRow);
+                const correctCol = parseInt(piece.dataset.correctCol);
+                
+                piece.style.left = (correctCol * pieceSize) + 'px';
+                piece.style.top = (correctRow * pieceSize) + 'px';
+                piece.dataset.currentRow = correctRow;
+                piece.dataset.currentCol = correctCol;
+                piece.classList.add('placed');
+            });
+            
+            document.getElementById('status').textContent = '✓ Puzzle solved automatically!';
+        }
+
+        function showInstructions() {
+            playTone(500, 0.1);
+            document.getElementById('modal').classList.add('active');
+        }
+
+        function closeInstructions() {
+            playTone(500, 0.1);
+            document.getElementById('modal').classList.remove('active');
+        }
+
+        // Initialize game
+        newGame();
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            const maxSize = Math.min(window.innerWidth - 40, window.innerHeight - 300);
+            const newBoardSize = Math.min(maxSize, 400);
+            
+            if (Math.abs(newBoardSize - boardSize) > 20) {
+                newGame();
+            }
+        });
+    </script>
+</body>
+</html>
