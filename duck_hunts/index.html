@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Duck Hunt</title>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: 'Arial', sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+  position: fixed;
+  touch-action: none;
+}
+
+#game-container {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+#game-canvas {
+  flex: 1;
+  background: linear-gradient(180deg, #87CEEB 0%, #98D8E8 50%, #90EE90 100%);
+  cursor: crosshair;
+  touch-action: none;
+  position: relative;
+}
+
+#hud {
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hud-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.hud-item span {
+  font-weight: bold;
+  color: #FFD700;
+}
+
+#controls {
+  background: rgba(0, 0, 0, 0.7);
+  padding: 8px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
+  transition: all 0.3s;
+  flex: 1;
+  min-width: 70px;
+  max-width: 120px;
+}
+
+button:active {
+  transform: scale(0.95);
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
+.duck {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  font-size: 50px;
+  transition: transform 0.1s;
+  cursor: pointer;
+  user-select: none;
+}
+
+.duck.shot {
+  animation: fall 0.8s ease-in forwards;
+}
+
+@keyframes fall {
+  to {
+    transform: translateY(100vh) rotate(180deg);
+    opacity: 0;
+  }
+}
+
+.crosshair {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  pointer-events: none;
+  z-index: 1000;
+  display: none;
+}
+
+.crosshair::before,
+.crosshair::after {
+  content: '';
+  position: absolute;
+  background: red;
+}
+
+.crosshair::before {
+  width: 2px;
+  height: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.crosshair::after {
+  height: 2px;
+  width: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+#modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 2000;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+#modal.active {
+  display: flex;
+}
+
+.modal-content {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+  border-radius: 12px;
+  max-width: 400px;
+  width: 100%;
+  color: white;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-content h2 {
+  margin-bottom: 15px;
+  font-size: 20px;
+}
+
+.modal-content p {
+  margin-bottom: 10px;
+  line-height: 1.5;
+  font-size: 14px;
+}
+
+.modal-content button {
+  margin-top: 15px;
+  width: 100%;
+}
+
+.hint {
+  position: absolute;
+  background: rgba(255, 215, 0, 0.9);
+  color: #000;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: bold;
+  pointer-events: none;
+  z-index: 100;
+  animation: fadeOut 2s forwards;
+}
+
+@keyframes fadeOut {
+  0%, 70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.cloud {
+  position: absolute;
+  background: white;
+  border-radius: 100px;
+  opacity: 0.6;
+  animation: float linear infinite;
+}
+
+@keyframes float {
+  from { transform: translateX(-100px); }
+  to { transform: translateX(calc(100vw + 100px)); }
+}
+
+@media (max-width: 400px) {
+  #hud {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+  
+  button {
+    font-size: 11px;
+    padding: 6px 8px;
+    min-width: 60px;
+  }
+  
+  .duck {
+    width: 50px;
+    height: 50px;
+    font-size: 40px;
+  }
+}
+</style>
+</head>
+<body>
+<div id="game-container">
+  <div id="hud">
+    <div class="hud-item">Score: <span id="score">0</span></div>
+    <div class="hud-item">Ducks: <span id="ducks">0</span>/10</div>
+    <div class="hud-item">Ammo: <span id="ammo">3</span></div>
+    <div class="hud-item">Level: <span id="level">1</span></div>
+  </div>
+  
+  <div id="game-canvas"></div>
+  
+  <div id="controls">
+    <button id="new-game">New Game</button>
+    <button id="hint-btn">Hint</button>
+    <button id="instructions-btn">How to Play</button>
+  </div>
+  
+  <div class="crosshair" id="crosshair"></div>
+</div>
+
+<div id="modal">
+  <div class="modal-content">
+    <h2 id="modal-title">How to Play</h2>
+    <div id="modal-text">
+      <p><strong>🎯 Objective:</strong> Shoot all the ducks before they escape!</p>
+      <p><strong>🔫 Controls:</strong> Click or tap on ducks to shoot them.</p>
+      <p><strong>📊 Rules:</strong></p>
+      <p>• You have 3 shots per round of ducks</p>
+      <p>• Shoot 10 ducks to advance to the next level</p>
+      <p>• Each level gets faster and more challenging</p>
+      <p>• Missing all shots ends the round early</p>
+      <p><strong>💡 Hints:</strong> Use the Hint button to slow down time briefly!</p>
+      <p><strong>🏆 Scoring:</strong></p>
+      <p>• Hit duck: +100 points</p>
+      <p>• Level bonus: +500 points</p>
+    </div>
+    <button id="modal-close">Close</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('game-canvas');
+const scoreEl = document.getElementById('score');
+const ducksEl = document.getElementById('ducks');
+const ammoEl = document.getElementById('ammo');
+const levelEl = document.getElementById('level');
+const modal = document.getElementById('modal');
+const modalTitle = document.getElementById('modal-title');
+const modalText = document.getElementById('modal-text');
+const crosshair = document.getElementById('crosshair');
+
+let game = {
+  score: 0,
+  ducksShot: 0,
+  level: 1,
+  ammo: 3,
+  ducks: [],
+  roundActive: false,
+  hintActive: false
+};
+
+// Sound effects using Web Audio API
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playSound(type) {
+  const oscillator = audioCtx.createOscillator();
+  const gainNode = audioCtx.createGain();
+  
+  oscillator.connect(gainNode);
+  gainNode.connect(audioCtx.destination);
+  
+  if (type === 'shoot') {
+    oscillator.frequency.value = 200;
+    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+    oscillator.start(audioCtx.currentTime);
+    oscillator.stop(audioCtx.currentTime + 0.1);
+  } else if (type === 'hit') {
+    oscillator.frequency.value = 800;
+    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+    oscillator.start(audioCtx.currentTime);
+    oscillator.stop(audioCtx.currentTime + 0.2);
+  } else if (type === 'levelup') {
+    oscillator.frequency.value = 523.25;
+    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+    oscillator.start(audioCtx.currentTime);
+    oscillator.stop(audioCtx.currentTime + 0.5);
+  }
+}
+
+function createClouds() {
+  for (let i = 0; i < 3; i++) {
+    const cloud = document.createElement('div');
+    cloud.className = 'cloud';
+    cloud.style.width = Math.random() * 60 + 40 + 'px';
+    cloud.style.height = Math.random() * 30 + 20 + 'px';
+    cloud.style.top = Math.random() * 30 + 10 + '%';
+    cloud.style.left = Math.random() * 100 + '%';
+    cloud.style.animationDuration = Math.random() * 20 + 30 + 's';
+    cloud.style.animationDelay = Math.random() * 5 + 's';
+    canvas.appendChild(cloud);
+  }
+}
+
+function createDuck() {
+  const duck = document.createElement('div');
+  duck.className = 'duck';
+  duck.innerHTML = '🦆';
+  
+  const side = Math.random() > 0.5 ? 'left' : 'right';
+  const startY = Math.random() * (canvas.offsetHeight - 100) + 20;
+  const speed = 2 + game.level * 0.5;
+  
+  duck.style.left = side === 'left' ? '-60px' : canvas.offsetWidth + 'px';
+  duck.style.top = startY + 'px';
+  duck.dataset.side = side;
+  duck.dataset.speed = speed;
+  duck.dataset.vx = side === 'left' ? speed : -speed;
+  duck.dataset.vy = (Math.random() - 0.5) * 2;
+  
+  duck.addEventListener('click', shootDuck);
+  duck.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    shootDuck.call(duck, e);
+  });
+  
+  canvas.appendChild(duck);
+  game.ducks.push(duck);
+  
+  return duck;
+}
+
+function shootDuck(e) {
+  if (e) e.stopPropagation();
+  if (this.classList.contains('shot') || game.ammo <= 0) return;
+  
+  playSound('shoot');
+  game.ammo--;
+  ammoEl.textContent = game.ammo;
+  
+  playSound('hit');
+  this.classList.add('shot');
+  game.score += 100;
+  game.ducksShot++;
+  scoreEl.textContent = game.score;
+  ducksEl.textContent = game.ducksShot;
+  
+  showHint(this, '+100', '#FFD700');
+  
+  setTimeout(() => {
+    if (this.parentNode) this.remove();
+    game.ducks = game.ducks.filter(d => d !== this);
+  }, 800);
+  
+  if (game.ducksShot >= 10) {
+    setTimeout(levelUp, 1000);
+  } else if (game.ammo === 0) {
+    setTimeout(newRound, 1000);
+  }
+}
+
+function moveDucks() {
+  game.ducks.forEach(duck => {
+    if (duck.classList.contains('shot')) return;
+    
+    let x = parseFloat(duck.style.left);
+    let y = parseFloat(duck.style.top);
+    let vx = parseFloat(duck.dataset.vx);
+    let vy = parseFloat(duck.dataset.vy);
+    
+    const speed = game.hintActive ? 0.3 : 1;
+    
+    x += vx * speed;
+    y += vy * speed;
+    
+    if (y < 0 || y > canvas.offsetHeight - 60) {
+      vy = -vy;
+      duck.dataset.vy = vy;
+    }
+    
+    duck.style.left = x + 'px';
+    duck.style.top = y + 'px';
+    
+    if ((vx > 0 && x > canvas.offsetWidth + 60) || (vx < 0 && x < -60)) {
+      duck.remove();
+      game.ducks = game.ducks.filter(d => d !== duck);
+    }
+  });
+  
+  if (game.roundActive) {
+    requestAnimationFrame(moveDucks);
+  }
+}
+
+function newRound() {
+  game.ducks.forEach(d => d.remove());
+  game.ducks = [];
+  game.ammo = 3;
+  game.roundActive = true;
+  ammoEl.textContent = game.ammo;
+  
+  const numDucks = Math.min(2 + Math.floor(game.level / 2), 5);
+  
+  for (let i = 0; i < numDucks; i++) {
+    setTimeout(() => createDuck(), i * 800);
+  }
+  
+  moveDucks();
+}
+
+function levelUp() {
+  game.level++;
+  game.score += 500;
+  game.ducksShot = 0;
+  levelEl.textContent = game.level;
+  scoreEl.textContent = game.score;
+  ducksEl.textContent = game.ducksShot;
+  
+  playSound('levelup');
+  showModal('Level Up! 🎉', `
+    <p>Congratulations! You've reached Level ${game.level}!</p>
+    <p>Bonus: +500 points</p>
+    <p>Get ready for faster ducks!</p>
+  `);
+  
+  setTimeout(() => {
+    modal.classList.remove('active');
+    newRound();
+  }, 2000);
+}
+
+function newGame() {
+  game.score = 0;
+  game.ducksShot = 0;
+  game.level = 1;
+  game.ammo = 3;
+  game.roundActive = false;
+  
+  game.ducks.forEach(d => d.remove());
+  game.ducks = [];
+  
+  scoreEl.textContent = game.score;
+  ducksEl.textContent = game.ducksShot;
+  levelEl.textContent = game.level;
+  ammoEl.textContent = game.ammo;
+  
+  newRound();
+}
+
+function showHint(element, text, color) {
+  const hint = document.createElement('div');
+  hint.className = 'hint';
+  hint.textContent = text;
+  hint.style.backgroundColor = color;
+  hint.style.left = element.offsetLeft + 'px';
+  hint.style.top = element.offsetTop + 'px';
+  canvas.appendChild(hint);
+  
+  setTimeout(() => hint.remove(), 2000);
+}
+
+function useHint() {
+  if (game.hintActive) return;
+  
+  game.hintActive = true;
+  showHint({offsetLeft: canvas.offsetWidth / 2 - 50, offsetTop: 50}, 'Slow Motion!', '#00FF00');
+  
+  setTimeout(() => {
+    game.hintActive = false;
+  }, 3000);
+}
+
+function showModal(title, text) {
+  modalTitle.textContent = title;
+  modalText.innerHTML = text;
+  modal.classList.add('active');
+}
+
+// Event listeners
+document.getElementById('new-game').addEventListener('click', newGame);
+document.getElementById('hint-btn').addEventListener('click', useHint);
+document.getElementById('instructions-btn').addEventListener('click', () => {
+  showModal('How to Play', `
+    <p><strong>🎯 Objective:</strong> Shoot all the ducks before they escape!</p>
+    <p><strong>🔫 Controls:</strong> Click or tap on ducks to shoot them.</p>
+    <p><strong>📊 Rules:</strong></p>
+    <p>• You have 3 shots per round of ducks</p>
+    <p>• Shoot 10 ducks to advance to the next level</p>
+    <p>• Each level gets faster and more challenging</p>
+    <p>• Missing all shots ends the round early</p>
+    <p><strong>💡 Hints:</strong> Use the Hint button to slow down time briefly!</p>
+    <p><strong>🏆 Scoring:</strong></p>
+    <p>• Hit duck: +100 points</p>
+    <p>• Level bonus: +500 points</p>
+  `);
+});
+
+document.getElementById('modal-close').addEventListener('click', () => {
+  modal.classList.remove('active');
+});
+
+canvas.addEventListener('click', (e) => {
+  if (game.ammo > 0 && e.target === canvas) {
+    playSound('shoot');
+    game.ammo--;
+    ammoEl.textContent = game.ammo;
+    
+    if (game.ammo === 0 && game.ducks.length > 0) {
+      setTimeout(newRound, 500);
+    }
+  }
+});
+
+// Crosshair effect on desktop
+canvas.addEventListener('mousemove', (e) => {
+  if (window.innerWidth > 768) {
+    crosshair.style.display = 'block';
+    crosshair.style.left = e.clientX - 20 + 'px';
+    crosshair.style.top = e.clientY - 20 + 'px';
+  }
+});
+
+canvas.addEventListener('mouseleave', () => {
+  crosshair.style.display = 'none';
+});
+
+// Initialize
+createClouds();
+newGame();
+</script>
+</body>
+</html>
