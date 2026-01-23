@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Platform Rotation Puzzle</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        .container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px;
+        }
+
+        .header {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .title {
+            color: white;
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .btn {
+            background: rgba(255,255,255,0.2);
+            border: 2px solid rgba(255,255,255,0.4);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: bold;
+            transition: all 0.3s;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+            background: rgba(255,255,255,0.3);
+        }
+
+        .game-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .canvas-container {
+            position: relative;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+
+        canvas {
+            display: block;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.95);
+            touch-action: none;
+        }
+
+        .controls {
+            width: 100%;
+            max-width: 500px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            padding-bottom: 10px;
+        }
+
+        .control-btn {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border: none;
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: all 0.3s;
+        }
+
+        .control-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            max-width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .modal h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .modal p {
+            line-height: 1.6;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .close-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+
+        .status {
+            color: white;
+            font-size: 0.9rem;
+            text-align: center;
+            margin: 5px 0;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+
+        @media (max-width: 400px) {
+            .title {
+                font-size: 1rem;
+            }
+            .btn {
+                padding: 6px 10px;
+                font-size: 0.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title">🔄 Platform Rotation</div>
+            <button class="btn" id="helpBtn">❓ Help</button>
+        </div>
+
+        <div class="status" id="status">Align all platforms horizontally!</div>
+
+        <div class="game-area">
+            <div class="canvas-container">
+                <canvas id="gameCanvas"></canvas>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="control-btn" id="rotateCWBtn">↻ Rotate CW</button>
+            <button class="control-btn" id="rotateCCWBtn">↺ Rotate CCW</button>
+            <button class="control-btn" id="checkBtn">✓ Check</button>
+            <button class="control-btn" id="newBtn">🔄 New</button>
+        </div>
+    </div>
+
+    <div class="modal" id="instructionsModal">
+        <div class="modal-content">
+            <h2>How to Play</h2>
+            <p><strong>Goal:</strong> Align all platforms horizontally by rotating the world!</p>
+            <p><strong>Controls:</strong></p>
+            <p>• Tap a platform to select it (highlighted in blue)</p>
+            <p>• Use "Rotate CW" or "Rotate CCW" to rotate the selected platform</p>
+            <p>• All platforms connected to the selected one will rotate together</p>
+            <p>• Click "Check" to verify your solution</p>
+            <p>• Click "New" to generate a fresh puzzle</p>
+            <p><strong>Tip:</strong> Start with platforms on the outer edges and work your way inward!</p>
+            <button class="close-btn" id="closeBtn">Got it!</button>
+        </div>
+    </div>
+
+    <script>
+        // Initialize variables first
+        let platforms = [];
+        let selectedPlatform = null;
+        let animating = false;
+        let audioCtx = null;
+        
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Initialize audio context on user interaction
+        function initAudio() {
+            if (!audioCtx) {
+                try {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                } catch(e) {
+                    console.log('Audio not supported');
+                }
+            }
+        }
+        
+        function playSound(frequency, duration, type = 'sine') {
+            initAudio();
+            if (!audioCtx) return;
+            
+            try {
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                oscillator.frequency.value = frequency;
+                oscillator.type = type;
+                
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+                
+                oscillator.start(audioCtx.currentTime);
+                oscillator.stop(audioCtx.currentTime + duration);
+            } catch(e) {
+                // Silent fail
+            }
+        }
+
+        class Platform {
+            constructor(x, y, width, height, angle) {
+                this.x = x;
+                this.y = y;
+                this.width = width;
+                this.height = height;
+                this.angle = angle;
+                this.targetAngle = angle;
+                this.connections = [];
+            }
+
+            draw(isSelected) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+                
+                ctx.shadowColor = 'rgba(0,0,0,0.3)';
+                ctx.shadowBlur = 10;
+                ctx.shadowOffsetX = 3;
+                ctx.shadowOffsetY = 3;
+                
+                ctx.fillStyle = isSelected ? '#4299e1' : '#2d3748';
+                ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+                
+                ctx.strokeStyle = isSelected ? '#2b6cb0' : '#1a202c';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(-this.width/2, -this.height/2, this.width, this.height);
+                
+                ctx.restore();
+            }
+
+            contains(px, py) {
+                const dx = px - this.x;
+                const dy = py - this.y;
+                const cos = Math.cos(-this.angle);
+                const sin = Math.sin(-this.angle);
+                const localX = dx * cos - dy * sin;
+                const localY = dx * sin + dy * cos;
+                
+                return Math.abs(localX) <= this.width/2 && Math.abs(localY) <= this.height/2;
+            }
+
+            isHorizontal() {
+                const normalized = ((this.angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+                return Math.abs(normalized) < 0.1 || Math.abs(normalized - Math.PI * 2) < 0.1 || Math.abs(normalized - Math.PI) < 0.1;
+            }
+        }
+
+        function resizeCanvas() {
+            const maxSize = Math.min(window.innerWidth - 60, window.innerHeight - 280, 450);
+            canvas.width = maxSize;
+            canvas.height = maxSize;
+            if (platforms.length > 0) {
+                draw();
+            }
+        }
+
+        function generateSolvablePuzzle() {
+            platforms = [];
+            const center = canvas.width / 2;
+            const size = Math.min(canvas.width, canvas.height);
+            const platformSize = size * 0.15;
+            const spacing = size * 0.25;
+            
+            const positions = [
+                {x: center - spacing, y: center - spacing},
+                {x: center + spacing, y: center - spacing},
+                {x: center - spacing, y: center + spacing},
+                {x: center + spacing, y: center + spacing},
+                {x: center, y: center}
+            ];
+            
+            positions.forEach(pos => {
+                platforms.push(new Platform(pos.x, pos.y, platformSize, platformSize * 0.3, 0));
+            });
+            
+            platforms[0].connections = [1, 4];
+            platforms[1].connections = [0, 4];
+            platforms[2].connections = [3, 4];
+            platforms[3].connections = [2, 4];
+            platforms[4].connections = [0, 1, 2, 3];
+            
+            const scrambles = 5 + Math.floor(Math.random() * 5);
+            for (let i = 0; i < scrambles; i++) {
+                const randomPlatform = Math.floor(Math.random() * platforms.length);
+                const randomAngle = (Math.random() < 0.5 ? Math.PI/2 : -Math.PI/2);
+                const toRotate = new Set([randomPlatform]);
+                platforms[randomPlatform].connections.forEach(c => toRotate.add(c));
+                
+                toRotate.forEach(index => {
+                    platforms[index].angle += randomAngle;
+                    platforms[index].targetAngle = platforms[index].angle;
+                });
+            }
+            
+            selectedPlatform = null;
+        }
+
+        function rotatePlatformGroup(index, angleChange) {
+            const toRotate = new Set([index]);
+            platforms[index].connections.forEach(c => toRotate.add(c));
+            
+            toRotate.forEach(i => {
+                platforms[i].targetAngle = platforms[i].angle + angleChange;
+            });
+            
+            animate();
+        }
+
+        function animate() {
+            if (animating) return;
+            animating = true;
+            
+            const startTime = Date.now();
+            const duration = 300;
+            
+            const startAngles = platforms.map(p => p.angle);
+            const targetAngles = platforms.map(p => p.targetAngle);
+            
+            function step() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                
+                platforms.forEach((p, i) => {
+                    p.angle = startAngles[i] + (targetAngles[i] - startAngles[i]) * eased;
+                });
+                
+                draw();
+                
+                if (progress < 1) {
+                    requestAnimationFrame(step);
+                } else {
+                    animating = false;
+                    platforms.forEach(p => p.angle = p.targetAngle);
+                }
+            }
+            
+            step();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            
+            platforms.forEach((p, i) => {
+                p.connections.forEach(c => {
+                    if (c > i) {
+                        ctx.beginPath();
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(platforms[c].x, platforms[c].y);
+                        ctx.stroke();
+                    }
+                });
+            });
+            
+            ctx.setLineDash([]);
+            
+            platforms.forEach((p, i) => {
+                p.draw(i === selectedPlatform);
+            });
+        }
+
+        function handleCanvasClick(e) {
+            if (animating) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+            
+            let found = false;
+            for (let i = platforms.length - 1; i >= 0; i--) {
+                if (platforms[i].contains(x, y)) {
+                    selectedPlatform = i;
+                    playSound(400, 0.1);
+                    found = true;
+                    break;
+                }
+            }
+            
+            if (!found) {
+                selectedPlatform = null;
+            }
+            
+            draw();
+        }
+
+        function rotateCW() {
+            if (selectedPlatform === null || animating) {
+                playSound(200, 0.1);
+                return;
+            }
+            playSound(600, 0.15);
+            rotatePlatformGroup(selectedPlatform, -Math.PI / 2);
+        }
+
+        function rotateCCW() {
+            if (selectedPlatform === null || animating) {
+                playSound(200, 0.1);
+                return;
+            }
+            playSound(600, 0.15);
+            rotatePlatformGroup(selectedPlatform, Math.PI / 2);
+        }
+
+        function checkSolution() {
+            const allHorizontal = platforms.every(p => p.isHorizontal());
+            
+            if (allHorizontal) {
+                playSound(800, 0.3, 'square');
+                setTimeout(() => playSound(1000, 0.3, 'square'), 150);
+                document.getElementById('status').textContent = '🎉 Perfect! All platforms aligned!';
+                setTimeout(() => {
+                    newPuzzle();
+                }, 2000);
+            } else {
+                playSound(200, 0.2);
+                document.getElementById('status').textContent = '❌ Not quite! Keep trying!';
+                setTimeout(() => {
+                    document.getElementById('status').textContent = 'Align all platforms horizontally!';
+                }, 2000);
+            }
+        }
+
+        function newPuzzle() {
+            playSound(500, 0.2);
+            generateSolvablePuzzle();
+            document.getElementById('status').textContent = 'Align all platforms horizontally!';
+            draw();
+        }
+
+        function showInstructions() {
+            playSound(450, 0.1);
+            document.getElementById('instructionsModal').style.display = 'flex';
+        }
+
+        function closeInstructions() {
+            playSound(450, 0.1);
+            document.getElementById('instructionsModal').style.display = 'none';
+        }
+
+        // Event listeners
+        window.addEventListener('resize', resizeCanvas);
+        canvas.addEventListener('click', handleCanvasClick);
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('click', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            canvas.dispatchEvent(mouseEvent);
+        });
+
+        document.getElementById('rotateCWBtn').addEventListener('click', rotateCW);
+        document.getElementById('rotateCCWBtn').addEventListener('click', rotateCCW);
+        document.getElementById('checkBtn').addEventListener('click', checkSolution);
+        document.getElementById('newBtn').addEventListener('click', newPuzzle);
+        document.getElementById('helpBtn').addEventListener('click', showInstructions);
+        document.getElementById('closeBtn').addEventListener('click', closeInstructions);
+
+        // Initialize
+        resizeCanvas();
+        generateSolvablePuzzle();
+        draw();
+    </script>
+</body>
+</html>
