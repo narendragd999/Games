@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Broken Calculator</title>
+    <style>
+        :root {
+            --bg-grad: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            --screen-bg: #9ea792;
+            --screen-text: #111;
+            --btn-bg: #333;
+            --btn-text: #fff;
+            --accent: #ff0055;
+            --success: #00e676;
+            --font-main: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            --font-mono: 'Courier New', Courier, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            touch-action: manipulation; /* Prevents double-tap zoom */
+            user-select: none; /* Prevents text selection */
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100dvh; /* Dynamic viewport height for mobile browsers */
+            background: var(--bg-grad);
+            font-family: var(--font-main);
+            color: white;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Game Container */
+        #game-container {
+            width: 100%;
+            max-width: 450px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            position: relative;
+        }
+
+        /* Header / Info Bar */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 5px 10px 5px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            margin-bottom: 15px;
+        }
+
+        .level-badge {
+            background: rgba(255,255,255,0.1);
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        .moves-info {
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        /* Calculator Screen */
+        .calc-screen {
+            background: var(--screen-bg);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            height: 120px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .target-display {
+            font-size: 0.9rem;
+            color: #333;
+            opacity: 0.7;
+            margin-bottom: 5px;
+        }
+
+        .main-display {
+            font-family: var(--font-mono);
+            font-size: 3.5rem;
+            color: var(--screen-text);
+            font-weight: bold;
+            white-space: nowrap;
+            overflow: hidden;
+            transition: transform 0.1s;
+        }
+
+        /* Animation classes for screen feedback */
+        .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+        .flash-green { animation: flashG 0.3s ease-out; }
+        .flash-red { animation: flashR 0.3s ease-out; }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            20%, 80% { transform: translate3d(4px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+            40%, 60% { transform: translate3d(6px, 0, 0); }
+        }
+        @keyframes flashG { 0% { background: var(--screen-bg); } 50% { background: var(--success); } 100% { background: var(--screen-bg); } }
+        @keyframes flashR { 0% { background: var(--screen-bg); } 50% { background: var(--accent); } 100% { background: var(--screen-bg); } }
+
+        /* Controls Area */
+        .controls-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        /* Keypad Grid */
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            flex: 1; /* Take available space */
+        }
+
+        .key-btn {
+            background: var(--btn-bg);
+            border: none;
+            border-radius: 12px;
+            color: var(--btn-text);
+            font-size: 1.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #000;
+            transition: transform 0.1s, box-shadow 0.1s, background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .key-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #000;
+        }
+
+        .key-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+            background: #222;
+        }
+
+        /* Special button styles */
+        .btn-op { background: #444; }
+        .btn-utility { font-size: 1rem; background: #2a2a40; }
+
+        /* Bottom Actions */
+        .actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .action-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: background 0.2s;
+        }
+
+        .action-btn:hover { background: rgba(255,255,255,0.2); }
+        .btn-solve { background: var(--accent); border-color: transparent; }
+        .btn-solve:hover { background: #d40047; }
+
+        /* Modals / Popups */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-content {
+            background: #222;
+            padding: 30px;
+            border-radius: 16px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            border: 1px solid #444;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .modal-title { font-size: 1.5rem; margin-bottom: 15px; color: var(--success); }
+        .modal-text { font-size: 1rem; color: #ccc; margin-bottom: 25px; line-height: 1.5; }
+        
+        .modal-btn {
+            background: var(--success);
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: absolute;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255,255,255,0.9);
+            color: #000;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            pointer-events: none;
+            z-index: 50;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(10px); }
+
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- Header -->
+        <header>
+            <div class="level-badge" id="level-indicator">Level 1</div>
+            <div class="moves-info">Moves: <span id="moves-left">0</span></div>
+            <button class="action-btn" style="padding: 5px 10px; font-size: 0.8rem;" onclick="game.showInstructions()">?</button>
+        </header>
+
+        <!-- Screen -->
+        <div class="calc-screen" id="screen-element">
+            <div class="target-display">Target: <span id="target-display-val">0</span></div>
+            <div class="main-display" id="main-display">0</div>
+        </div>
+
+        <!-- Toast -->
+        <div id="toast" class="toast">Hint!</div>
+
+        <!-- Controls -->
+        <div class="controls-area">
+            <div class="keypad" id="keypad">
+                <!-- Buttons generated by JS -->
+            </div>
+
+            <div class="actions">
+                <button class="action-btn" onclick="game.resetLevel()">Reset</button>
+                <button class="action-btn" onclick="game.showHint()">Hint</button>
+                <button class="action-btn btn-solve" onclick="game.autoSolve()">Auto Solve</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instructions Modal -->
+    <div id="modal-instructions" class="modal-overlay">
+        <div class="modal-content">
+            <h2 class="modal-title" style="color:white;">How to Play</h2>
+            <div class="modal-text" style="text-align: left;">
+                1. Reach the <b>Target Number</b> using the provided buttons.<br>
+                2. You have a limited number of <b>Moves</b>.<br>
+                3. Some buttons might be broken or behave differently!<br>
+                4. Use <b>Hint</b> if you're stuck or <b>Auto Solve</b> to see the path.
+            </div>
+            <button class="modal-btn" onclick="game.closeModal('modal-instructions')">Got it!</button>
+        </div>
+    </div>
+
+    <!-- Level Complete Modal -->
+    <div id="modal-win" class="modal-overlay">
+        <div class="modal-content">
+            <h2 class="modal-title">System Restored!</h2>
+            <div class="modal-text">Target reached successfully.</div>
+            <button class="modal-btn" onclick="game.nextLevel()">Next Level</button>
+        </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="modal-lose" class="modal-overlay">
+        <div class="modal-content">
+            <h2 class="modal-title" style="color: var(--accent);">Calculation Error</h2>
+            <div class="modal-text">You ran out of moves.</div>
+            <button class="modal-btn" onclick="game.resetLevel()">Try Again</button>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * Broken Calculator Game Logic
+         */
+        class BrokenCalculator {
+            constructor() {
+                this.currentLevelIdx = 0;
+                this.currentValue = 0;
+                this.movesLeft = 0;
+                this.isSolving = false; // Prevents user interaction during auto-solve
+
+                // DOM Elements
+                this.elDisplay = document.getElementById('main-display');
+                this.elTarget = document.getElementById('target-display-val');
+                this.elMoves = document.getElementById('moves-left');
+                this.elLevel = document.getElementById('level-indicator');
+                this.elKeypad = document.getElementById('keypad');
+                this.elScreenBox = document.getElementById('screen-element');
+                this.elToast = document.getElementById('toast');
+
+                // Audio Context
+                this.audioCtx = null;
+
+                // Levels Definition
+                this.levels = [
+                    {
+                        start: 0,
+                        target: 10,
+                        moves: 5,
+                        buttons: [
+                            { label: '+1', type: 'add', val: 1 },
+                            { label: '+2', type: 'add', val: 2 },
+                            { label: '+5', type: 'add', val: 5 }
+                        ]
+                    },
+                    {
+                        start: 1,
+                        target: 20,
+                        moves: 6,
+                        buttons: [
+                            { label: 'x2', type: 'mult', val: 2 },
+                            { label: '+1', type: 'add', val: 1 },
+                            { label: '-1', type: 'sub', val: 1 }
+                        ]
+                    },
+                    {
+                        start: 100,
+                        target: 1,
+                        moves: 4,
+                        buttons: [
+                            { label: '/2', type: 'div', val: 2 },
+                            { label: '-1', type: 'sub', val: 1 },
+                            { label: '<<', type: 'backspace' } // Remove last digit
+                        ]
+                    },
+                    {
+                        start: 3,
+                        target: 33,
+                        moves: 5,
+                        buttons: [
+                            { label: 'x2', type: 'mult', val: 2 },
+                            { label: '+3', type: 'add', val: 3 },
+                            { label: '-3', type: 'sub', val: 3 }
+                        ]
+                    },
+                    {
+                        start: 0,
+                        target: 99,
+                        moves: 6,
+                        buttons: [
+                            { label: '+9', type: 'add', val: 9 },
+                            { label: 'x9', type: 'mult', val: 9 },
+                            { label: '-1', type: 'sub', val: 1 }
+                        ]
+                    }
+                ];
+
+                this.init();
+            }
+
+            init() {
+                // Initialize Audio Context on first interaction
+                document.addEventListener('click', () => {
+                    if (!this.audioCtx) {
+                        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    }
+                }, { once: true });
+
+                this.loadLevel(this.currentLevelIdx);
+                
+                // Show instructions on first load
+                if(this.currentLevelIdx === 0) {
+                    this.showInstructions();
+                }
+            }
+
+            loadLevel(idx) {
+                if (idx >= this.levels.length) {
+                    // Loop back or show end game (Looping for infinite play feel)
+                    this.currentLevelIdx = 0;
+                    idx = 0;
+                }
+                
+                const level = this.levels[idx];
+                this.startVal = level.start;
+                this.targetVal = level.target;
+                this.maxMoves = level.moves;
+                this.currentButtons = JSON.parse(JSON.stringify(level.buttons)); // Deep copy
+                
+                this.resetLevel();
+            }
+
+            resetLevel() {
+                this.currentValue = this.startVal;
+                this.movesLeft = this.maxMoves;
+                this.isSolving = false;
+                this.updateUI();
+                this.renderKeypad();
+                this.elScreenBox.classList.remove('flash-green', 'flash-red');
+            }
+
+            renderKeypad() {
+                this.elKeypad.innerHTML = '';
+                this.currentButtons.forEach((btn, index) => {
+                    const button = document.createElement('button');
+                    button.className = 'key-btn btn-op';
+                    button.textContent = btn.label;
+                    button.onclick = () => this.handleInput(index);
+                    button.disabled = false;
+                    this.elKeypad.appendChild(button);
+                });
+            }
+
+            handleInput(btnIndex) {
+                if (this.movesLeft <= 0 || this.isSolving) return;
+
+                const btn = this.currentButtons[btnIndex];
+                const oldVal = this.currentValue;
+                let newVal = oldVal;
+
+                // Apply Logic
+                switch(btn.type) {
+                    case 'add': newVal += btn.val; break;
+                    case 'sub': newVal -= btn.val; break;
+                    case 'mult': newVal *= btn.val; break;
+                    case 'div': newVal = Math.floor(newVal / btn.val); break;
+                    case 'backspace': 
+                        let s = newVal.toString();
+                        newVal = s.length > 1 ? parseInt(s.slice(0, -1)) : 0; 
+                        break;
+                    case 'append':
+                        newVal = parseInt(oldVal.toString() + btn.val.toString());
+                        break;
+                }
+
+                // Play Sound
+                this.playTone(400, 'sine', 0.1);
+
+                // Update State
+                this.currentValue = newVal;
+                this.movesLeft--;
+
+                // Visual Feedback
+                if(newVal !== oldVal) {
+                    this.updateUI();
+                    this.checkGameState();
+                } else {
+                    this.movesLeft++; // Refund move if value didn't change
+                    this.shakeScreen();
+                    this.playTone(150, 'sawtooth', 0.2); // Error sound
+                }
+            }
+
+            checkGameState() {
+                if (this.currentValue === this.targetVal) {
+                    this.playTone(600, 'sine', 0.1);
+                    setTimeout(() => this.playTone(800, 'sine', 0.2), 150);
+                    this.elScreenBox.classList.add('flash-green');
+                    setTimeout(() => {
+                        this.openModal('modal-win');
+                    }, 500);
+                } else if (this.movesLeft <= 0) {
+                    this.elScreenBox.classList.add('flash-red');
+                    this.playTone(100, 'sawtooth', 0.4);
+                    setTimeout(() => {
+                        this.openModal('modal-lose');
+                    }, 800);
+                }
+            }
+
+            updateUI() {
+                this.elDisplay.textContent = this.currentValue;
+                this.elTarget.textContent = this.targetVal;
+                this.elMoves.textContent = this.movesLeft;
+                this.elLevel.textContent = `Level ${this.currentLevelIdx + 1}`;
+            }
+
+            // --- Audio System ---
+            playTone(freq, type, duration) {
+                if (!this.audioCtx) return;
+                const osc = this.audioCtx.createOscillator();
+                const gain = this.audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.1, this.audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(this.audioCtx.destination);
+                osc.start();
+                osc.stop(this.audioCtx.currentTime + duration);
+            }
+
+            // --- UI Helpers ---
+            shakeScreen() {
+                this.elScreenBox.classList.remove('shake');
+                void this.elScreenBox.offsetWidth; // Trigger reflow
+                this.elScreenBox.classList.add('shake');
+            }
+
+            showToast(msg) {
+                this.elToast.textContent = msg;
+                this.elToast.classList.add('show');
+                setTimeout(() => this.elToast.classList.remove('show'), 2000);
+            }
+
+            showInstructions() { this.openModal('modal-instructions'); }
+            
+            openModal(id) { document.getElementById(id).classList.add('active'); }
+            closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+            nextLevel() {
+                this.closeModal('modal-win');
+                this.currentLevelIdx++;
+                this.loadLevel(this.currentLevelIdx);
+            }
+
+            // --- Solver (BFS) ---
+            async autoSolve() {
+                if(this.isSolving) return;
+                
+                // Reset to start state before solving
+                this.currentValue = this.startVal;
+                this.movesLeft = this.maxMoves;
+                this.updateUI();
+
+                const solution = this.solveBFS(this.startVal, this.targetVal, this.maxMoves, this.currentButtons);
+                
+                if (solution) {
+                    this.isSolving = true;
+                    this.showToast("Auto-solving...");
+                    for (let move of solution) {
+                        await new Promise(r => setTimeout(r, 800)); // Delay between moves
+                        // Visual click effect
+                        const btns = this.elKeypad.children;
+                        // Find the button matching the move label (simple string match)
+                        for(let btn of btns) {
+                            if(btn.textContent === move.label) {
+                                btn.style.background = "var(--success)";
+                                setTimeout(() => btn.style.background = "", 400);
+                            }
+                        }
+                        // Apply Logic manually to trigger UI updates correctly without extra recursion
+                        const oldVal = this.currentValue;
+                        let newVal = oldVal;
+                        switch(move.type) {
+                            case 'add': newVal += move.val; break;
+                            case 'sub': newVal -= move.val; break;
+                            case 'mult': newVal *= move.val; break;
+                            case 'div': newVal = Math.floor(newVal / move.val); break;
+                            case 'backspace': 
+                                let s = newVal.toString();
+                                newVal = s.length > 1 ? parseInt(s.slice(0, -1)) : 0; 
+                                break;
+                        }
+                        this.currentValue = newVal;
+                        this.movesLeft--;
+                        this.updateUI();
+                        this.playTone(600, 'sine', 0.05);
+                    }
+                    this.isSolving = false;
+                    this.checkGameState();
+                } else {
+                    this.showToast("No solution found!");
+                    this.shakeScreen();
+                }
+            }
+
+            solveBFS(start, target, maxMoves, buttons) {
+                // Queue stores: { value, path: [] }
+                // path stores the button objects needed to get there
+                let queue = [{ value: start, path: [] }];
+                let visited = new Set();
+                visited.add(start);
+
+                while (queue.length > 0) {
+                    let { value, path } = queue.shift();
+
+                    if (value === target) {
+                        return path;
+                    }
+
+                    if (path.length >= maxMoves) continue;
+
+                    for (let btn of buttons) {
+                        let nextVal = value;
+                        switch(btn.type) {
+                            case 'add': nextVal += btn.val; break;
+                            case 'sub': nextVal -= btn.val; break;
+                            case 'mult': nextVal *= btn.val; break;
+                            case 'div': nextVal = Math.floor(nextVal / btn.val); break;
+                            case 'backspace': 
+                                let s = nextVal.toString();
+                                nextVal = s.length > 1 ? parseInt(s.slice(0, -1)) : 0; 
+                                break;
+                        }
+
+                        // Limit values to prevent infinite loops/overflow (heuristic)
+                        if (nextVal < 0 || nextVal > 9999) continue;
+                        if (!visited.has(nextVal)) {
+                            visited.add(nextVal);
+                            queue.push({ 
+                                value: nextVal, 
+                                path: [...path, btn] 
+                            });
+                        }
+                    }
+                }
+                return null;
+            }
+
+            showHint() {
+                const solution = this.solveBFS(this.currentValue, this.targetVal, this.movesLeft, this.currentButtons);
+                if(solution && solution.length > 0) {
+                    this.showToast(`Try: ${solution[0].label}`);
+                } else {
+                    this.showToast("No possible moves!");
+                }
+            }
+        }
+
+        // Initialize Game
+        const game = new BrokenCalculator();
+
+    </script>
+</body>
+</html>
