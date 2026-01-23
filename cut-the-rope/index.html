@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cut the Rope: Compact Swing</title>
+    <!-- Matter.js Physics Engine -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js" onerror="document.getElementById('error-msg').style.display='block';"></script>
+    <style>
+        :root {
+            --primary: #ff4081;
+            --accent: #00e676;
+            --dark: #1a1a2e;
+            --text: #ffffff;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+
+        body {
+            margin: 0; padding: 0; overflow: hidden;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #1a1a2e; 
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: var(--text);
+            height: 100vh; width: 100vw;
+            display: flex; flex-direction: column; align-items: center;
+            touch-action: none;
+        }
+
+        /* Error Display */
+        #error-msg {
+            display: none; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%); background: rgba(255,0,0,0.9);
+            color: white; padding: 20px; text-align: center; z-index: 999; border-radius: 10px;
+            max-width: 80%;
+        }
+
+        /* UI Layer */
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: flex; flex-direction: column;
+            justify-content: space-between; z-index: 10;
+        }
+
+        header {
+            padding: 15px; display: flex; justify-content: space-between; align-items: center;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent); pointer-events: auto;
+        }
+
+        .score-box {
+            font-size: 1.2rem; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            background: rgba(255, 255, 255, 0.15); padding: 8px 16px; border-radius: 20px;
+            backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        footer {
+            padding: 15px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+            pointer-events: auto; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            padding-bottom: max(15px, env(safe-area-inset-bottom));
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255,255,255,0.2);
+            color: white; padding: 12px; border-radius: 12px; font-size: 0.9rem;
+            font-weight: 600; cursor: pointer; transition: all 0.2s;
+            backdrop-filter: blur(4px); display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 4px;
+        }
+
+        button:active { transform: scale(0.95); background: rgba(255, 255, 255, 0.3); }
+        button.primary { background: var(--primary); border-color: var(--primary); }
+
+        #game-canvas {
+            position: absolute; top: 0; left: 0; z-index: 1; width: 100%; height: 100%;
+        }
+
+        /* Modals */
+        .modal-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 100;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal-content {
+            background: linear-gradient(135deg, #2a2a40, #1a1a2e);
+            padding: 30px; border-radius: 20px; text-align: center;
+            max-width: 90%; width: 350px; border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        h1, h2 { margin-top: 0; color: var(--accent); }
+        p { line-height: 1.5; color: #ccc; margin-bottom: 20px; }
+        
+        .status-badge { display: inline-block; padding: 5px 10px; border-radius: 5px; font-size: 0.8rem; margin-bottom: 10px; font-weight: bold; }
+        .win { background: var(--accent); color: #000; }
+        .lose { background: var(--primary); color: #fff; }
+
+        #toast {
+            position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8); padding: 15px 25px; border-radius: 30px;
+            font-size: 1.1rem; pointer-events: none; opacity: 0;
+            transition: opacity 0.5s; z-index: 50; text-align: center; white-space: nowrap;
+            width: 80%; max-width: 400px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="error-msg">
+        <h3>Loading Error</h3>
+        <p>Physics engine (Matter.js) failed to load.<br>Please check your internet connection.</p>
+    </div>
+
+    <canvas id="game-canvas"></canvas>
+
+    <div id="ui-layer">
+        <header>
+            <div class="score-box">Level: <span id="level-display">1</span></div>
+            <button onclick="Game.showInstructions()" style="padding: 5px 15px; background:transparent; border:none; font-size:1.5rem;">?</button>
+        </header>
+        <footer>
+            <button onclick="Game.restartLevel()"><span>↺</span> Restart</button>
+            <button onclick="Game.checkSolution()"><span>✓</span> Check</button>
+            <button onclick="Game.showHint()"><span>💡</span> Hint</button>
+            <button class="primary" onclick="Game.autoSolve()"><span>🤖</span> Solve</button>
+        </footer>
+    </div>
+
+    <div id="toast"></div>
+
+    <div id="modal-instructions" class="modal-overlay">
+        <div class="modal-content">
+            <h2>How to Play</h2>
+            <p>1. Swipe across the rope to cut it.</p>
+            <p>2. Cut when the candy swings in front of the monster's mouth.</p>
+            <button class="primary" onclick="Game.closeModal('modal-instructions')" style="width: 100%">Start Game</button>
+        </div>
+    </div>
+
+    <div id="modal-result" class="modal-overlay">
+        <div class="modal-content">
+            <h2 id="result-title">Level Complete!</h2>
+            <p id="result-message">Delicious!</p>
+            <div id="result-badge"></div>
+            <button class="primary" id="next-btn" onclick="Game.nextLevel()" style="width: 100%">Next Level</button>
+        </div>
+    </div>
+
+<script>
+/**
+ * AUDIO SYSTEM
+ */
+const AudioSys = {
+    ctx: null,
+    init() {
+        if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+    },
+    playTone(freq, type, duration) {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+        osc.connect(gain); gain.connect(this.ctx.destination);
+        osc.start(); osc.stop(this.ctx.currentTime + duration);
+    },
+    playCut() { this.init(); this.playTone(600 + Math.random() * 200, 'sawtooth', 0.1); },
+    playWin() { this.init(); this.playTone(400, 'sine', 0.1); setTimeout(() => this.playTone(500, 'sine', 0.1), 100); setTimeout(() => this.playTone(800, 'square', 0.3), 200); },
+    playFail() { this.init(); this.playTone(150, 'sawtooth', 0.4); }
+};
+
+/**
+ * GAME ENGINE
+ */
+const Game = (() => {
+    if (typeof Matter === 'undefined') {
+        document.getElementById('error-msg').style.display = 'block';
+        return { init: () => {} };
+    }
+
+    const Engine = Matter.Engine, Render = Matter.Render, Runner = Matter.Runner,
+          Bodies = Matter.Bodies, Composite = Matter.Composite, Constraint = Matter.Constraint,
+          Events = Matter.Events, Vector = Matter.Vector, Body = Matter.Body;
+
+    let engine, render, runner;
+    let canvas, width, height;
+    let candy, goal;
+    let ropes = [];
+    let level = 1;
+    let isAutoSolving = false, isGameOver = false;
+    let mouseTrail = [];
+    let isDragging = false;
+    
+    const CATEGORY_CANDY = 0x0002, CATEGORY_GOAL = 0x0004;
+    const toastEl = document.getElementById('toast');
+    const levelDisplay = document.getElementById('level-display');
+
+    function init() {
+        canvas = document.getElementById('game-canvas');
+        engine = Engine.create();
+        engine.gravity.y = 1.2; 
+
+        render = Render.create({
+            canvas: canvas, engine: engine,
+            options: {
+                width: window.innerWidth, height: window.innerHeight,
+                wireframes: false, background: 'transparent',
+                pixelRatio: window.devicePixelRatio
+            }
+        });
+
+        window.addEventListener('resize', handleResize);
+        handleResize();
+
+        setupInputs();
+        Events.on(engine, 'collisionStart', handleCollisions);
+        Events.on(render, 'afterRender', renderOverlay);
+
+        Runner.run(engine);
+        Render.run(render);
+
+        setTimeout(() => {
+            document.getElementById('modal-instructions').classList.add('active');
+            AudioSys.init();
+        }, 100);
+
+        startLevel();
+    }
+
+    function handleResize() {
+        width = window.innerWidth; height = window.innerHeight;
+        render.canvas.width = width; render.canvas.height = height;
+        if(window.wallLeft) {
+            Body.setPosition(window.wallLeft, { x: -25, y: height/2 });
+            Body.setPosition(window.wallRight, { x: width + 25, y: height/2 });
+            Body.setPosition(window.wallTop, { x: width/2, y: -300 });
+            Body.setPosition(window.wallBottom, { x: width/2, y: height + 100 });
+        }
+    }
+
+    function createWalls() {
+        const wallThick = 50;
+        const wallLeft = Bodies.rectangle(-25, height/2, wallThick, height * 4, { isStatic: true, render: { visible: false } });
+        const wallRight = Bodies.rectangle(width + 25, height/2, wallThick, height * 4, { isStatic: true, render: { visible: false } });
+        const wallTop = Bodies.rectangle(width/2, -300, width * 4, wallThick, { isStatic: true, render: { visible: false } });
+        const wallBottom = Bodies.rectangle(width/2, height + 100, width * 4, wallThick, { 
+            isStatic: true, isSensor: true, label: 'floor', render: { visible: false }
+        });
+        window.wallLeft = wallLeft; window.wallRight = wallRight; window.wallTop = wallTop; window.wallBottom = wallBottom;
+        Composite.add(engine.world, [wallLeft, wallRight, wallTop, wallBottom]);
+    }
+
+    function startLevel() {
+        Composite.clear(engine.world, false); 
+        Engine.update(engine);
+        isGameOver = false; isAutoSolving = false; ropes = []; mouseTrail = []; isDragging = false;
+        
+        levelDisplay.textContent = level;
+        createWalls();
+
+        // --- COMPACT ALIGNMENT LOGIC ---
+        
+        // 1. Place Anchor (Left side, but not extreme)
+        const ax = width * 0.35; 
+        const ay = 50;
+
+        // 2. Place Monster (Center-Right side, close to Anchor)
+        const mx = width * 0.65;
+        const my = height * 0.75;
+
+        // 3. Calculate Rope Length (Distance from Anchor to Monster)
+        const ropeLen = Math.sqrt((mx - ax)**2 + (my - ay)**2);
+
+        // 4. Place Candy
+        // We want the candy to swing from Left (Anchor side) to Right (Monster side).
+        // The Monster is on the Right side of the arc.
+        // We place the Candy on the Left side of the arc at the SAME Y height as the Monster.
+        // dx is the horizontal distance from Anchor to Monster.
+        const dx = mx - ax; 
+        const dy = my - ay; // Vertical drop
+
+        // Since we want Candy at the same Y as Monster, the X must be `ax - dx`
+        let cx = ax - dx;
+        let cy = my;
+
+        // Ensure Candy stays on screen (for very small screens)
+        if (cx < 20) cx = 20;
+
+        // --- CREATE OBJECTS ---
+
+        goal = Bodies.circle(mx, my, 35, {
+            isStatic: true, isSensor: true, label: 'goal',
+            collisionFilter: { category: CATEGORY_GOAL }, render: { fillStyle: '#00e676' }
+        });
+
+        candy = Bodies.circle(cx, cy, 20, {
+            label: 'candy', 
+            density: 0.008, 
+            frictionAir: 0.0001, 
+            restitution: 0.2,
+            collisionFilter: { category: CATEGORY_CANDY }, 
+            render: { fillStyle: '#ff4081', strokeStyle: '#fff', lineWidth: 3 }
+        });
+
+        Composite.add(engine.world, [goal, candy]);
+        
+        // Create Rope aligned exactly
+        createRopeAligned(ax, ay, cx, cy);
+
+        showToast(`Level ${level}: Cut when candy passes the monster!`);
+    }
+
+    function createRopeAligned(x1, y1, x2, y2) {
+        const segments = 10;
+        const group = Body.nextGroup(true);
+        const dx = (x2 - x1) / segments;
+        const dy = (y2 - y1) / segments;
+
+        const parts = [];
+        
+        for (let i = 0; i < segments; i++) {
+            const px = x1 + dx * i;
+            const py = y1 + dy * i;
+            const rect = Bodies.rectangle(px, py, 8, 5, { 
+                collisionFilter: { group: group },
+                frictionAir: 0.0001,
+                render: { visible: false } 
+            });
+            parts.push(rect);
+        }
+
+        for (let i = 0; i < parts.length - 1; i++) {
+            const c = Constraint.create({
+                bodyA: parts[i], bodyB: parts[i+1],
+                stiffness: 0.9, length: 20, render: { visible: false }, label: 'RopeLink'
+            });
+            Composite.add(engine.world, c);
+            ropes.push(c);
+        }
+
+        const anchor = Constraint.create({
+            bodyB: parts[0], pointB: { x: 0, y: 0 },
+            pointA: { x: x1, y: y1 },
+            stiffness: 0.9, render: { visible: false }, label: 'RopeLink'
+        });
+        
+        const candyLink = Constraint.create({
+            bodyA: parts[parts.length - 1], bodyB: candy,
+            pointA: { x: 0, y: 0 }, pointB: { x: 0, y: 0 },
+            stiffness: 0.9, render: { visible: false }, label: 'RopeLink'
+        });
+
+        Composite.add(engine.world, parts);
+        Composite.add(engine.world, [anchor, candyLink]);
+        ropes.push(anchor, candyLink);
+    }
+
+    function setupInputs() {
+        const startCut = (e) => {
+            if (isGameOver) return;
+            isDragging = true;
+            const pos = getEventPos(e);
+            mouseTrail = [pos];
+            AudioSys.init();
+        };
+
+        const moveCut = (e) => {
+            if (!isDragging || isGameOver) return;
+            const pos = getEventPos(e);
+            mouseTrail.push(pos);
+            if (mouseTrail.length > 10) mouseTrail.shift();
+            if (mouseTrail.length > 1) {
+                const prev = mouseTrail[mouseTrail.length - 2];
+                checkCut(prev, pos);
+            }
+        };
+
+        const endCut = () => {
+            isDragging = false; mouseTrail = [];
+        };
+
+        canvas.addEventListener('mousedown', startCut);
+        window.addEventListener('mousemove', moveCut);
+        window.addEventListener('mouseup', endCut);
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startCut(e.touches[0]); }, {passive: false});
+        window.addEventListener('touchmove', (e) => { if(isDragging) e.preventDefault(); moveCut(e.touches[0]); }, {passive: false});
+        window.addEventListener('touchend', endCut);
+    }
+
+    function getEventPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    }
+
+    function checkCut(p1, p2) {
+        const allConstraints = Composite.allConstraints(engine.world);
+        allConstraints.forEach(c => {
+            if (!c.label || c.label === 'Mouse Constraint') return;
+            let startP, endP;
+            if (c.bodyA) startP = Vector.add(c.bodyA.position, c.pointA);
+            else startP = c.pointA;
+            if (c.bodyB) endP = Vector.add(c.bodyB.position, c.pointB);
+            else endP = c.pointB;
+            if (!startP || !endP) return;
+            if (lineIntersect(p1, p2, startP, endP)) {
+                Composite.remove(engine.world, c);
+                AudioSys.playCut();
+                const cutX = (startP.x + endP.x) / 2;
+                const cutY = (startP.y + endP.y) / 2;
+                createParticles(cutX, cutY, '#fff');
+            }
+        });
+    }
+
+    function lineIntersect(p1, p2, p3, p4) {
+        const det = (p2.x - p1.x) * (p4.y - p3.y) - (p4.x - p3.x) * (p2.y - p1.y);
+        if (det === 0) return false;
+        const lambda = ((p4.y - p3.y) * (p4.x - p1.x) + (p3.x - p4.x) * (p4.y - p1.y)) / det;
+        const gamma = ((p1.y - p2.y) * (p4.x - p1.x) + (p2.x - p1.x) * (p4.y - p1.y)) / det;
+        return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
+    }
+
+    function handleCollisions(event) {
+        if (isGameOver) return;
+        const pairs = event.pairs;
+        for (let i = 0; i < pairs.length; i++) {
+            const bodyA = pairs[i].bodyA, bodyB = pairs[i].bodyB;
+            if ((bodyA.label === 'candy' && bodyB.label === 'goal') || 
+                (bodyB.label === 'candy' && bodyA.label === 'goal')) triggerWin();
+            if ((bodyA.label === 'candy' && bodyB.label === 'floor') || 
+                (bodyB.label === 'candy' && bodyA.label === 'floor')) triggerLoss();
+        }
+    }
+
+    function triggerWin() {
+        if (isGameOver) return;
+        isGameOver = true;
+        AudioSys.playWin();
+        createParticles(candy.position.x, candy.position.y, '#00e676', 30);
+        setTimeout(() => {
+            const modal = document.getElementById('modal-result');
+            document.getElementById('result-title').textContent = "Delicious!";
+            document.getElementById('result-message').textContent = "Perfect swing!";
+            document.getElementById('result-badge').innerHTML = '<span class="status-badge win">COMPLETE</span>';
+            const btn = document.getElementById('next-btn');
+            btn.textContent = "Next Level";
+            btn.onclick = () => { closeModal('modal-result'); nextLevel(); };
+            modal.classList.add('active');
+        }, 1000);
+    }
+
+    function triggerLoss() {
+        if (isGameOver) return;
+        isGameOver = true;
+        AudioSys.playFail();
+        setTimeout(() => {
+            const modal = document.getElementById('modal-result');
+            document.getElementById('result-title').textContent = "Oops!";
+            document.getElementById('result-message').textContent = "The candy fell.";
+            document.getElementById('result-badge').innerHTML = '<span class="status-badge lose">TRY AGAIN</span>';
+            const btn = document.getElementById('next-btn');
+            btn.textContent = "Retry Level";
+            btn.onclick = () => { closeModal('modal-result'); restartLevel(); };
+            modal.classList.add('active');
+        }, 500);
+    }
+
+    function showHint() {
+        if (isGameOver) return;
+        showToast("Cut when candy is directly over the monster!");
+        const angle = Math.atan2(goal.position.y - candy.position.y, goal.position.x - candy.position.x);
+        hintVector = {
+            start: candy.position,
+            end: { x: candy.position.x + Math.cos(angle)*100, y: candy.position.y + Math.sin(angle)*100 }
+        };
+        setTimeout(() => { hintVector = null; }, 2000);
+    }
+    let hintVector = null;
+
+    function checkSolution() {
+        const dist = Vector.magnitude(Vector.sub(candy.position, goal.position));
+        if (dist < width * 0.3) showToast("Close! Wait for alignment.");
+        else showToast("Wait for the swing.");
+    }
+
+    function autoSolve() {
+        if (isGameOver || isAutoSolving) return;
+        isAutoSolving = true;
+        showToast("Bot Calculating...");
+
+        const constraints = Composite.allConstraints(engine.world);
+        const candyConstraint = constraints.find(c => (c.bodyB === candy || c.bodyA === candy) && c.label !== 'Mouse Constraint');
+        if (!candyConstraint) { isAutoSolving = false; return; }
+
+        const checkInterval = setInterval(() => {
+            if (isGameOver) { clearInterval(checkInterval); return; }
+            const candyPos = candy.position;
+            const goalPos = goal.position;
+            const velocity = candy.velocity;
+            const movingTowardsX = (velocity.x > 0 && candyPos.x < goalPos.x) || 
+                                   (velocity.x < 0 && candyPos.x > goalPos.x);
+            const xDiff = Math.abs(candyPos.x - goalPos.x);
+
+            if (xDiff < 50 && movingTowardsX) {
+                Composite.remove(engine.world, candyConstraint);
+                AudioSys.playCut();
+                createParticles(candyPos.x, candyPos.y, '#fff', 10);
+                clearInterval(checkInterval);
+                isAutoSolving = false;
+            }
+        }, 50);
+    }
+
+    function renderOverlay() {
+        const ctx = render.context;
+        const constraints = Composite.allConstraints(engine.world);
+        
+        // 1. Draw Anchor Points
+        constraints.forEach(c => {
+            if (!c.bodyA && !c.bodyB) {
+                ctx.beginPath(); ctx.fillStyle = '#888';
+                ctx.arc(c.pointA.x, c.pointA.y, 8, 0, Math.PI*2); ctx.fill();
+            }
+        });
+
+        // 2. Draw Ropes
+        ctx.beginPath();
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = '#8d6e63';
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        constraints.forEach(c => {
+            if (c.label === 'Mouse Constraint') return;
+            let p1, p2;
+            if (c.bodyA) p1 = Vector.add(c.bodyA.position, c.pointA);
+            else p1 = c.pointA;
+            if (c.bodyB) p2 = Vector.add(c.bodyB.position, c.pointB);
+            else p2 = c.pointB;
+            if (p1 && p2) {
+                ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+            }
+        });
+        ctx.stroke();
+
+        // 3. Draw Mouse Trail
+        if (mouseTrail.length > 1) {
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.lineWidth = 4;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#fff';
+            ctx.moveTo(mouseTrail[0].x, mouseTrail[0].y);
+            for (let i = 1; i < mouseTrail.length; i++) ctx.lineTo(mouseTrail[i].x, mouseTrail[i].y);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
+
+        // 4. Draw Hint
+        if (hintVector) {
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(255, 235, 59, 0.7)';
+            ctx.lineWidth = 4;
+            ctx.setLineDash([10, 10]);
+            ctx.moveTo(hintVector.start.x, hintVector.start.y);
+            ctx.lineTo(hintVector.end.x, hintVector.end.y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        // 5. Draw Monster
+        if (goal) {
+            const p = goal.position;
+            ctx.fillStyle = '#00e676';
+            ctx.beginPath(); ctx.arc(p.x, p.y, 30, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#1b5e20'; // Mouth
+            ctx.beginPath(); ctx.arc(p.x, p.y + 5, 15, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = 'white'; // Eyes
+            ctx.beginPath(); ctx.arc(p.x - 10, p.y - 5, 8, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(p.x + 10, p.y - 5, 8, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = 'black'; // Pupils
+            ctx.beginPath(); ctx.arc(p.x - 10, p.y - 5, 3, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(p.x + 10, p.y - 5, 3, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // 6. Draw Candy
+        if (candy) {
+            const p = candy.position;
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(candy.angle);
+            ctx.fillStyle = '#ff4081';
+            ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 1.5); ctx.stroke();
+            ctx.fillStyle = '#e91e63';
+            ctx.fillRect(-12, -25, 6, 10);
+            ctx.fillRect(6, -25, 6, 10);
+            ctx.restore();
+        }
+        
+        updateAndDrawParticles(ctx);
+    }
+
+    let particles = [];
+    function createParticles(x, y, color, count = 10) {
+        for (let i = 0; i < count; i++) {
+            particles.push({
+                x: x, y: y,
+                vx: (Math.random() - 0.5) * 10,
+                vy: (Math.random() - 0.5) * 10,
+                life: 1.0, color: color
+            });
+        }
+    }
+
+    function updateAndDrawParticles(ctx) {
+        for (let i = particles.length - 1; i >= 0; i--) {
+            let p = particles[i];
+            p.x += p.vx; p.y += p.vy; p.life -= 0.02; p.vy += 0.2;
+            if (p.life <= 0) particles.splice(i, 1);
+            else {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            }
+        }
+    }
+
+    function showToast(msg) {
+        toastEl.textContent = msg;
+        toastEl.style.opacity = 1;
+        setTimeout(() => { toastEl.style.opacity = 0; }, 2000);
+    }
+
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+    return {
+        init,
+        restartLevel: () => { level = Math.max(1, level); startLevel(); closeModal('modal-result'); },
+        nextLevel: () => { level++; startLevel(); closeModal('modal-result'); },
+        showInstructions: () => { document.getElementById('modal-instructions').classList.add('active'); },
+        showHint,
+        checkSolution,
+        autoSolve,
+        closeModal
+    };
+
+})();
+
+window.onload = Game.init;
+</script>
+</body>
+</html>
