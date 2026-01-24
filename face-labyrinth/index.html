@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Face Tilt: Direct Control</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Face Tilt: Mobile Optimized</title>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 
@@ -18,13 +18,15 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
+            width: 100vw;
             color: white;
+            touch-action: none; /* Prevent scrolling on mobile */
         }
 
         #game-container {
             position: relative;
-            width: 100vw;
-            height: 100vh;
+            width: 100%;
+            height: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -32,7 +34,9 @@
 
         canvas {
             background: #0a0a0a;
-            box-shadow: 0 0 50px rgba(0, 100, 255, 0.2);
+            width: 100%;
+            height: 100%;
+            display: block;
         }
 
         #ui-layer {
@@ -45,55 +49,54 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background: rgba(0,0,0,0.8);
-            transition: opacity 0.3s;
+            background: rgba(0,0,0,0.9);
+            z-index: 10;
         }
 
         .screen {
             background: rgba(20, 30, 40, 0.95);
-            padding: 40px;
+            padding: 30px;
             border: 2px solid #00d2ff;
             border-radius: 10px;
             text-align: center;
             box-shadow: 0 0 30px #00d2ff;
-            max-width: 500px;
+            width: 80%;
+            max-width: 400px;
         }
 
-        h1 { margin: 0 0 15px 0; color: #00d2ff; letter-spacing: 2px; text-transform: uppercase;}
-        p { font-size: 1.1rem; color: #ccc; margin-bottom: 20px; line-height: 1.5; }
+        h1 { margin: 0 0 15px 0; color: #00d2ff; font-size: 1.5rem; letter-spacing: 1px;}
+        p { font-size: 0.9rem; color: #ccc; margin-bottom: 15px; line-height: 1.4; }
         
         button {
             background: #00d2ff;
             color: #000;
             border: none;
-            padding: 15px 40px;
-            font-size: 1.2rem;
+            padding: 15px 30px;
+            font-size: 1.1rem;
             font-weight: bold;
             cursor: pointer;
             border-radius: 5px;
-            margin-top: 20px;
+            margin-top: 15px;
+            width: 100%;
         }
-        button:hover { background: #fff; }
+        button:active { background: #fff; transform: scale(0.98); }
 
         #input-video { display: none; }
         .hidden { display: none !important; }
 
-        /* Debug Panel */
+        /* Debug Panel for Mobile */
         #debug-panel {
             position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(0,0,0,0.7);
-            padding: 10px;
-            border: 1px solid #444;
+            top: 5px;
+            left: 5px;
+            background: rgba(0,0,0,0.6);
+            padding: 5px;
             font-family: monospace;
-            font-size: 12px;
+            font-size: 10px;
             color: #0f0;
             pointer-events: none;
+            display: none; /* Hidden by default on mobile to save space */
         }
-        .indicator { font-weight: bold; font-size: 14px; }
-        .left-arr { color: #ff4444; }
-        .right-arr { color: #4488ff; }
     </style>
 </head>
 <body>
@@ -102,26 +105,18 @@
         <video id="input-video"></video>
         <canvas id="game-canvas"></canvas>
 
+        <!-- Debug (Hidden on mobile usually, helpful for testing) -->
         <div id="debug-panel">
-            RAW ANGLE: <span id="dbg-raw">0</span><br>
-            NEUTRAL: <span id="dbg-neutral">0</span><br>
-            NET TILT: <span id="dbg-tilt">0</span><br>
-            DIRECTION: <span id="dbg-dir" class="indicator">CENTER</span><br>
-            <br>
-            <strong>[SPACEBAR]</strong> to Recalibrate Center
+            FPS: <span id="dbg-fps">0</span><br>
+            TILT: <span id="dbg-tilt">0</span>
         </div>
 
         <div id="ui-layer">
             <div id="start-screen" class="screen">
-                <h1>Direct Control Mode</h1>
-                <p>Fixed the direction bug. The ball is now locked to your head.</p>
-                <p><strong>Controls:</strong></p>
-                <ul style="text-align: left; color: #aaa; display: inline-block;">
-                    <li>Look Straight = Ball Stops</li>
-                    <li>Look Left = Ball Goes Left</li>
-                    <li>Look Right = Ball Goes Right</li>
-                </ul>
-                <br>
+                <h1>Mobile Ready</h1>
+                <p>Optimized for touchscreens.</p>
+                <p><strong>Hold phone vertically.</strong></p>
+                <p>Tilt your head Left/Right to move the ball.</p>
                 <button id="btn-start">Start Game</button>
             </div>
 
@@ -131,19 +126,24 @@
                 <h2 id="final-score">Score: 0</h2>
                 <button id="btn-restart">Try Again</button>
             </div>
+            
+            <div id="loading-screen" class="screen">
+                <h2>Loading AI...</h2>
+                <p>Please wait (using Lite Mode for mobile)</p>
+            </div>
         </div>
     </div>
 
 <script>
     // --- Configuration ---
     const CONFIG = {
-        ballSize: 12,
-        sensitivity: 15,       // How many pixels the ball moves per 1 degree of tilt
-        deadzone: 2.0,         // Ignore small head movements (jitter)
-        wallSpeed: 4,          
-        spawnRate: 80,
-        gapSize: 110,
-        gapSpeedBase: 3
+        ballSize: 10, // Slightly smaller for mobile
+        sensitivity: 12,       // Pixels per degree
+        deadzone: 2.5,         // Ignore jitter
+        wallSpeedPercent: 0.008, // NEW: Speed is 0.8% of screen height per frame (Consistent on all devices)
+        spawnRate: 60,         // Spawn faster since walls move slower relatively
+        gapSizePercent: 0.25,  // Gap is 25% of screen width
+        gapSpeedBase: 2
     };
 
     // --- Game State ---
@@ -154,7 +154,8 @@
         headTilt: 0,
         neutralTilt: 0,
         ball: { x: 0, y: 0 },
-        walls: []
+        walls: [],
+        lastTime: 0
     };
 
     // --- Elements ---
@@ -165,44 +166,51 @@
     const startScreen = document.getElementById('start-screen');
     const gameOverScreen = document.getElementById('game-over-screen');
     const scoreDisplay = document.getElementById('final-score');
-    
-    // Debug elements
-    const dbgRaw = document.getElementById('dbg-raw');
-    const dbgNeutral = document.getElementById('dbg-neutral');
-    const dbgTilt = document.getElementById('dbg-tilt');
-    const dbgDir = document.getElementById('dbg-dir');
+    const loadingScreen = document.getElementById('loading-screen');
 
     // --- Resize ---
     function resizeCanvas() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-        state.ball.y = canvas.height - 150; 
+        state.ball.y = canvas.height - 120; // Adjust ball position for mobile
     }
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
-    // --- MediaPipe Face Mesh Setup ---
+    // --- MediaPipe Face Mesh Setup (MOBILE OPTIMIZED) ---
     const faceMesh = new FaceMesh({locateFile: (file) => {
         return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
     }});
 
     faceMesh.setOptions({
         maxNumFaces: 1,
-        refineLandmarks: true,
+        refineLandmarks: false, // FALSE: Saves significant CPU on mobile
         minDetectionConfidence: 0.5,
-        minTrackingConfidence: 0.5
+        minTrackingConfidence: 0.5,
+        modelComplexity: 0 // 0=Lite (Essential for mobile), 1=Full
     });
 
     faceMesh.onResults(onFaceResults);
 
+    // Use lower resolution for camera to save CPU
     const camera = new Camera(videoElement, {
         onFrame: async () => {
             await faceMesh.send({image: videoElement});
         },
-        width: 640,
-        height: 480
+        width: 320, // Low res for speed
+        height: 240
     });
-    camera.start();
+    
+    // Start camera and hide loading when ready
+    camera.start()
+        .then(() => {
+            loadingScreen.classList.add('hidden');
+            startScreen.classList.remove('hidden');
+        })
+        .catch(err => {
+            console.error("Camera error:", err);
+            loadingScreen.innerHTML = "<h2 style='color:red'>Camera Error</h2><p>Please allow camera access.</p>";
+        });
 
     function onFaceResults(results) {
         if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
@@ -210,7 +218,6 @@
             const leftEye = landmarks[33];
             const rightEye = landmarks[263];
             
-            // Calculate Angle
             const angle = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
             state.headTilt = angle * (180 / Math.PI);
         }
@@ -218,7 +225,6 @@
 
     function calibrateTilt() {
         state.neutralTilt = state.headTilt;
-        console.log("Recalibrated. New Neutral:", state.neutralTilt);
     }
 
     // --- Game Logic ---
@@ -234,27 +240,32 @@
         startScreen.classList.add('hidden');
         gameOverScreen.classList.add('hidden');
 
-        createWall(canvas.height + 300);
+        createWall(canvas.height + 200);
         requestAnimationFrame(gameLoop);
     }
 
-    // Spacebar to Recalibrate
-    document.addEventListener('keydown', (e) => {
-        if (e.code === 'Space' && state.isPlaying) {
+    // Tap screen to recalibrate if needed
+    document.addEventListener('click', (e) => {
+        if(state.isPlaying && e.target.tagName !== 'BUTTON') {
             calibrateTilt();
         }
     });
 
     function createWall(yPos) {
-        const randomX = Math.random() * (canvas.width - 200) + 100;
+        const gapWidth = canvas.width * CONFIG.gapSizePercent;
+        const padding = gapWidth;
+        const randomX = padding + Math.random() * (canvas.width - padding * 2);
+        
         const direction = Math.random() > 0.5 ? 1 : -1;
-        const speed = (Math.random() * 2) + 1; 
+        const speed = (Math.random() * 1.5) + 0.5; 
+
         state.walls.push({
             y: yPos,
             gapX: randomX,
             gapDirection: direction,
             gapSpeed: speed,
-            height: 40
+            height: 30, // Thinner walls for mobile
+            gapWidth: gapWidth
         });
     }
 
@@ -266,57 +277,41 @@
     }
 
     function updatePhysics() {
-        // 1. Calculate Raw Tilt (Difference from neutral)
+        // 1. Calculate Raw Tilt
         let rawTilt = state.headTilt - state.neutralTilt;
 
-        // 2. Apply Deadzone (Ignore tiny jitters)
+        // 2. Apply Deadzone
         let netTilt = 0;
         if (Math.abs(rawTilt) > CONFIG.deadzone) {
             netTilt = rawTilt;
         }
 
-        // 3. --- THE FIX: INVERT THE TILT ---
-        // Explanation: Left Tilt (Positive Angle) needs to move Left (Negative Screen X).
-        // We multiply by -1 to flip the direction.
+        // 3. INVERT TILT for correct direction
         let controlTilt = netTilt * -1; 
 
-        // 4. Direct Position Mapping (No Velocity = No Drifting/Stuck)
-        // Center of screen
+        // 4. Direct Position Mapping
         const centerX = canvas.width / 2;
-        
-        // Calculate new X position directly
         let targetX = centerX + (controlTilt * CONFIG.sensitivity);
 
-        // 5. Keep ball inside screen
+        // 5. Bounds
         if (targetX < CONFIG.ballSize) targetX = CONFIG.ballSize;
         if (targetX > canvas.width - CONFIG.ballSize) targetX = canvas.width - CONFIG.ballSize;
 
         state.ball.x = targetX;
 
-        // Update Debug Info
-        dbgRaw.innerText = state.headTilt.toFixed(1);
-        dbgNeutral.innerText = state.neutralTilt.toFixed(1);
-        dbgTilt.innerText = controlTilt.toFixed(1);
-        
-        if (controlTilt > 1) {
-            dbgDir.innerText = "LEFT <<<<";
-            dbgDir.className = "indicator left-arr";
-        } else if (controlTilt < -1) {
-            dbgDir.innerText = ">>>> RIGHT";
-            dbgDir.className = "indicator right-arr";
-        } else {
-            dbgDir.innerText = "CENTER";
-            dbgDir.className = "indicator";
-        }
+        // 6. Update Walls (Percentage Speed)
+        const wallStep = canvas.height * CONFIG.wallSpeedPercent;
 
-        // Update Walls
         for (let i = state.walls.length - 1; i >= 0; i--) {
             let wall = state.walls[i];
-            wall.y -= CONFIG.wallSpeed;
+            wall.y -= wallStep;
+            
+            // Move Gap
             wall.gapX += wall.gapSpeed * wall.gapDirection;
 
-            if (wall.gapX < CONFIG.gapSize/2 + 50) wall.gapDirection = 1;
-            else if (wall.gapX > canvas.width - CONFIG.gapSize/2 - 50) wall.gapDirection = -1;
+            // Bounce Gap
+            if (wall.gapX < wall.gapWidth/2 + 20) wall.gapDirection = 1;
+            else if (wall.gapX > canvas.width - wall.gapWidth/2 - 20) wall.gapDirection = -1;
 
             if (wall.y < -100) {
                 state.walls.splice(i, 1);
@@ -337,8 +332,8 @@
 
         for (let wall of state.walls) {
             if (by + r > wall.y && by - r < wall.y + wall.height) {
-                const gapLeft = wall.gapX - CONFIG.gapSize / 2;
-                const gapRight = wall.gapX + CONFIG.gapSize / 2;
+                const gapLeft = wall.gapX - wall.gapWidth / 2;
+                const gapRight = wall.gapX + wall.gapWidth / 2;
                 if (bx - r < gapLeft || bx + r > gapRight) {
                     return true;
                 }
@@ -348,14 +343,15 @@
     }
 
     function draw() {
+        // Clear
         ctx.fillStyle = '#0a0a0a';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         // Grid
         ctx.strokeStyle = '#222';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 1;
         ctx.beginPath();
-        let offset = (state.frames * 2) % 50;
+        let offset = (state.frames * (canvas.height * CONFIG.wallSpeedPercent)) % 50;
         for(let y = offset; y < canvas.height; y += 50) {
             ctx.moveTo(0, y); ctx.lineTo(canvas.width, y);
         }
@@ -364,11 +360,11 @@
         // Walls
         ctx.fillStyle = '#00d2ff';
         ctx.shadowColor = '#00d2ff';
-        ctx.shadowBlur = 15;
+        ctx.shadowBlur = 10;
 
         for (let wall of state.walls) {
-            const gapLeft = wall.gapX - CONFIG.gapSize / 2;
-            const gapRight = wall.gapX + CONFIG.gapSize / 2;
+            const gapLeft = wall.gapX - wall.gapWidth / 2;
+            const gapRight = wall.gapX + wall.gapWidth / 2;
             ctx.fillRect(0, wall.y, gapLeft, wall.height);
             ctx.fillRect(gapRight, wall.y, canvas.width - gapRight, wall.height);
         }
@@ -379,17 +375,17 @@
         ctx.arc(state.ball.x, state.ball.y, CONFIG.ballSize, 0, Math.PI * 2);
         ctx.fillStyle = '#fff';
         ctx.fill();
-        
-        // Ball Glow
-        ctx.beginPath();
-        ctx.arc(state.ball.x, state.ball.y, CONFIG.ballSize * 1.5, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-        ctx.stroke();
 
         // Score
         ctx.fillStyle = '#fff';
-        ctx.font = 'bold 24px Arial';
-        ctx.fillText(`SCORE: ${Math.floor(state.score)}`, 30, 50);
+        ctx.font = 'bold 20px Arial';
+        ctx.fillText(`SCORE: ${Math.floor(state.score)}`, 20, 40);
+        
+        // Mobile FPS / Debug (Optional)
+        if(state.frames % 30 === 0) {
+             document.getElementById('dbg-fps').innerText = "Running";
+             document.getElementById('dbg-tilt').innerText = state.headTilt.toFixed(1);
+        }
     }
 
     function gameLoop() {
