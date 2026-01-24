@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smile to Unlock</title>
+    <!-- Load Face-API.js from CDN -->
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #1a1a1a;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Container for the game */
+        .game-container {
+            position: relative;
+            width: 640px;
+            max-width: 95vw;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            background: #000;
+        }
+
+        video {
+            width: 100%;
+            display: block;
+            transform: scaleX(-1); /* Mirror effect */
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform: scaleX(-1); /* Mirror effect */
+        }
+
+        /* UI Overlay */
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 40px 0;
+            box-sizing: border-box;
+        }
+
+        /* Lock Icon */
+        .lock-icon {
+            font-size: 80px;
+            transition: all 0.3s ease;
+            filter: drop-shadow(0 0 10px rgba(0,0,0,0.8));
+        }
+
+        .lock-unlocked .lock-icon {
+            transform: scale(1.2);
+            filter: drop-shadow(0 0 20px #00ff00);
+            color: #00ff00;
+        }
+
+        /* Status Text */
+        .status {
+            font-size: 24px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            border-radius: 30px;
+        }
+
+        /* Progress Bar Container */
+        .progress-container {
+            width: 300px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid rgba(255,255,255,0.5);
+            position: relative;
+        }
+
+        /* The Bar */
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #ffcc00, #ff6600);
+            transition: width 0.1s linear;
+        }
+
+        .progress-bar.danger {
+            background: linear-gradient(90deg, #ff0000, #990000);
+        }
+
+        /* Loader */
+        #loader {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            transition: opacity 0.5s;
+        }
+        .spinner {
+            width: 50px; height: 50px;
+            border: 5px solid #333;
+            border-top: 5px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* Animations */
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+
+        .shaking {
+            animation: shake 0.5s;
+            animation-iteration-count: infinite;
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px; height: 10px;
+            background-color: #f00;
+            animation: fall linear forwards;
+        }
+        @keyframes fall {
+            to { transform: translateY(100vh) rotate(720deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Loading Screen -->
+    <div id="loader">
+        <div class="spinner"></div>
+        <div id="loading-text">Loading Neural Networks...</div>
+    </div>
+
+    <div class="game-container">
+        <video id="video" autoplay muted playsinline></video>
+        <canvas id="canvas"></canvas>
+        
+        <div class="ui-layer" id="ui-layer">
+            <div id="lock-container">
+                <div class="lock-icon">🔒</div>
+            </div>
+            
+            <div class="status" id="status-text">Initializing...</div>
+            
+            <div class="progress-container">
+                <div class="progress-bar" id="progress-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const statusText = document.getElementById('status-text');
+        const progressBar = document.getElementById('progress-bar');
+        const lockContainer = document.getElementById('lock-container');
+        const loader = document.getElementById('loader');
+        const lockIcon = document.querySelector('.lock-icon');
+
+        // --- Game Settings ---
+        const SETTINGS = {
+            smileThreshold: 0.35,      // Mouth width relative to face width (Normalized)
+            laughThreshold: 0.15,      // Mouth height relative to face height (Normalized)
+            fillRate: 0.8,            // Bar fill speed per frame
+            drainRate: 1.5,           // Bar drain speed per frame
+            resetPenalty: 30          // How much to deduct when laughing
+        };
+
+        let progress = 0;
+        let isUnlocked = false;
+        let modelsLoaded = false;
+
+        // 1. Load Models
+        async function loadModels() {
+            // Using public GitHub repo for models weights
+            const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
+
+            try {
+                // Load Face Landmark Detection (Tiny) for speed
+                await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+                await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+                
+                modelsLoaded = true;
+                startVideo();
+            } catch (err) {
+                document.getElementById('loading-text').innerText = "Error loading models. Check internet connection.";
+                console.error(err);
+            }
+        }
+
+        // 2. Start Webcam
+        function startVideo() {
+            navigator.mediaDevices.getUserMedia({ video: {} })
+                .then(stream => {
+                    video.srcObject = stream;
+                    // Wait for video to be ready to play
+                    video.onplay = () => {
+                        loader.style.opacity = '0';
+                        setTimeout(() => loader.remove(), 500);
+                        detectFace();
+                    };
+                })
+                .catch(err => {
+                    document.getElementById('loading-text').innerText = "Camera access denied.";
+                    console.error(err);
+                });
+        }
+
+        // Helper: Calculate Euclidean Distance
+        function getDistance(p1, p2) {
+            return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+        }
+
+        // 3. Game Loop / Face Detection
+        async function detectFace() {
+            if (!isUnlocked) {
+                // Setup canvas size to match video
+                const displaySize = { width: video.clientWidth, height: video.clientHeight };
+                faceapi.matchDimensions(canvas, displaySize);
+
+                // Detect faces and landmarks
+                const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+                    .withFaceLandmarks();
+
+                // Clear canvas
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                if (detections.length > 0) {
+                    const landmarks = detections[0].landmarks;
+                    const positions = landmarks.positions;
+
+                    // --- Logic Geometry ---
+                    
+                    // Key Points (68-point model)
+                    // Mouth Corners: 48 (left), 54 (right)
+                    // Top/Bottom Lips: 66 (top), 62 (bottom)
+                    // Face Reference: 0 (left cheek), 16 (right cheek), 27 (nose top), 8 (chin bottom)
+
+                    const mouthLeft = positions[48];
+                    const mouthRight = positions[54];
+                    const mouthTop = positions[66];
+                    const mouthBottom = positions[62];
+                    const cheekLeft = positions[0];
+                    const cheekRight = positions[16];
+                    const noseTop = positions[27];
+                    const chin = positions[8];
+
+                    // Calculate Ratios (Normalized 0.0 to 1.0)
+                    const faceWidth = getDistance(cheekLeft, cheekRight);
+                    const faceHeight = getDistance(noseTop, chin);
+                    
+                    const mouthWidth = getDistance(mouthLeft, mouthRight) / faceWidth;
+                    const mouthHeight = getDistance(mouthTop, mouthBottom) / faceHeight;
+
+                    // --- Game Logic ---
+                    
+                    // 1. Check for Laughing (Reset Condition)
+                    // Mouth is wide AND open
+                    if (mouthWidth > 0.3 && mouthHeight > SETTINGS.laughThreshold) {
+                        progress = Math.max(0, progress - SETTINGS.resetPenalty); // Big drop
+                        statusText.innerText = "Too Hard! 😂";
+                        statusText.style.color = "#ff4444";
+                        progressBar.classList.add('danger');
+                        lockContainer.classList.add('shaking'); // CSS Shake
+                        
+                    // 2. Check for Smile (Fill Condition)
+                    // Mouth is wide BUT closed (height is small)
+                    } else if (mouthWidth > SETTINGS.smileThreshold) {
+                        progress += SETTINGS.fillRate;
+                        statusText.innerText = "Hold It! 😁";
+                        statusText.style.color = "#44ff44";
+                        progressBar.classList.remove('danger');
+                        lockContainer.classList.remove('shaking');
+
+                    // 3. Neutral (Drain Condition)
+                    } else {
+                        progress -= SETTINGS.drainRate;
+                        statusText.innerText = "Smile to Unlock";
+                        statusText.style.color = "white";
+                        progressBar.classList.remove('danger');
+                        lockContainer.classList.remove('shaking');
+                    }
+
+                    // Clamp Progress
+                    progress = Math.min(100, Math.max(0, progress));
+                    progressBar.style.width = `${progress}%`;
+
+                    // Check Win
+                    if (progress >= 100) {
+                        gameWin();
+                    }
+
+                    // Debug Draw (Optional: Visualize points)
+                    // faceapi.draw.drawFaceLandmarks(canvas, detections);
+                }
+            }
+
+            // Loop
+            requestAnimationFrame(detectFace);
+        }
+
+        function gameWin() {
+            isUnlocked = true;
+            statusText.innerText = "UNLOCKED! 🔓";
+            statusText.style.color = "#ffff00";
+            lockIcon.innerText = "🔓";
+            lockContainer.parentElement.classList.add('lock-unlocked');
+            progressBar.style.width = "100%";
+            progressBar.style.background = "#00ff00";
+            
+            launchConfetti();
+        }
+
+        function launchConfetti() {
+            const colors = ['#f00', '#0f0', '#00f', '#ff0', '#0ff', '#f0f'];
+            for (let i = 0; i < 50; i++) {
+                const confetti = document.createElement('div');
+                confetti.classList.add('confetti');
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.top = '-10px';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                document.body.appendChild(confetti);
+            }
+        }
+
+        // Init
+        window.addEventListener('load', loadModels);
+
+    </script>
+</body>
+</html>
