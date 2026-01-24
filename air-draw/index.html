@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Air Draw - Single Canvas Fix</title>
+    <style>
+        :root {
+            --bg: #111;
+            --accent: #00ffcc;
+            --target: #ffffff;
+        }
+        
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden;
+            background: var(--bg);
+            font-family: 'Segoe UI', sans-serif;
+            display: flex; flex-direction: column; align-items: center;
+        }
+
+        /* --- UI Overlay --- */
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 10;
+            display: flex; flex-direction: column; justify-content: space-between;
+        }
+
+        header {
+            text-align: center; color: #fff; padding: 20px; text-shadow: 0 2px 4px #000;
+        }
+        h1 { margin: 0; font-size: 1.2rem; letter-spacing: 2px; color: var(--accent); }
+        #level-text { font-size: 1rem; opacity: 0.8; margin-top: 5px; }
+
+        #timer-bar-bg {
+            width: 200px; height: 8px; background: #333; border-radius: 4px; margin: 10px auto;
+            overflow: hidden; border: 1px solid #555;
+        }
+        #timer-bar { height: 100%; width: 100%; background: var(--accent); transition: width 0.1s linear; }
+        #timer-bar.danger { background: #ff0055; }
+
+        #instruction {
+            color: #fff; font-size: 1.2rem; font-weight: bold; margin-bottom: 40px;
+            text-shadow: 0 2px 4px #000; background: rgba(0,0,0,0.5); padding: 10px 20px; border-radius: 20px; align-self: center;
+        }
+
+        /* --- The Main Canvas --- */
+        canvas {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1;
+            /* We handle mirroring inside the canvas, NOT with CSS */
+        }
+
+        /* --- Modal --- */
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); z-index: 100;
+            display: flex; justify-content: center; align-items: center;
+            color: #fff;
+        }
+        .modal-content {
+            background: #222; padding: 30px; border-radius: 15px; text-align: center; max-width: 300px;
+            border: 1px solid #444; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .btn {
+            background: var(--accent); color: #000; border: none; padding: 12px 24px;
+            border-radius: 25px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 15px;
+        }
+        .loader { margin-top: 10px; color: #888; font-size: 0.9rem; }
+
+    </style>
+    <!-- MediaPipe -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+</head>
+<body>
+
+    <!-- UI Overlay -->
+    <div id="ui-layer">
+        <header>
+            <h1>AIR DRAW</h1>
+            <div id="level-text">Loading...</div>
+            <div id="timer-bar-bg"><div id="timer-bar"></div></div>
+        </header>
+        <div id="instruction">Connecting to Camera...</div>
+    </div>
+
+    <!-- Single Canvas for Everything -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Start Modal -->
+    <div class="modal" id="start-modal">
+        <div class="modal-content">
+            <h2 id="modal-title">Loading AI</h2>
+            <p id="modal-desc">Initializing Hand Tracking...</p>
+            <div id="loading" class="loader">Please wait</div>
+            <button id="start-btn" class="btn" style="display:none" onclick="game.startGame()">START</button>
+        </div>
+    </div>
+
+    <script>
+        /* --- Audio --- */
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playTone(freq, type='sine', duration=0.1) {
+            if(audioCtx.state==='suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type=type; osc.frequency.value=freq;
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime+duration);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime+duration);
+        }
+
+        /* --- Core Game Variables --- */
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const videoElement = document.createElement('video'); // Hidden video element for raw data
+        videoElement.autoplay = true;
+
+        const game = {
+            state: 'IDLE', // IDLE, WAITING_FOR_START, DRAWING, EVALUATING, END
+            level: 0,
+            shapes: [
+                { type: 'circle' },
+                { type: 'square' },
+                { type: 'triangle' }
+            ],
+            path: [], // Stores the user's drawing path [{x,y}]
+            timer: 0,
+            maxTime: 5000,
+            timerInterval: null,
+            
+            // UI Refs
+            uiLevel: document.getElementById('level-text'),
+            uiInstr: document.getElementById('instruction'),
+            uiTimer: document.getElementById('timer-bar'),
+            modal: document.getElementById('start-modal'),
+            modalTitle: document.getElementById('modal-title'),
+            modalDesc: document.getElementById('modal-desc'),
+            startBtn: document.getElementById('start-btn'),
+            loader: document.getElementById('loading'),
+
+            init: function() {
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+                this.setupAI();
+            },
+
+            resize: function() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                // Redraw immediately if waiting
+                if (this.state === 'WAITING_FOR_START') {
+                    this.drawFrame(null);
+                }
+            },
+
+            setupAI: function() {
+                const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+                hands.setOptions({maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.6});
+                hands.onResults(this.onResults.bind(this));
+
+                const camera = new Camera(videoElement, {
+                    onFrame: async () => await hands.send({image: videoElement}),
+                    width: 640, height: 480
+                });
+                
+                camera.start().then(() => {
+                    this.loader.style.display = 'none';
+                    this.modalTitle.textContent = "Air Draw Puzzle";
+                    this.modalDesc.textContent = "Trace the white shape perfectly.";
+                    this.startBtn.style.display = 'inline-block';
+                }).catch(() => { this.loader.textContent = "Camera denied"; });
+            },
+
+            startGame: function() {
+                this.modal.style.display = 'none';
+                this.level = 0;
+                this.nextLevel();
+            },
+
+            nextLevel: function() {
+                if (this.level >= this.shapes.length) {
+                    this.gameOver(true);
+                    return;
+                }
+                this.state = 'WAITING_FOR_START';
+                this.path = [];
+                this.uiLevel.textContent = `Level ${this.level + 1}: ${this.shapes[this.level].type.toUpperCase()}`;
+                this.uiInstr.textContent = "Lift index finger to start";
+                this.resetTimer();
+                this.drawFrame(null); // Draw the scene without a hand
+            },
+
+            resetTimer: function() {
+                this.timer = this.maxTime;
+                this.uiTimer.style.width = '100%';
+                this.uiTimer.classList.remove('danger');
+                clearInterval(this.timerInterval);
+            },
+
+            startTimer: function() {
+                this.timerInterval = setInterval(() => {
+                    this.timer -= 100;
+                    const pct = (this.timer / this.maxTime) * 100;
+                    this.uiTimer.style.width = pct + '%';
+                    if (pct < 30) this.uiTimer.classList.add('danger');
+                    if (this.timer <= 0) {
+                        clearInterval(this.timerInterval);
+                        this.gameOver(false, "Time's Up!");
+                    }
+                }, 100);
+            },
+
+            // --- Main Render Loop ---
+            onResults: function(results) {
+                let indexTip = null;
+                let isIndexUp = false;
+
+                if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                    const lm = results.multiHandLandmarks[0];
+                    
+                    // Check index finger
+                    const wrist = lm[0];
+                    const tip = lm[8];
+                    const pip = lm[6];
+                    const dTip = Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
+                    const dPip = Math.hypot(pip.x - wrist.x, pip.y - wrist.y);
+                    
+                    isIndexUp = dTip > dPip * 1.1;
+                    indexTip = { x: tip.x, y: tip.y }; // Normalized 0-1
+
+                    // Logic for Drawing
+                    this.processInput(isIndexUp, indexTip);
+                }
+
+                this.drawFrame(indexTip);
+            },
+
+            processInput: function(isIndexUp, tip) {
+                if (this.state === 'WAITING_FOR_START') {
+                    if (isIndexUp) {
+                        this.state = 'DRAWING';
+                        this.path = [{x: tip.x, y: tip.y}]; // Start path
+                        this.uiInstr.textContent = "TRACE THE SHAPE!";
+                        playTone(440);
+                        this.startTimer();
+                    }
+                } else if (this.state === 'DRAWING') {
+                    if (!isIndexUp) {
+                        // Stroke ended
+                        this.evaluate();
+                    } else {
+                        // Add point to path
+                        this.path.push({x: tip.x, y: tip.y});
+                    }
+                }
+            },
+
+            drawFrame: function(tip) {
+                const w = canvas.width;
+                const h = canvas.height;
+
+                // 1. Clear Screen
+                ctx.clearRect(0, 0, w, h);
+
+                // 2. Setup Mirrored Context
+                ctx.save();
+                ctx.translate(w, 0);
+                ctx.scale(-1, 1);
+
+                // 3. Draw Video (Mirrored)
+                // Draw the raw video, which is now flipped because of context scale
+                ctx.drawImage(videoElement, 0, 0, w, h);
+
+                // Darken video slightly so shapes pop
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.fillRect(0, 0, w, h);
+
+                // 4. Draw Target Shape (White)
+                this.drawTargetShape(this.shapes[this.level].type);
+
+                // 5. Draw User Path (Neon Cyan)
+                if (this.path.length > 1) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = '#00ffcc';
+                    ctx.lineWidth = 20;
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
+                    ctx.shadowColor = '#00ffcc';
+                    ctx.shadowBlur = 10;
+                    
+                    // Path points are normalized (0-1). Convert to pixel coords.
+                    // Since context is flipped, x=0.1 appears on Left (which is Sensor Right).
+                    // But wait... standard mirror logic:
+                    // Sensor 0.1 (Left Hand) -> We want it Screen Right.
+                    // Context Flip: Drawing at X draws at Width - X.
+                    // So if Sensor is 0.1, drawing at 0.1*w puts it at 0.9*w (Screen Right). CORRECT.
+                    
+                    ctx.moveTo(this.path[0].x * w, this.path[0].y * h);
+                    for (let i = 1; i < this.path.length; i++) {
+                        ctx.lineTo(this.path[i].x * w, this.path[i].y * h);
+                    }
+                    ctx.stroke();
+                    ctx.shadowBlur = 0; // Reset
+                }
+
+                // 6. Draw Cursor (Red Dot) - Only if hand detected
+                if (tip) {
+                    ctx.beginPath();
+                    ctx.arc(tip.x * w, tip.y * h, 10, 0, 2 * Math.PI);
+                    ctx.fillStyle = 'red';
+                    ctx.fill();
+                }
+
+                ctx.restore(); // Undo mirror flip for anything else (if we had non-mirrored UI here)
+            },
+
+            drawTargetShape: function(type) {
+                const cx = canvas.width / 2;
+                const cy = canvas.height / 2;
+                const size = Math.min(cx, cy) * 0.4; 
+
+                ctx.beginPath();
+                ctx.lineWidth = 20;
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineCap = 'round';
+                
+                if (type === 'circle') {
+                    ctx.arc(cx, cy, size, 0, 2 * Math.PI);
+                } else if (type === 'square') {
+                    ctx.rect(cx - size, cy - size, size * 2, size * 2);
+                } else if (type === 'triangle') {
+                    ctx.moveTo(cx, cy - size);
+                    ctx.lineTo(cx + size, cy + size);
+                    ctx.lineTo(cx - size, cy + size);
+                    ctx.closePath();
+                }
+                ctx.stroke();
+                
+                // Draw Start Point indicator (Visual Guide)
+                // Let's assume user starts anywhere, but circle looks best starting at top.
+                ctx.beginPath();
+                ctx.arc(cx, cy - size - 20, 5, 0, 2*Math.PI);
+                ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                ctx.fill();
+            },
+
+            evaluate: function() {
+                clearInterval(this.timerInterval);
+                this.state = 'EVALUATING';
+
+                // Pixel Analysis on the canvas directly
+                // We look for overlap between White (Target) and Cyan (User)
+                // We create a smaller image for performance
+                const scoreW = 100;
+                const scoreH = 100;
+                const buffer = document.createElement('canvas');
+                buffer.width = scoreW; buffer.height = scoreH;
+                const bCtx = buffer.getContext('2d');
+
+                // Draw current canvas state to buffer
+                bCtx.drawImage(canvas, 0, 0, scoreW, scoreH);
+                const imgData = bCtx.getImageData(0, 0, scoreW, scoreH);
+                const data = imgData.data;
+
+                let targetPixels = 0;
+                let drawnPixels = 0;
+                let overlap = 0;
+
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i+1];
+                    const b = data[i+2];
+                    const a = data[i+3];
+
+                    // Detect White (Target): High R, G, B
+                    if (r > 200 && g > 200 && b > 200 && a > 100) {
+                        targetPixels++;
+                    }
+
+                    // Detect Cyan (User Drawn): High G, Lower B, Low R
+                    if (g > 200 && r < 150 && b < 150 && a > 100) {
+                        drawnPixels++;
+                    }
+
+                    // Detect Overlap (Greenish/Cyan-White mix)
+                    // Or simpler: if both Target and User exist in this pixel
+                    // Since we draw User ON TOP of Target, we see Cyan where User drew correctly.
+                    // But wait, if I drew Cyan OVER White, the pixel is now Cyan.
+                    // So I need to check: Is this a Cyan pixel that IS ALSO inside the target area?
+                    // Since I don't have the layers separate here...
+                    // Logic: A valid pixel is "Cyan" (User). A valid match is "Cyan" pixel that is close to center?
+                    // No, that's flawed.
+                    
+                    // Better approach:
+                    // We need to know where the White target was BEFORE drawing?
+                    // No, let's just check the current pixel.
+                    // If the pixel is Cyan (User drew there), we check if it is roughly within the shape area?
+                    // Too complex.
+                    
+                    // Let's rely on colors:
+                    // Target = White (#FFFFFF)
+                    // User = Cyan (#00FFCC)
+                    // Overlap = Mixed?
+                    
+                    // Actually, easiest check: 
+                    // The Target is drawn first. The User draws ON TOP.
+                    // So if I see Cyan, I know User drew there.
+                    // Is it correct?
+                    // Let's assume the Target area is large enough.
+                    
+                    // Actually, let's check the White pixels. How many of them got covered by Cyan?
+                    // But I can't see "Under" the cyan easily now.
+                }
+                
+                // Re-think: Compare the "Target Shape" mathematically vs the "Path" points?
+                // Math is harder.
+                
+                // Back to pixels:
+                // If I draw White, then draw Cyan.
+                // I want to check: How much of the White line has a Cyan line on top of it?
+                // In the buffer, those pixels are Cyan.
+                // So: 
+                // 1. Count White pixels in the buffer. (Wait, buffer is flattened).
+                // Let's just count pixels that are "Target Colored" vs "User Colored".
+                
+                // We will define "Target Color" as White. 
+                // We will define "User Color" as Cyan.
+                // But since Cyan overwrites White, we can't see the White underneath.
+                
+                // FIX: We can't just compare the flattened image.
+                // We need to detect if the Cyan pixels are *near* the center or forming the shape?
+                
+                // SIMPLIFICATION:
+                // Let's check distance from center for every user point.
+                // It's more robust than pixel checking on a flattened canvas.
+                
+                let score = 0;
+                const center = {x: scoreW/2, y: scoreH/2};
+                const radius = scoreH * 0.4; // Approx size
+                
+                for(let i=0; i<this.path.length; i++) {
+                    const px = this.path[i].x * scoreW;
+                    const py = this.path[i].y * scoreH;
+                    
+                    // Distance from center
+                    const dist = Math.hypot(px - center.x, py - center.y);
+                    
+                    // Is point roughly on the ring?
+                    // Circle logic: dist should be approx radius
+                    // Square logic: |x-cx| approx size AND |y-cy| approx size
+                    
+                    let onShape = false;
+                    const type = this.shapes[this.level].type;
+                    const tolerance = 15; // pixels tolerance on small canvas
+                    
+                    if (type === 'circle') {
+                        if (Math.abs(dist - radius) < tolerance) onShape = true;
+                    } else if (type === 'square') {
+                        const dx = Math.abs(px - center.x);
+                        const dy = Math.abs(py - center.y);
+                        // Check if close to perimeter
+                        if ((dx < radius && dy < tolerance) || (dy < radius && dx < tolerance)) onShape = true;
+                    } else if (type === 'triangle') {
+                         // Simplified: Just check distance from center is within range
+                         // Triangle is hard to check mathematically simply. Let's use bounding box.
+                         // Actually, let's just accept any point within the shape radius for Triangle.
+                         if (dist < radius * 1.2 && dist > radius * 0.5) onShape = true;
+                    }
+
+                    if (onShape) score++;
+                }
+                
+                const accuracy = this.path.length > 0 ? (score / this.path.length) : 0;
+                
+                console.log("Score", accuracy);
+                
+                if (accuracy > 0.75) {
+                    this.showFeedback(true);
+                    setTimeout(() => {
+                        this.level++;
+                        this.nextLevel();
+                    }, 1500);
+                } else {
+                    this.gameOver(false, "Not accurate enough!");
+                }
+            },
+
+            showFeedback: function(success) {
+                // Draw text on canvas
+                ctx.save();
+                ctx.font = "bold 40px Arial";
+                ctx.textAlign = "center";
+                ctx.fillStyle = success ? "#00ffcc" : "#ff0055";
+                ctx.shadowColor = "#000";
+                ctx.shadowBlur = 10;
+                ctx.fillText(success ? "PERFECT!" : "MISS", canvas.width/2, canvas.height/2);
+                ctx.restore();
+                playTone(success ? 880 : 200, 'sine', 0.3);
+            },
+
+            gameOver: function(win, reason) {
+                this.state = 'END';
+                this.modal.style.display = 'flex';
+                this.modalTitle.textContent = win ? "YOU WIN!" : "GAME OVER";
+                this.modalDesc.textContent = win ? "All shapes mastered!" : (reason || "Try again.");
+                this.startBtn.textContent = "Restart";
+            }
+        };
+
+        game.init();
+
+    </script>
+</body>
+</html>
