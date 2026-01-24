@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Finger Math AI</title>
+    
+    <!-- MediaPipe Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <style>
+        :root {
+            --purple-dark: #4a00e0;
+            --purple-light: #8e2de2;
+            --white: #ffffff;
+            --glass: rgba(255, 255, 255, 0.2);
+            --glass-border: rgba(255, 255, 255, 0.4);
+            --success: #00e676;
+            --error: #ff1744;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+        
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; font-family: 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--purple-light), var(--purple-dark));
+            touch-action: none;
+        }
+
+        /* Container */
+        #app {
+            position: relative; width: 100vw; height: 100vh;
+            display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+        }
+
+        /* Camera Canvas */
+        .canvas-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1; background: #000;
+        }
+        canvas {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* Mirror effect */
+        }
+
+        /* UI Overlay */
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: flex; flex-direction: column;
+            justify-content: space-between; padding: 20px;
+        }
+
+        /* Header */
+        .header {
+            display: flex; justify-content: space-between; width: 100%;
+            color: white; font-weight: bold; font-size: 1.2rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            pointer-events: auto;
+        }
+
+        /* Equation Box */
+        .equation-card {
+            align-self: center;
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 20px 40px;
+            border-radius: 30px;
+            border: 2px solid var(--glass-border);
+            text-align: center;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2);
+            pointer-events: auto;
+            transition: transform 0.1s, border-color 0.2s;
+        }
+        .equation-text { font-size: 3rem; font-weight: 800; color: #fff; margin: 0; line-height: 1; }
+
+        /* Detected Counter with Progress Ring */
+        .detected-wrapper {
+            position: absolute; bottom: 140px; width: 120px; height: 120px;
+            left: 50%; transform: translateX(-50%);
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .detected-ring {
+            position: absolute; width: 100%; height: 100%;
+            border-radius: 50%;
+            border: 4px solid rgba(255,255,255,0.2);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .detected-display {
+            font-size: 4.5rem; font-weight: 900; color: rgba(255,255,255,0.95);
+            text-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            z-index: 2;
+        }
+
+        /* Controls */
+        .controls {
+            width: 100%; display: flex; justify-content: space-around; padding-bottom: 30px; pointer-events: auto;
+        }
+
+        .btn {
+            background: rgba(255,255,255,0.9); border: none;
+            width: 60px; height: 60px; border-radius: 50%;
+            font-size: 1.5rem; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .btn:active { transform: scale(0.9); }
+        .btn-hint { color: var(--purple-dark); }
+        .btn-help { color: var(--purple-dark); }
+
+        /* Popups */
+        .popup-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(74, 0, 224, 0.95); z-index: 100;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: white; text-align: center; padding: 40px;
+            transition: opacity 0.3s;
+        }
+        .popup-hidden { opacity: 0; pointer-events: none; }
+        .popup-title { font-size: 2.2rem; font-weight: bold; margin-bottom: 20px; }
+        .popup-text { font-size: 1.1rem; margin-bottom: 30px; line-height: 1.6; }
+        .btn-start {
+            background: white; color: var(--purple-dark);
+            font-size: 1.4rem; font-weight: bold; padding: 15px 50px;
+            border-radius: 50px; border: none; box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            pointer-events: auto; cursor: pointer;
+        }
+
+        /* Feedback */
+        .feedback {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 8rem; font-weight: 900; z-index: 50;
+            opacity: 0; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none; text-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+        .feedback-success { color: var(--success); opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+        .feedback-fail { color: var(--error); opacity: 1; animation: shake 0.5s; }
+
+        /* Animations */
+        .loader {
+            border: 5px solid rgba(255,255,255,0.3);
+            border-top: 5px solid white; border-radius: 50%;
+            width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 20px;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes shake {
+            0%, 100% {transform: translate(-50%, -50%);} 
+            25% {transform: translate(-60%, -50%);} 
+            75% {transform: translate(-40%, -50%);}
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <!-- Camera & Canvas -->
+    <div class="canvas-container">
+        <video id="input_video" style="display:none"></video>
+        <canvas id="output_canvas"></canvas>
+    </div>
+
+    <!-- UI Layer -->
+    <div id="ui-layer">
+        <div class="header">
+            <span id="score">Score: 0</span>
+            <span id="streak">🔥 0</span>
+        </div>
+
+        <!-- Center Equation -->
+        <div class="equation-card" id="equation-box">
+            <div class="equation-text" id="equation-display">
+                <span id="num-a">✊</span> + <span id="num-b">✊</span> = ?
+            </div>
+        </div>
+
+        <!-- Detected Number + Stability Ring -->
+        <div class="detected-wrapper">
+            <div class="detected-ring" id="confidence-ring"></div>
+            <div class="detected-display" id="detected-num">?</div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <button class="btn btn-help" onclick="ui.showHelp()">?</button>
+            <button class="btn btn-hint" onclick="game.showHint()">💡</button>
+        </div>
+    </div>
+
+    <!-- Feedback Overlay -->
+    <div id="feedback-el" class="feedback"></div>
+
+    <!-- Start / Help Popup -->
+    <div id="start-popup" class="popup-overlay">
+        <div class="loader" id="loader"></div>
+        <h1 class="popup-title" id="popup-title">Finger Math AI</h1>
+        <p class="popup-text" id="popup-desc">
+            Loading AI Model...<br>
+            (Allow Camera Access)
+        </p>
+        <button class="btn-start" id="btn-start" onclick="game.start()" style="display:none">START GAME</button>
+    </div>
+</div>
+
+<script>
+    /** 
+     * Sound Synthesis 
+     */
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    const sfx = {
+        playTone: (freq, type, duration) => {
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        },
+        success: () => {
+            sfx.playTone(600, 'sine', 0.1);
+            setTimeout(() => sfx.playTone(800, 'sine', 0.2), 100);
+        },
+        fail: () => {
+            sfx.playTone(200, 'sawtooth', 0.3);
+        },
+        pop: () => {
+            sfx.playTone(400, 'triangle', 0.1);
+        }
+    };
+
+    /**
+     * Game Logic (Robust Version)
+     */
+    const game = {
+        state: 'loading', // loading, waiting, solving, feedback
+        score: 0,
+        streak: 0,
+        target: 0,
+        a: 0,
+        b: 0,
+        detectionConfidence: 0, // 0 to 100. Triggers at 80.
+        isCooldown: false,
+
+        init: function() {
+            ui.updateScore(0);
+            this.startMediaPipe();
+        },
+
+        startMediaPipe: function() {
+            const videoElement = document.getElementById('input_video');
+            const canvasElement = document.getElementById('output_canvas');
+            const canvasCtx = canvasElement.getContext('2d');
+
+            function onResults(results) {
+                canvasCtx.save();
+                canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+                canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+                
+                if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                    for (const landmarks of results.multiHandLandmarks) {
+                        drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: '#00e676', lineWidth: 5});
+                        drawLandmarks(canvasCtx, landmarks, {color: '#ffffff', lineWidth: 2, radius: 3});
+                        const count = handLogic.countFingers(landmarks);
+                        game.processDetection(count);
+                    }
+                } else {
+                    ui.showDetected(0); 
+                    game.detectionConfidence = 0; // Reset if hand lost
+                    ui.updateRing(0);
+                }
+                canvasCtx.restore();
+            }
+
+            const hands = new Hands({locateFile: (file) => {
+                return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+            }});
+
+            hands.setOptions({
+                maxNumHands: 1,
+                modelComplexity: 1,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+
+            hands.onResults(onResults);
+
+            const camera = new Camera(videoElement, {
+                onFrame: async () => { await hands.send({image: videoElement}); },
+                width: 1280,
+                height: 720
+            });
+
+            camera.start()
+                .then(() => {
+                    document.getElementById('loader').style.display = 'none';
+                    document.getElementById('btn-start').style.display = 'block';
+                    document.getElementById('popup-desc').innerHTML = "Camera Ready!<br>Hold your fingers to solve.";
+                })
+                .catch(err => {
+                    document.getElementById('popup-title').innerText = "Camera Error";
+                    document.getElementById('popup-desc').innerText = "Please allow camera access.";
+                });
+        },
+
+        start: function() {
+            document.getElementById('start-popup').classList.add('popup-hidden');
+            this.state = 'solving';
+            sfx.pop();
+            this.nextLevel();
+        },
+
+        nextLevel: function() {
+            this.state = 'solving';
+            this.a = Math.floor(Math.random() * 6); // 0-5
+            this.b = Math.floor(Math.random() * 6); // 0-5
+            this.target = this.a + this.b;
+            this.detectionConfidence = 0;
+            ui.updateRing(0);
+            ui.updateEquation(this.a, this.b);
+        },
+
+        processDetection: function(count) {
+            ui.showDetected(count);
+            
+            // Visual feedback on card
+            const isCorrect = (count === this.target);
+            const ringColor = isCorrect ? '#00e676' : '#ff1744';
+            ui.updateRing(Math.min(100, this.detectionConfidence), ringColor);
+
+            if (this.state !== 'solving' || this.isCooldown) return;
+
+            // Confidence Logic
+            if (isCorrect) {
+                // Correct answer: Build confidence quickly
+                this.detectionConfidence += 3; 
+                if (this.detectionConfidence >= 80) {
+                    this.handleWin();
+                }
+            } else if (count > 0) {
+                // Wrong answer: Build "Wrong" confidence slowly
+                // We use a negative counter for wrong answers to prevent accidental triggers
+                this.detectionConfidence -= 2;
+                
+                // Only trigger Fail if you hold the WRONG number firmly for a while
+                if (this.detectionConfidence <= -50) {
+                    this.handleFail();
+                }
+            } else {
+                // Empty hand: Drift back to neutral
+                if (this.detectionConfidence > 0) this.detectionConfidence -= 1;
+                if (this.detectionConfidence < 0) this.detectionConfidence += 1;
+            }
+
+            // Clamp
+            if (this.detectionConfidence > 100) this.detectionConfidence = 100;
+        },
+
+        handleWin: function() {
+            this.state = 'feedback';
+            this.isCooldown = true;
+            sfx.success();
+            this.score += 10 + (this.streak * 2);
+            this.streak++;
+            ui.updateScore(this.score);
+            ui.showFeedback(true);
+            setTimeout(() => {
+                this.isCooldown = false;
+                this.nextLevel();
+            }, 1200);
+        },
+
+        handleFail: function() {
+            this.state = 'feedback';
+            this.isCooldown = true;
+            sfx.fail();
+            this.streak = 0;
+            ui.updateScore(this.score);
+            ui.showFeedback(false);
+            setTimeout(() => {
+                this.isCooldown = false;
+                this.state = 'solving'; // Try same level again
+                this.detectionConfidence = 0;
+                ui.updateRing(0);
+            }, 1200);
+        },
+
+        showHint: function() {
+            sfx.pop();
+            const originalA = document.getElementById('num-a').innerText;
+            const originalB = document.getElementById('num-b').innerText;
+            
+            document.getElementById('num-a').innerText = this.a;
+            document.getElementById('num-b').innerText = this.b;
+            
+            setTimeout(() => {
+                document.getElementById('num-a').innerText = originalA;
+                document.getElementById('num-b').innerText = originalB;
+            }, 2000);
+        },
+        
+        getEmoji: (num) => {
+            const map = ['✊', '☝️', '✌️', '🤟', '🖖', '✋'];
+            return map[num] || num;
+        }
+    };
+
+    /**
+     * Hand Recognition Logic (Ratio-based for stability)
+     */
+    const handLogic = {
+        countFingers: function(landmarks) {
+            let count = 0;
+
+            // 1. Index, Middle, Ring, Pinky
+            // Check if tip is above PIP joint (Y coordinate)
+            if (landmarks[8].y < landmarks[6].y) count++;
+            if (landmarks[12].y < landmarks[10].y) count++;
+            if (landmarks[16].y < landmarks[14].y) count++;
+            if (landmarks[20].y < landmarks[18].y) count++;
+
+            // 2. Thumb (Robust Ratio Check)
+            // Calculate distance from Wrist(0) to Tip(4) vs Wrist(0) to Joint(3)
+            const dTip = Math.hypot(landmarks[4].x - landmarks[0].x, landmarks[4].y - landmarks[0].y);
+            const dJoint = Math.hypot(landmarks[3].x - landmarks[0].x, landmarks[3].y - landmarks[0].y);
+            
+            // If tip is significantly further than joint, thumb is open
+            // 1.2x ratio handles folded thumbs comfortably
+            if (dTip > dJoint * 1.2) {
+                count++;
+            }
+
+            return count;
+        }
+    };
+
+    /**
+     * UI Controller
+     */
+    const ui = {
+        updateScore: function(score) {
+            document.getElementById('score').innerText = `Score: ${score}`;
+            document.getElementById('streak').innerText = `🔥 ${game.streak}`;
+        },
+
+        updateEquation: function(a, b) {
+            document.getElementById('num-a').innerText = game.getEmoji(a);
+            document.getElementById('num-b').innerText = game.getEmoji(b);
+        },
+
+        showDetected: function(num) {
+            const el = document.getElementById('detected-num');
+            if (num === 0 && game.target !== 0) {
+                el.style.opacity = 0.3;
+                el.innerText = "";
+            } else {
+                el.style.opacity = 1;
+                el.innerText = num;
+            }
+        },
+
+        updateRing: function(percentage, color) {
+            const ring = document.getElementById('confidence-ring');
+            ring.style.border = `4px solid ${color || 'rgba(255,255,255,0.2)'}`;
+            // Visual hack for "filling up" the ring using opacity or shadow
+            ring.style.boxShadow = `0 0 ${percentage/2}px ${color || 'transparent'}`;
+            ring.style.opacity = 0.5 + (percentage/200);
+        },
+
+        showFeedback: function(isSuccess) {
+            const el = document.getElementById('feedback-el');
+            el.className = 'feedback ' + (isSuccess ? 'feedback-success' : 'feedback-fail');
+            el.innerText = isSuccess ? '✓' : '✗';
+            
+            setTimeout(() => {
+                el.className = 'feedback'; 
+            }, 1200);
+        },
+
+        showHelp: function() {
+            document.getElementById('start-popup').classList.remove('popup-hidden');
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('btn-start').style.display = 'block';
+            document.getElementById('popup-title').innerText = "Paused";
+            document.getElementById('popup-desc').innerHTML = "Hold your fingers steady until the ring glows.";
+        }
+    };
+
+    // Init
+    window.onload = () => { game.init(); };
+</script>
+</body>
+</html>
