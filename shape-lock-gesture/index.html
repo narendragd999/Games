@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Shape Lock Puzzle</title>
+    <style>
+        :root {
+            --bg-grad: linear-gradient(135deg, #1a1c2c 0%, #4a192c 100%);
+            --btn-grad: linear-gradient(145deg, #2b2b2b, #1a1a1a);
+            --accent: #ff0055;
+            --text-color: #ffffff;
+            --font-main: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden; /* No scrolling */
+            font-family: var(--font-main);
+            background: var(--bg-grad);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* --- UI Components --- */
+        header {
+            text-align: center;
+            padding-top: 20px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            flex: 0 0 auto;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            letter-spacing: 2px;
+            color: #ff9a9e;
+        }
+
+        #status-display {
+            margin-top: 10px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            height: 1.5rem; /* prevent layout shift */
+        }
+
+        /* --- Game Board --- */
+        .game-board {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 20px;
+            max-width: 500px;
+            width: 100%;
+            flex: 1 1 auto;
+            align-content: center;
+        }
+
+        .gesture-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.1s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .gesture-btn:active {
+            transform: scale(0.95);
+        }
+
+        .gesture-emoji {
+            font-size: 3.5rem;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+        }
+
+        .gesture-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            margin-top: 5px;
+            opacity: 0.7;
+        }
+
+        /* Animation States */
+        .gesture-btn.active {
+            background: rgba(255, 255, 255, 0.9);
+            border-color: #fff;
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+        }
+        
+        .gesture-btn.active .gesture-emoji {
+            filter: none;
+        }
+
+        /* --- Controls --- */
+        .controls {
+            display: flex;
+            gap: 15px;
+            padding: 20px;
+            width: 100%;
+            max-width: 500px;
+            justify-content: center;
+            flex: 0 0 auto;
+        }
+
+        .control-btn {
+            background: var(--btn-grad);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #ccc;
+            padding: 12px 20px;
+            border-radius: 30px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+            transition: background 0.2s;
+            flex: 1;
+        }
+
+        .control-btn:hover {
+            background: rgba(255,255,255,0.2);
+            color: #fff;
+        }
+
+        .control-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        /* --- Modal --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 1;
+            transition: opacity 0.3s;
+        }
+
+        .modal-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .modal {
+            background: #222;
+            border: 1px solid #444;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 90%;
+            width: 350px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        .modal h2 {
+            margin-top: 0;
+            color: #ff9a9e;
+        }
+
+        .modal p {
+            line-height: 1.5;
+            color: #ddd;
+            margin-bottom: 20px;
+        }
+
+        .start-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255, 0, 85, 0.4);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 0, 85, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 0, 85, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 0, 85, 0); }
+        }
+
+        /* Shake Animation for Error */
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        /* Toast Message */
+        .toast {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.95);
+            color: #000;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 50;
+        }
+        .toast.visible { opacity: 1; }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>SHAPE LOCK</h1>
+        <div id="status-display">Level 1</div>
+    </header>
+
+    <div class="game-board" id="game-board">
+        <!-- Gesture Buttons -->
+        <div class="gesture-btn" data-id="0" onclick="game.handleInput(0)">
+            <div class="gesture-emoji">✋</div>
+            <div class="gesture-label">Open</div>
+        </div>
+        <div class="gesture-btn" data-id="1" onclick="game.handleInput(1)">
+            <div class="gesture-emoji">✊</div>
+            <div class="gesture-label">Fist</div>
+        </div>
+        <div class="gesture-btn" data-id="2" onclick="game.handleInput(2)">
+            <div class="gesture-emoji">✌️</div>
+            <div class="gesture-label">2 Fingers</div>
+        </div>
+        <div class="gesture-btn" data-id="3" onclick="game.handleInput(3)">
+            <div class="gesture-emoji">🤟</div>
+            <div class="gesture-label">3 Fingers</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="control-btn" id="btn-hint" onclick="game.showHint()">Hint</button>
+        <button class="control-btn" id="btn-solve" onclick="game.autoSolve()">Auto-Solve</button>
+        <button class="control-btn" onclick="game.showInstructions()">Help</button>
+    </div>
+
+    <!-- Instructions Modal -->
+    <div class="modal-overlay" id="modal">
+        <div class="modal">
+            <h2>Instructions</h2>
+            <p>Watch the sequence of hand gestures carefully.</p>
+            <p>Tap the buttons in the <strong>exact same order</strong> to unlock the level.</p>
+            <p>One wrong move resets the puzzle!</p>
+            <button class="start-btn" onclick="game.startGame()">Start Game</button>
+        </div>
+    </div>
+
+    <!-- Toast Feedback -->
+    <div id="toast" class="toast">Correct!</div>
+
+    <script>
+        /* --- Audio System (Web Audio API) --- */
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        const sounds = {
+            0: { freq: 261.63, type: 'sine' }, // C4 (Open)
+            1: { freq: 329.63, type: 'square' }, // E4 (Fist)
+            2: { freq: 392.00, type: 'triangle' }, // G4 (2 Fingers)
+            3: { freq: 523.25, type: 'sawtooth' }, // C5 (3 Fingers)
+            error: { freq: 110, type: 'sawtooth' },
+            success: { freq: 880, type: 'sine' }
+        };
+
+        function playSound(id, duration = 300) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = sounds[id].type;
+            osc.frequency.setValueAtTime(sounds[id].freq, audioCtx.currentTime);
+            
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + (duration / 1000));
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + (duration / 1000));
+        }
+
+        /* --- Game Logic --- */
+        const game = {
+            sequence: [],
+            playerSequence: [],
+            level: 1,
+            isPlayingSequence: false,
+            isAcceptingInput: false,
+            
+            // Elements
+            uiStatus: document.getElementById('status-display'),
+            btns: document.querySelectorAll('.gesture-btn'),
+            modal: document.getElementById('modal'),
+            toast: document.getElementById('toast'),
+            btnHint: document.getElementById('btn-hint'),
+            btnSolve: document.getElementById('btn-solve'),
+
+            startGame: function() {
+                this.modal.classList.add('hidden');
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                this.level = 1;
+                this.startLevel();
+            },
+
+            showInstructions: function() {
+                this.modal.classList.remove('hidden');
+                this.isPlayingSequence = false;
+            },
+
+            startLevel: function() {
+                this.sequence = [];
+                this.playerSequence = [];
+                this.generateSequence();
+                this.updateUI();
+                this.playSequence();
+            },
+
+            generateSequence: function() {
+                // Length of sequence increases with level
+                const length = this.level + 2; 
+                for (let i = 0; i < length; i++) {
+                    this.sequence.push(Math.floor(Math.random() * 4));
+                }
+            },
+
+            updateUI: function() {
+                this.uiStatus.textContent = `Level ${this.level}`;
+                this.uiStatus.style.color = '#fff';
+                this.toggleControls(false);
+            },
+
+            toggleControls: function(enable) {
+                this.btnHint.disabled = !enable;
+                this.btnSolve.disabled = !enable;
+            },
+
+            // Core mechanic: Show the moves
+            playSequence: function() {
+                this.isPlayingSequence = true;
+                this.isAcceptingInput = false;
+                this.playerSequence = [];
+                this.uiStatus.textContent = "Watch...";
+                
+                let i = 0;
+                const interval = setInterval(() => {
+                    if (i >= this.sequence.length) {
+                        clearInterval(interval);
+                        this.isPlayingSequence = false;
+                        this.isAcceptingInput = true;
+                        this.uiStatus.textContent = "Your Turn!";
+                        this.toggleControls(true);
+                        return;
+                    }
+                    this.flashButton(this.sequence[i]);
+                    i++;
+                }, 800); // Speed of playback
+            },
+
+            flashButton: function(id) {
+                const btn = this.btns[id];
+                btn.classList.add('active');
+                playSound(id);
+                setTimeout(() => btn.classList.remove('active'), 400);
+            },
+
+            // Handle user tap
+            handleInput: function(id) {
+                if (!this.isAcceptingInput || this.isPlayingSequence) return;
+
+                // Visual feedback
+                this.flashButton(id);
+                
+                // Logic
+                const currentIndex = this.playerSequence.length;
+                
+                if (id !== this.sequence[currentIndex]) {
+                    this.fail();
+                    return;
+                }
+
+                this.playerSequence.push(id);
+
+                // Check completion
+                if (this.playerSequence.length === this.sequence.length) {
+                    this.success();
+                }
+            },
+
+            // Hint Feature: Shows the next required move
+            showHint: function() {
+                if (!this.isAcceptingInput) return;
+                const nextMoveIndex = this.playerSequence.length;
+                const nextMoveId = this.sequence[nextMoveIndex];
+                
+                this.showToast("Next...");
+                // Disable input briefly
+                this.isAcceptingInput = false;
+                
+                setTimeout(() => {
+                    this.flashButton(nextMoveId);
+                    this.isAcceptingInput = true;
+                }, 500);
+            },
+
+            // Auto-Solve Feature: Plays the rest of the sequence
+            autoSolve: function() {
+                if (!this.isAcceptingInput) return;
+                this.isAcceptingInput = false;
+                this.uiStatus.textContent = "Auto-Solving...";
+
+                let remaining = this.sequence.slice(this.playerSequence.length);
+                let i = 0;
+                
+                const interval = setInterval(() => {
+                    if (i >= remaining.length) {
+                        clearInterval(interval);
+                        this.success(true); // Pass true to indicate auto-solved
+                        return;
+                    }
+                    this.flashButton(remaining[i]);
+                    i++;
+                }, 600);
+            },
+
+            fail: function() {
+                playSound('error');
+                this.uiStatus.textContent = "Wrong! Resetting...";
+                this.uiStatus.style.color = '#ff4444';
+                
+                // Shake screen
+                document.body.classList.add('shake');
+                setTimeout(() => document.body.classList.remove('shake'), 500);
+
+                this.isAcceptingInput = false;
+                this.toggleControls(false);
+
+                // Restart level after delay
+                setTimeout(() => {
+                    this.startLevel();
+                }, 1500);
+            },
+
+            success: function(auto = false) {
+                playSound('success');
+                this.showToast("Unlocked!");
+                this.isAcceptingInput = false;
+                this.toggleControls(false);
+
+                setTimeout(() => {
+                    this.level++;
+                    this.startLevel(); // Auto-new puzzle
+                }, 1500);
+            },
+
+            showToast: function(msg) {
+                this.toast.textContent = msg;
+                this.toast.classList.add('visible');
+                setTimeout(() => {
+                    this.toast.classList.remove('visible');
+                }, 1000);
+            }
+        };
+
+        // Initialize with modal open
+        // (No scroll fix)
+        document.body.addEventListener('touchmove', function(e) { e.preventDefault(); }, { passive: false });
+
+    </script>
+</body>
+</html>
