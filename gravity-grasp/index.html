@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Gravity Grasp</title>
+    <style>
+        /* CSS Reset & Basic Setup */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            touch-action: none;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: white;
+        }
+
+        /* Canvas Container */
+        #game-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* Hidden Video Element for MediaPipe */
+        #input-video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 320px;
+            height: 240px;
+            opacity: 0;
+            pointer-events: none;
+            z-index: -1;
+            transform: scaleX(-1);
+        }
+
+        /* UI Layer */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+        }
+
+        /* HUD Elements */
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .score-box, .timer-box {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            padding: 10px 20px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 1.2rem;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .label {
+            font-size: 0.8rem;
+            color: #aaa;
+            text-transform: uppercase;
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .value {
+            font-size: 1.5rem;
+            color: #00ffcc;
+        }
+
+        /* Webcam Preview (Small Corner) */
+        .cam-preview {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 120px;
+            height: 90px;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            background: #000;
+            pointer-events: auto;
+        }
+
+        .cam-preview canvas {
+            width: 100%;
+            height: 100%;
+            transform: scaleX(-1);
+            object-fit: cover;
+        }
+
+        /* Loading / Instructions Modal */
+        #modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 20;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            transition: opacity 0.5s ease;
+        }
+
+        .modal-content {
+            background: linear-gradient(to bottom, #2b2b2b, #1a1a1a);
+            width: 90%;
+            max-width: 450px;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            border: 1px solid #444;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        h1 {
+            color: #00ffcc;
+            margin-bottom: 10px;
+            font-size: 2rem;
+            letter-spacing: 2px;
+        }
+
+        p {
+            margin-bottom: 20px;
+            line-height: 1.5;
+            color: #ddd;
+            font-size: 0.95rem;
+        }
+
+        .key-point {
+            color: #ffcc00;
+            font-weight: bold;
+        }
+
+        .error-msg {
+            color: #ff4444;
+            font-size: 0.85rem;
+            margin-top: 10px;
+            display: none;
+            background: rgba(255,0,0,0.1);
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .btn {
+            background: linear-gradient(90deg, #00c6ff, #0072ff);
+            border: none;
+            padding: 15px 30px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            outline: none;
+            text-transform: uppercase;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(0, 198, 255, 0.6);
+        }
+
+        .btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #00ffcc;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        #toast {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 255, 204, 0.2);
+            border: 2px solid #00ffcc;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 15;
+            text-shadow: 0 0 10px rgba(0,255,204,0.5);
+        }
+        
+        @media (max-width: 600px) {
+            h1 { font-size: 1.5rem; }
+            .score-box, .timer-box { padding: 5px 15px; }
+            .value { font-size: 1.2rem; }
+            .modal-content { padding: 20px; }
+        }
+    </style>
+    
+    <!-- Load MediaPipe via GLOBAL SCRIPTS (more reliable for single file without bundler) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <!-- Import Map for Three.js and Cannon (They work well as modules) -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "cannon-es": "https://unpkg.com/cannon-es@0.20.0/dist/cannon-es.js"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <!-- Game Canvas -->
+    <div id="game-container"></div>
+    
+    <!-- Raw Video Input -->
+    <video id="input-video" playsinline></video>
+
+    <!-- UI Overlay -->
+    <div id="ui-layer">
+        <div class="hud-top">
+            <div class="score-box">
+                <span class="label">Score</span>
+                <span class="value" id="score-display">0</span>
+            </div>
+            <div class="timer-box">
+                <span class="label">Time</span>
+                <span class="value" id="time-display">60</span>
+            </div>
+        </div>
+        
+        <!-- Corner Webcam Preview -->
+        <div class="cam-preview">
+            <canvas id="output-canvas" width="320" height="240"></canvas>
+        </div>
+    </div>
+
+    <!-- Feedback Toast -->
+    <div id="toast">+100</div>
+
+    <!-- Start / Game Over Modal -->
+    <div id="modal-overlay">
+        <div class="modal-content">
+            <h1 id="modal-title">Gravity Grasp</h1>
+            <p id="modal-desc">
+                Move your hand to control the <span class="key-point">Green Orb</span>.<br>
+                <strong>Pinch</strong> (Index + Thumb) to grab objects.<br>
+                Drag shapes into the matching <span class="key-point">Colored Zones</span>.
+            </p>
+            <div class="loader" id="loader"></div>
+            <div class="error-msg" id="error-msg">
+                Camera failed. Are you running this on a Local Server? (file:// is blocked by browsers).
+            </div>
+            <button class="btn" id="start-btn">Start Game</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import * as CANNON from 'cannon-es';
+
+        // --- Game State ---
+        const GAME_DURATION = 60;
+        let gameState = {
+            isPlaying: false,
+            score: 0,
+            timeRemaining: GAME_DURATION,
+            lastTime: 0
+        };
+
+        const config = {
+            pinchThreshold: 0.05,
+            colors: {
+                bin1: 0xff4444,
+                bin2: 0x4444ff,
+                hand: 0x00ffcc,
+                handActive: 0xff00ff
+            }
+        };
+
+        // --- Audio Context ---
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            if (type === 'grab') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.1);
+                gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.1);
+            } else if (type === 'score') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.2);
+                gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            } else if (type === 'gameover') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 1.0);
+                gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 1.0);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 1.0);
+            }
+        }
+
+        // --- 3D Scene (Three.js) ---
+        const container = document.getElementById('game-container');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 0, 15);
+        camera.lookAt(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        container.appendChild(renderer.domElement);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(5, 10, 7);
+        dirLight.castShadow = true;
+        scene.add(dirLight);
+
+        // --- Physics World (Cannon-es) ---
+        const world = new CANNON.World();
+        world.gravity.set(0, 0, 0);
+        world.broadphase = new CANNON.NaiveBroadphase();
+        world.solver.iterations = 10;
+
+        const defaultMaterial = new CANNON.Material('default');
+        const defaultContactMaterial = new CANNON.ContactMaterial(defaultMaterial, defaultMaterial, {
+            friction: 0.4,
+            restitution: 0.3
+        });
+        world.addContactMaterial(defaultContactMaterial);
+
+        const objectsToUpdate = [];
+
+        function createPhysicsBody(mesh, shape, mass, position) {
+            const body = new CANNON.Body({
+                mass: mass,
+                position: new CANNON.Vec3(position.x, position.y, position.z),
+                shape: shape,
+                material: defaultMaterial
+            });
+            
+            if (mass > 0) {
+                body.angularVelocity.set(Math.random(), Math.random(), Math.random());
+                body.velocity.set(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5);
+                body.linearDamping = 0.5;
+                body.angularDamping = 0.5;
+            } else {
+                body.type = CANNON.Body.KINEMATIC;
+            }
+
+            world.addBody(body);
+            scene.add(mesh);
+            objectsToUpdate.push({ mesh, body });
+            return body;
+        }
+
+        // --- Game Elements ---
+
+        // Hand
+        const handGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+        const handMaterial = new THREE.MeshBasicMaterial({ color: config.colors.hand, transparent: true, opacity: 0.6 });
+        const handMesh = new THREE.Mesh(handGeometry, handMaterial);
+        scene.add(handMesh);
+
+        const ringGeo = new THREE.RingGeometry(0.4, 0.5, 32);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
+        const pinchRing = new THREE.Mesh(ringGeo, ringMat);
+        pinchRing.visible = false;
+        scene.add(pinchRing);
+
+        const handBody = new CANNON.Body({
+            mass: 0,
+            type: CANNON.Body.KINEMATIC,
+            position: new CANNON.Vec3(0, 0, 10),
+            shape: new CANNON.Sphere(0.3)
+        });
+        world.addBody(handBody);
+
+        let grabConstraint = null;
+
+        // Bins
+        function createBin(x, y, color, label) {
+            const geo = new THREE.BoxGeometry(3.5, 1, 1);
+            const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.2, metalness: 0.1, transparent: true, opacity: 0.8 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x, y, 2);
+            const edges = new THREE.EdgesGeometry(geo);
+            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xffffff }));
+            mesh.add(line);
+
+            // Label
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 80px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(label, 128, 90);
+            const tex = new THREE.CanvasTexture(canvas);
+            const labelMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 1), new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+            labelMesh.position.set(0, 0, 0.6);
+            mesh.add(labelMesh);
+            scene.add(mesh);
+
+            const shape = new CANNON.Box(new CANNON.Vec3(1.75, 0.5, 0.5));
+            const body = new CANNON.Body({ mass: 0 });
+            body.position.set(x, y, 2);
+            body.isTrigger = true;
+            world.addBody(body);
+
+            return { mesh, body, color: color, type: label };
+        }
+
+        const bins = [
+            createBin(-4, -2, config.colors.bin1, 'RED'),
+            createBin(4, -2, config.colors.bin2, 'BLUE')
+        ];
+
+        // Collectibles
+        const collectibles = [];
+        
+        function spawnCollectible() {
+            if (!gameState.isPlaying) return;
+            const isRed = Math.random() > 0.5;
+            const color = isRed ? config.colors.bin1 : config.colors.bin2;
+            const type = isRed ? 'RED' : 'BLUE';
+            const x = (Math.random() - 0.5) * 8;
+            const y = 3 + Math.random() * 2;
+            
+            let geo, shape;
+            if (Math.random() > 0.5) {
+                geo = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+                shape = new CANNON.Box(new CANNON.Vec3(0.4, 0.4, 0.4));
+            } else {
+                geo = new THREE.SphereGeometry(0.5, 24, 24);
+                shape = new CANNON.Sphere(0.5);
+            }
+            const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: color, roughness: 0.4 }));
+            const body = createPhysicsBody(mesh, shape, 1, { x, y, z: 0 });
+            collectibles.push({ mesh, body, type, scored: false });
+
+            if (collectibles.length > 6) {
+                const old = collectibles.shift();
+                removeCollectible(old);
+            }
+        }
+
+        function removeCollectible(item) {
+            world.removeBody(item.body);
+            scene.remove(item.mesh);
+            const idx = objectsToUpdate.indexOf(item);
+            if(idx > -1) objectsToUpdate.splice(idx, 1);
+        }
+
+        // --- MediaPipe Hands (Global Scope) ---
+        const videoElement = document.getElementById('input-video');
+        const outputCanvas = document.getElementById('output-canvas');
+        const outputCtx = outputCanvas.getContext('2d');
+        
+        let handCoords = { x: 0.5, y: 0.5 };
+        let isPinched = false;
+
+        // We use window.Hands and window.Camera because they were loaded via script tags
+        const hands = new window.Hands({locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+        }});
+
+        hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        hands.onResults((results) => {
+            outputCtx.save();
+            outputCtx.clearRect(0, 0, outputCanvas.width, outputCanvas.height);
+            outputCtx.drawImage(results.image, 0, 0, outputCanvas.width, outputCanvas.height);
+            
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const landmarks = results.multiHandLandmarks[0];
+                
+                // Global drawing utils from script tag
+                window.drawConnectors(outputCtx, landmarks, window.HAND_CONNECTIONS, {color: '#00FF00', lineWidth: 2});
+                window.drawLandmarks(outputCtx, landmarks, {color: '#FF0000', lineWidth: 1, radius: 2});
+
+                const indexTip = landmarks[8];
+                const thumbTip = landmarks[4];
+
+                handCoords.x = indexTip.x;
+                handCoords.y = indexTip.y;
+
+                const distance = Math.sqrt(Math.pow(indexTip.x - thumbTip.x, 2) + Math.pow(indexTip.y - thumbTip.y, 2));
+                const wasPinched = isPinched;
+                isPinched = distance < config.pinchThreshold;
+
+                if (isPinched) {
+                    handMaterial.color.setHex(config.colors.handActive);
+                    handMesh.scale.setScalar(0.8);
+                    pinchRing.visible = true;
+                } else {
+                    handMaterial.color.setHex(config.colors.hand);
+                    handMesh.scale.setScalar(1);
+                    pinchRing.visible = false;
+                }
+
+                if (gameState.isPlaying && isPinched && !wasPinched) {
+                    attemptGrab();
+                    playSound('grab');
+                }
+            } else {
+                isPinched = false;
+            }
+            outputCtx.restore();
+        });
+
+        const cameraUtils = new window.Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({image: videoElement});
+            },
+            width: 640,
+            height: 480
+        });
+
+        // --- Interaction ---
+        const raycaster = new THREE.Raycaster();
+        const handPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+        const planeIntersectPoint = new THREE.Vector3();
+
+        function updateHandPosition() {
+            const ndcX = -(handCoords.x * 2 - 1);
+            const ndcY = -(handCoords.y * 2 - 1);
+
+            raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
+            raycaster.ray.intersectPlane(handPlane, planeIntersectPoint);
+
+            planeIntersectPoint.x = Math.max(-8, Math.min(8, planeIntersectPoint.x));
+            planeIntersectPoint.y = Math.max(-5, Math.min(5, planeIntersectPoint.y));
+            planeIntersectPoint.z = 0;
+
+            handMesh.position.copy(planeIntersectPoint);
+            pinchRing.position.copy(planeIntersectPoint);
+            pinchRing.lookAt(camera.position);
+
+            handBody.position.set(planeIntersectPoint.x, planeIntersectPoint.y, planeIntersectPoint.z);
+            handBody.velocity.set(0,0,0);
+        }
+
+        function attemptGrab() {
+            const maxDist = 2.5;
+            let nearest = null;
+            let minDst = Infinity;
+
+            for (const obj of collectibles) {
+                const dst = handBody.position.distanceTo(obj.body.position);
+                if (dst < maxDist && dst < minDst) {
+                    minDst = dst;
+                    nearest = obj;
+                }
+            }
+
+            if (nearest) {
+                const pivotA = new CANNON.Vec3(0,0,0);
+                const pivotB = nearest.body.pointToLocalFrame(handBody.position);
+                grabConstraint = new CANNON.PointToPointConstraint(handBody, pivotA, nearest.body, pivotB);
+                world.addConstraint(grabConstraint);
+                pinchRing.material.color.setHex(0xffff00);
+            }
+        }
+
+        function releaseGrab() {
+            if (grabConstraint) {
+                world.removeConstraint(grabConstraint);
+                grabConstraint = null;
+                pinchRing.material.color.setHex(0xffffff);
+            }
+        }
+
+        // --- Logic ---
+        function checkScoring() {
+            for (let i = collectibles.length - 1; i >= 0; i--) {
+                const obj = collectibles[i];
+                if (obj.scored) continue;
+
+                for (const bin of bins) {
+                    const dist = obj.body.position.distanceTo(bin.body.position);
+                    if (dist < 1.5 && obj.type === bin.type) {
+                        updateScore(100);
+                        showToast(`+100 (${obj.type})`);
+                        playSound('score');
+                        removeCollectible(obj);
+                        collectibles.splice(i, 1);
+                        setTimeout(spawnCollectible, 500);
+                        return;
+                    }
+                }
+            }
+        }
+
+        function updateScore(points) {
+            gameState.score += points;
+            document.getElementById('score-display').innerText = gameState.score;
+        }
+
+        function showToast(text) {
+            const toast = document.getElementById('toast');
+            toast.innerText = text;
+            toast.style.opacity = 1;
+            toast.style.top = '40%';
+            setTimeout(() => { toast.style.opacity = 0; toast.style.top = '50%'; }, 800);
+        }
+
+        // --- Loop ---
+        function animate(time) {
+            requestAnimationFrame(animate);
+            const deltaTime = (time - gameState.lastTime) / 1000;
+            gameState.lastTime = time;
+
+            world.step(1 / 60, deltaTime, 3);
+
+            for (const obj of objectsToUpdate) {
+                obj.mesh.position.copy(obj.body.position);
+                obj.mesh.quaternion.copy(obj.body.quaternion);
+            }
+
+            updateHandPosition();
+            if (!isPinched) releaseGrab();
+
+            if (gameState.isPlaying) {
+                checkScoring();
+                if (Math.random() < 0.01 && collectibles.length < 5) spawnCollectible();
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // --- Flow ---
+        const modal = document.getElementById('modal-overlay');
+        const startBtn = document.getElementById('start-btn');
+        const loader = document.getElementById('loader');
+        const errorMsg = document.getElementById('error-msg');
+        const modalTitle = document.getElementById('modal-title');
+        const modalDesc = document.getElementById('modal-desc');
+
+        let timerInterval;
+
+        async function startGame() {
+            if (!cameraUtils.isStarted) {
+                startBtn.style.display = 'none';
+                loader.style.display = 'block';
+                errorMsg.style.display = 'none';
+
+                try {
+                    await cameraUtils.start();
+                    loader.style.display = 'none';
+                    startBtn.style.display = 'block';
+                    initGameSession();
+                } catch (e) {
+                    console.error(e);
+                    loader.style.display = 'none';
+                    startBtn.style.display = 'block';
+                    errorMsg.style.display = 'block';
+                    alert("Camera access failed. Please ensure you are running this via a Local Server (http://...), not file://");
+                }
+            } else {
+                initGameSession();
+            }
+        }
+
+        function initGameSession() {
+            gameState.score = 0;
+            gameState.timeRemaining = GAME_DURATION;
+            gameState.isPlaying = true;
+            document.getElementById('score-display').innerText = '0';
+            document.getElementById('time-display').innerText = GAME_DURATION;
+
+            collectibles.forEach(c => removeCollectible(c));
+            collectibles.length = 0;
+            for(let i=0; i<4; i++) spawnCollectible();
+
+            modal.style.opacity = 0;
+            setTimeout(() => { modal.style.display = 'none'; }, 500);
+
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                gameState.timeRemaining--;
+                document.getElementById('time-display').innerText = gameState.timeRemaining;
+                if (gameState.timeRemaining <= 0) endGame();
+            }, 1000);
+        }
+
+        function endGame() {
+            gameState.isPlaying = false;
+            clearInterval(timerInterval);
+            playSound('gameover');
+            modalTitle.innerText = "Time's Up!";
+            modalDesc.innerHTML = `Final Score: <span class="key-point">${gameState.score}</span><br>Great work!`;
+            startBtn.innerText = "Play Again";
+            modal.style.display = 'flex';
+            setTimeout(() => { modal.style.opacity = 1; }, 10);
+        }
+
+        startBtn.addEventListener('click', startGame);
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate(0);
+
+    </script>
+</body>
+</html>
