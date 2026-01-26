@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Rise Up Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #121212;
+            --surface: rgba(255, 255, 255, 0.1);
+            --text: #FFFFFF;
+            --font: 'Exo 2', sans-serif;
+            --primary: #00E5FF; /* Cyan */
+            --danger: #FF3D00; /* Orange Red */
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            font-family: var(--font);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            touch-action: none;
+            user-select: none;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        #canvas-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* UI Overlay */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(18, 18, 18, 0.9);
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            transition: opacity 0.3s;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            width: 85%;
+            max-width: 340px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, var(--primary), var(--danger));
+        }
+
+        h1 {
+            margin: 0 0 10px;
+            color: white;
+            font-size: 3rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        p {
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 30px;
+            font-weight: 400;
+            font-size: 1.1rem;
+        }
+
+        .score-big {
+            font-size: 5rem;
+            font-weight: 900;
+            color: var(--primary);
+            margin: 10px 0;
+            line-height: 1;
+            text-shadow: 0 0 20px rgba(0, 229, 255, 0.3);
+        }
+
+        button {
+            background: white;
+            color: #000;
+            border: none;
+            padding: 18px 40px;
+            width: 100%;
+            font-size: 1.3rem;
+            font-family: var(--font);
+            font-weight: 700;
+            text-transform: uppercase;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(255,255,255,0.2);
+            transition: transform 0.1s;
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container">
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Start Screen -->
+        <div id="start-screen" class="overlay">
+            <div class="card">
+                <h1>Rise Up</h1>
+                <p>Rotate shield to protect the core.</p>
+                <button id="start-btn">Protect</button>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="game-over-screen" class="overlay hidden">
+            <div class="card">
+                <h1>Destroyed</h1>
+                <div class="score-big" id="final-score">0</div>
+                <p>Blocks Deflected</p>
+                <button id="restart-btn">Retry</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d', { alpha: false });
+
+    // UI
+    const startScreen = document.getElementById('start-screen');
+    const gameOverScreen = document.getElementById('game-over-screen');
+    const startBtn = document.getElementById('start-btn');
+    const restartBtn = document.getElementById('restart-btn');
+    const finalScoreEl = document.getElementById('final-score');
+
+    // Game State
+    let isPlaying = false;
+    let score = 0;
+    let animationId;
+    
+    // Geometry
+    let cx, cy; // Center of screen
+    let shieldAngle = 0;
+    let shieldRadius = 100;
+    let shieldArcLength = Math.PI / 1.5; // 120 degrees
+    let shieldRadiusOuter = 110;
+    
+    // Balloon (Core)
+    let coreRadius = 40;
+
+    // Obstacles
+    let balls = [];
+    let spawnTimer = 0;
+    let spawnRate = 60; // Frames between spawns
+    
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        cx = canvas.width / 2;
+        cy = canvas.height / 2;
+        
+        // Adjust shield size based on screen
+        shieldRadius = Math.min(canvas.width, canvas.height) * 0.25;
+        shieldRadiusOuter = shieldRadius + 15;
+        coreRadius = shieldRadius * 0.4;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function initGame() {
+        resize(); // Force layout check
+        score = 0;
+        balls = [];
+        shieldAngle = 0;
+        spawnTimer = 0;
+        spawnRate = 60;
+        
+        startScreen.classList.add('hidden');
+        gameOverScreen.classList.add('hidden');
+
+        isPlaying = true;
+        if (animationId) cancelAnimationFrame(animationId);
+        loop();
+    }
+
+    function spawnBall() {
+        // Spawn at random angle outside screen
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.max(canvas.width, canvas.height) * 0.8;
+        
+        const x = cx + Math.cos(angle) * dist;
+        const y = cy + Math.sin(angle) * dist;
+        
+        // Velocity pointing inward
+        const speed = 3 + (score * 0.05); // Get faster
+        const vx = Math.cos(angle + Math.PI) * speed;
+        const vy = Math.sin(angle + Math.PI) * speed;
+
+        balls.push({
+            x, y,
+            vx, vy,
+            radius: 10 + Math.random() * 10,
+            color: Math.random() > 0.8 ? '#FF3D00' : '#FFFFFF' // Occasional danger ball
+        });
+    }
+
+    function gameOver() {
+        isPlaying = false;
+        finalScoreEl.innerText = score;
+        setTimeout(() => {
+            gameOverScreen.classList.remove('hidden');
+        }, 500);
+    }
+
+    function loop() {
+        if (!isPlaying) return;
+
+        // Clear
+        ctx.fillStyle = '#121212';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Spawn Logic
+        spawnTimer++;
+        // Increase difficulty: Spawn faster over time
+        let currentSpawnRate = Math.max(20, 60 - (score * 0.5));
+        
+        if (spawnTimer > currentSpawnRate) {
+            spawnBall();
+            spawnTimer = 0;
+        }
+
+        // Draw Core (Balloon)
+        ctx.shadowBlur = 30;
+        ctx.shadowColor = '#00E5FF';
+        ctx.fillStyle = '#00E5FF';
+        ctx.beginPath();
+        ctx.arc(cx, cy, coreRadius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Draw Shield
+        ctx.lineWidth = 10;
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#FFFFFF';
+        ctx.beginPath();
+        // Arc from -half to +half
+        ctx.arc(cx, cy, shieldRadius, shieldAngle - shieldArcLength/2, shieldAngle + shieldArcLength/2);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        // Update & Draw Balls
+        for (let i = 0; i < balls.length; i++) {
+            let b = balls[i];
+            b.x += b.vx;
+            b.y += b.vy;
+
+            // Distance to center
+            let dx = b.x - cx;
+            let dy = b.y - cy;
+            let dist = Math.sqrt(dx*dx + dy*dy);
+
+            // Check Collision with Shield
+            // Check if ball is roughly at shield distance
+            if (dist >= shieldRadius - b.radius && dist <= shieldRadiusOuter + b.radius) {
+                // Check Angle
+                let angle = Math.atan2(dy, dx);
+                // Normalize angles to 0-2PI
+                let normShield = shieldAngle % (Math.PI * 2);
+                let normBall = angle % (Math.PI * 2);
+                if (normShield < 0) normShield += Math.PI * 2;
+                if (normBall < 0) normBall += Math.PI * 2;
+
+                // Check if angle difference is within arc length
+                let diff = Math.abs(normShield - normBall);
+                // Handle wrap around (359 vs 1 degree)
+                let circularDiff = Math.min(diff, Math.PI * 2 - diff);
+
+                if (circularDiff < shieldArcLength / 2) {
+                    // HIT SHIELD -> Deflect
+                    score++;
+                    
+                    // Simple Bounce Physics (Reverse velocity away from center)
+                    // Reflect vector across normal (radial vector)
+                    let nx = dx / dist; // Normal X
+                    let ny = dy / dist; // Normal Y
+                    
+                    // Dot product for reflection: V_new = V - 2(V.N)N
+                    let dot = b.vx * nx + b.vy * ny;
+                    b.vx = b.vx - 2 * dot * nx;
+                    b.vy = b.vy - 2 * dot * ny;
+                    
+                    // Add speed slightly on bounce
+                    b.vx *= 1.1;
+                    b.vy *= 1.1;
+
+                    // Push ball out of shield to prevent sticking
+                    let overlap = shieldRadiusOuter - dist;
+                    b.x += nx * (overlap + 5);
+                    b.y += ny * (overlap + 5);
+                }
+            }
+
+            // Check Collision with Core (Game Over)
+            if (dist < coreRadius + b.radius) {
+                // Draw collision effect
+                ctx.fillStyle = '#FF3D00';
+                ctx.beginPath();
+                ctx.arc(cx, cy, coreRadius + b.radius, 0, Math.PI*2);
+                ctx.fill();
+                gameOver();
+                return;
+            }
+
+            // Check Bounds (Remove if far off screen)
+            if (dist > Math.max(canvas.width, canvas.height)) {
+                balls.splice(i, 1);
+                i--;
+                continue;
+            }
+
+            // Draw Ball
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = b.color;
+            ctx.fillStyle = b.color;
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+
+        animationId = requestAnimationFrame(loop);
+    }
+
+    // Input Handling
+    function handleInput(x, y) {
+        if (!isPlaying) return;
+        
+        // Calculate angle from center to input
+        let dx = x - cx;
+        let dy = y - cy;
+        shieldAngle = Math.atan2(dy, dx);
+    }
+
+    // Mouse/Touch
+    document.addEventListener('pointermove', (e) => {
+        if(e.target.tagName === 'BUTTON') return;
+        handleInput(e.clientX, e.clientY);
+    });
+
+    // Buttons
+    startBtn.addEventListener('click', initGame);
+    restartBtn.addEventListener('click', initGame);
+
+</script>
+</body>
+</html>
