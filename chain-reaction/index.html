@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chain Reaction</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --ui-bg: rgba(15, 23, 42, 0.9);
+            --accent-color: #38bdf8;
+            --text-color: #f8fafc;
+            --danger-color: #ef4444;
+            --success-color: #22c55e;
+            --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-family);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Canvas Container */
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            display: block;
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+            cursor: crosshair;
+        }
+
+        /* UI Overlays */
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 15px;
+        }
+
+        /* HUD Layout */
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+        }
+
+        .hud-center {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            width: 80%;
+            max-width: 400px;
+        }
+
+        /* HUD Controls (Icons) */
+        .hud-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(4px);
+        }
+
+        .hud-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: scale(1.1);
+        }
+
+        .hud-btn:active {
+            transform: scale(0.95);
+        }
+
+        .hud-btn svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+        }
+
+        /* Stats Text */
+        .stats-text {
+            font-size: 1.1rem;
+            font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            margin-bottom: 8px;
+            background: var(--ui-bg);
+            padding: 4px 12px;
+            border-radius: 15px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: var(--success-color);
+            transition: width 0.2s linear;
+        }
+
+        /* Modals */
+        .modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--ui-bg);
+            padding: 30px;
+            border-radius: 16px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(15px);
+            pointer-events: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            transition: opacity 0.3s ease;
+            max-width: 90%;
+            width: 400px;
+            z-index: 100;
+        }
+
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            margin-bottom: 15px;
+            font-size: 1.8rem;
+        }
+
+        p {
+            margin-bottom: 25px;
+            line-height: 1.6;
+            color: #cbd5e1;
+            font-size: 1rem;
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 25px;
+            font-size: 1.1rem;
+            background: rgba(0,0,0,0.2);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        button.action-btn {
+            background: linear-gradient(45deg, var(--accent-color), #2563eb);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            width: 100%;
+        }
+
+        button.action-btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+        }
+
+        button.close-btn {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #94a3b8;
+            margin-top: 10px;
+        }
+        button.close-btn:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            box-shadow: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            h1 { font-size: 1.8rem; }
+            h2 { font-size: 1.4rem; }
+            .modal { width: 95%; padding: 20px; }
+            .stats-text { font-size: 0.9rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- HUD Layer (In-Game) -->
+        <div class="ui-layer" id="hud">
+            <div class="hud-top">
+                <!-- Restart Button -->
+                <button id="btn-restart" class="hud-btn" title="Restart Level">
+                    <!-- Refresh Icon -->
+                    <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                </button>
+
+                <!-- Center Stats (Moved from generic HUD) -->
+                <div class="hud-center">
+                    <div class="stats-text" id="level-display">Level: 1</div>
+                    <div class="stats-text" id="score-display">Exploded: 0</div>
+                    <div class="progress-container">
+                        <div id="progress-bar" class="progress-bar"></div>
+                    </div>
+                </div>
+
+                <!-- Instructions Button -->
+                <button id="btn-info" class="hud-btn" title="Instructions">
+                    <!-- Info Icon -->
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Start Screen -->
+        <div id="start-screen" class="modal">
+            <h1>CHAIN REACTION</h1>
+            <p>Wait for the balls to clump together, then click anywhere to place a bomb.</p>
+            <p>Start a chain reaction and explode the required number of balls to advance.</p>
+            <button id="start-btn" class="action-btn">Start Game</button>
+        </div>
+
+        <!-- Instructions Modal (In-game) -->
+        <div id="info-modal" class="modal hidden">
+            <h2>How to Play</h2>
+            <div style="text-align: left; margin-bottom: 20px; color: #cbd5e1; font-size: 0.95rem;">
+                <p style="margin-bottom: 10px;">1. <strong>Wait</strong> for balls to gather together.</p>
+                <p style="margin-bottom: 10px;">2. <strong>Click</strong> anywhere to place an explosion bomb.</p>
+                <p style="margin-bottom: 10px;">3. Exploding balls create a chain reaction.</p>
+                <p>4. Reach the <strong>Target</strong> number to win the level.</p>
+            </div>
+            <button id="close-info-btn" class="action-btn">Resume</button>
+        </div>
+
+        <!-- Level Complete Screen -->
+        <div id="level-screen" class="modal hidden">
+            <h2 style="color: var(--success-color)">Level Complete!</h2>
+            <div class="stats-row">
+                <span>Target: <b id="level-target-display">0</b></span>
+                <span>Exploded: <b id="level-score-display">0</b></span>
+            </div>
+            <button id="next-level-btn" class="action-btn">Next Level</button>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="game-over-screen" class="modal hidden">
+            <h2 style="color: var(--danger-color)">Game Over</h2>
+            <p>You didn't explode enough balls.</p>
+            <div class="stats-row">
+                <span>Target: <b id="go-target-display">0</b></span>
+                <span>Exploded: <b id="go-score-display">0</b></span>
+            </div>
+            <button id="restart-over-btn" class="action-btn">Try Again</button>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * Game Constants
+         */
+        const CONFIG = {
+            baseBallCount: 10,
+            ballGrowthPerLevel: 5,
+            baseSpeed: 2,
+            speedIncreasePerLevel: 0.2,
+            ballRadius: 8,
+            explosionDuration: 120, 
+            explosionRadius: 50,
+            colors: ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#d946ef']
+        };
+
+        /**
+         * Game State
+         */
+        const state = {
+            level: 1,
+            target: 0,
+            score: 0,
+            balls: [],
+            particles: [],
+            isPlaying: false,
+            hasPlacedBomb: false,
+            isPaused: false, // New state for pausing
+            canvas: null,
+            ctx: null,
+            width: 0,
+            height: 0,
+            animationFrameId: null
+        };
+
+        // DOM Elements
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        const ui = {
+            startScreen: document.getElementById('start-screen'),
+            infoModal: document.getElementById('info-modal'),
+            levelScreen: document.getElementById('level-screen'),
+            gameOverScreen: document.getElementById('game-over-screen'),
+            levelDisplay: document.getElementById('level-display'),
+            scoreDisplay: document.getElementById('score-display'),
+            progressBar: document.getElementById('progress-bar'),
+            targetDisplays: [
+                document.getElementById('level-target-display'),
+                document.getElementById('go-target-display')
+            ],
+            scoreDisplays: [
+                document.getElementById('level-score-display'),
+                document.getElementById('go-score-display')
+            ],
+            buttons: {
+                start: document.getElementById('start-btn'),
+                restart: document.getElementById('btn-restart'),
+                info: document.getElementById('btn-info'),
+                closeInfo: document.getElementById('close-info-btn'),
+                nextLevel: document.getElementById('next-level-btn'),
+                restartOver: document.getElementById('restart-over-btn')
+            }
+        };
+
+        /**
+         * Classes
+         */
+        class Ball {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                const angle = Math.random() * Math.PI * 2;
+                const speed = CONFIG.baseSpeed + (Math.random() * (state.level * CONFIG.speedIncreasePerLevel));
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                
+                this.radius = CONFIG.ballRadius;
+                this.color = CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)];
+                this.state = 0; // 0: Moving, 1: Expanding, 2: Fading, 3: Dead
+                this.timer = 0;
+                this.maxRadius = CONFIG.explosionRadius;
+            }
+
+            update() {
+                if (this.state === 0) {
+                    this.x += this.vx;
+                    this.y += this.vy;
+
+                    if (this.x < this.radius || this.x > state.width - this.radius) {
+                        this.vx *= -1;
+                        this.x = Math.max(this.radius, Math.min(this.x, state.width - this.radius));
+                    }
+                    if (this.y < this.radius || this.y > state.height - this.radius) {
+                        this.vy *= -1;
+                        this.y = Math.max(this.radius, Math.min(this.y, state.height - this.radius));
+                    }
+
+                    for (let other of state.balls) {
+                        if (other !== this && other.state > 0 && other.state < 3) {
+                            const dx = this.x - other.x;
+                            const dy = this.y - other.y;
+                            const dist = Math.hypot(dx, dy);
+
+                            if (dist < other.radius + this.radius) {
+                                this.explode();
+                                break;
+                            }
+                        }
+                    }
+                } else if (this.state === 1) {
+                    this.timer++;
+                    const progress = this.timer / (CONFIG.explosionDuration * 0.2); 
+                    if (progress >= 1) {
+                        this.radius = this.maxRadius;
+                        this.state = 2;
+                        this.timer = 0;
+                    } else {
+                        const ease = 1 - Math.pow(1 - progress, 3);
+                        this.radius = CONFIG.ballRadius + (this.maxRadius - CONFIG.ballRadius) * ease;
+                    }
+                } else if (this.state === 2) {
+                    this.timer++;
+                    if (Math.random() < 0.3) {
+                        state.particles.push(new Particle(this.x, this.y, this.color));
+                    }
+                    if (this.timer >= CONFIG.explosionDuration * 0.8) {
+                        this.state = 3;
+                    }
+                }
+            }
+
+            draw(ctx) {
+                if (this.state === 3) return;
+
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                
+                if (this.state === 0) {
+                    ctx.fillStyle = this.color;
+                    ctx.fill();
+                    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                    ctx.beginPath();
+                    ctx.arc(this.x - 2, this.y - 2, this.radius/3, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    const alpha = this.state === 1 ? 1 : 1 - (this.timer / (CONFIG.explosionDuration * 0.8));
+                    ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                    ctx.fill();
+                    
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius * 0.8, 0, Math.PI * 2);
+                    ctx.globalAlpha = alpha * 0.5;
+                    ctx.fillStyle = this.color;
+                    ctx.fill();
+                    ctx.globalAlpha = 1.0;
+                }
+            }
+
+            explode() {
+                if (this.state > 0) return;
+                this.state = 1;
+                this.timer = 0;
+                this.vx = 0;
+                this.vy = 0;
+                state.score++;
+                updateUI();
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 3 + 1;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.alpha = 1;
+                this.life = Math.random() * 0.05 + 0.02;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.alpha -= this.life;
+            }
+
+            draw(ctx) {
+                if (this.alpha <= 0) return;
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        /**
+         * Core Game Functions
+         */
+        function init() {
+            resize();
+            window.addEventListener('resize', resize);
+            canvas.addEventListener('click', handleClick);
+            
+            // Listeners
+            ui.buttons.start.addEventListener('click', () => startGame(1));
+            ui.buttons.nextLevel.addEventListener('click', () => startGame(state.level + 1));
+            ui.buttons.restartOver.addEventListener('click', () => startGame(1)); // Game Over restart usually goes to Level 1 or current? Let's do Level 1 for fail.
+            
+            // In-Game Controls
+            ui.buttons.restart.addEventListener('click', () => {
+                if(confirm("Restart current level?")) {
+                    startGame(state.level);
+                }
+            });
+
+            ui.buttons.info.addEventListener('click', togglePause);
+            ui.buttons.closeInfo.addEventListener('click', togglePause);
+        }
+
+        function resize() {
+            state.width = window.innerWidth;
+            state.height = window.innerHeight;
+            canvas.width = state.width;
+            canvas.height = state.height;
+        }
+
+        function startGame(level) {
+            state.level = level;
+            state.balls = [];
+            state.particles = [];
+            state.score = 0;
+            state.hasPlacedBomb = false;
+            state.isPlaying = true;
+            state.isPaused = false;
+
+            const ballCount = CONFIG.baseBallCount + (level - 1) * CONFIG.ballGrowthPerLevel;
+            state.target = Math.max(1, Math.floor(ballCount * (0.2 + (level * 0.05))));
+
+            for (let i = 0; i < ballCount; i++) {
+                const r = CONFIG.ballRadius;
+                const x = Math.random() * (state.width - 2 * r) + r;
+                const y = Math.random() * (state.height - 2 * r) + r;
+                state.balls.push(new Ball(x, y));
+            }
+
+            // Hide all modals
+            ui.startScreen.classList.add('hidden');
+            ui.infoModal.classList.add('hidden');
+            ui.levelScreen.classList.add('hidden');
+            ui.gameOverScreen.classList.add('hidden');
+
+            updateUI();
+
+            if (state.animationFrameId) cancelAnimationFrame(state.animationFrameId);
+            gameLoop();
+        }
+
+        function togglePause() {
+            if (!state.isPlaying) return;
+            state.isPaused = !state.isPaused;
+
+            if (state.isPaused) {
+                ui.infoModal.classList.remove('hidden');
+                // Stop the loop to save resources
+                if (state.animationFrameId) cancelAnimationFrame(state.animationFrameId);
+            } else {
+                ui.infoModal.classList.add('hidden');
+                // Restart loop
+                gameLoop();
+            }
+        }
+
+        function handleClick(e) {
+            if (!state.isPlaying || state.isPaused || state.hasPlacedBomb) return;
+            
+            // Prevent click if clicking on UI buttons (though pointer-events handles this, good to be safe)
+            if (e.target.closest('button')) return;
+
+            state.hasPlacedBomb = true;
+            const bomb = new Ball(e.clientX, e.clientY);
+            bomb.state = 1;
+            bomb.radius = CONFIG.explosionRadius / 4; 
+            bomb.color = '#ffffff';
+            state.balls.push(bomb);
+        }
+
+        function updateUI() {
+            ui.levelDisplay.textContent = `Level: ${state.level}`;
+            ui.scoreDisplay.textContent = `Exploded: ${state.score}`;
+            
+            const percentage = Math.min(100, (state.score / state.target) * 100);
+            ui.progressBar.style.width = `${percentage}%`;
+            
+            if (state.score >= state.target) {
+                ui.progressBar.style.backgroundColor = 'var(--success-color)';
+            } else {
+                ui.progressBar.style.backgroundColor = '#38bdf8';
+            }
+        }
+
+        function checkGameStatus() {
+            if (!state.hasPlacedBomb) return;
+
+            const activeExplosions = state.balls.some(b => b.state > 0 && b.state < 3);
+            
+            if (!activeExplosions) {
+                endRound();
+            }
+        }
+
+        function endRound() {
+            state.isPlaying = false;
+            cancelAnimationFrame(state.animationFrameId);
+
+            if (state.score >= state.target) {
+                setTimeout(() => {
+                    ui.targetDisplays[0].textContent = state.target;
+                    ui.scoreDisplays[0].textContent = state.score;
+                    ui.levelScreen.classList.remove('hidden');
+                }, 500);
+            } else {
+                setTimeout(() => {
+                    ui.targetDisplays[1].textContent = state.target;
+                    ui.scoreDisplays[1].textContent = state.score;
+                    ui.gameOverScreen.classList.remove('hidden');
+                }, 500);
+            }
+        }
+
+        function gameLoop() {
+            if (state.isPaused) return;
+
+            ctx.clearRect(0, 0, state.width, state.height);
+
+            state.balls.forEach(ball => {
+                ball.update();
+                ball.draw(ctx);
+            });
+
+            for (let i = state.particles.length - 1; i >= 0; i--) {
+                const p = state.particles[i];
+                p.update();
+                p.draw(ctx);
+                if (p.alpha <= 0) {
+                    state.particles.splice(i, 1);
+                }
+            }
+
+            checkGameStatus();
+
+            if (state.isPlaying) {
+                state.animationFrameId = requestAnimationFrame(gameLoop);
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
