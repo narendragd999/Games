@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Candy Chomp: Physics Puzzle</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #ff4757;
+            --secondary-color: #2ed573;
+            --bg-color: #747d8c;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Fredoka One', cursive;
+            background: radial-gradient(circle at center, #a4b0be 0%, #57606f 100%);
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            display: block;
+            cursor: crosshair;
+        }
+
+        /* --- HUD --- */
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            font-size: 1.5rem;
+            z-index: 5;
+        }
+
+        /* Help Icon Button */
+        #help-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.2);
+            border: 2px solid rgba(255,255,255,0.5);
+            border-radius: 50%;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            z-index: 6;
+            pointer-events: auto;
+            transition: transform 0.2s, background 0.2s;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+        #help-btn:hover {
+            background: rgba(255,255,255,0.4);
+            transform: scale(1.1);
+        }
+
+        /* --- Overlays --- */
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            backdrop-filter: blur(0px); 
+            transition: backdrop-filter 0.3s;
+        }
+        
+        .ui-layer.has-active-modal {
+            pointer-events: auto;
+            backdrop-filter: blur(5px);
+            background: rgba(0,0,0,0.2);
+        }
+
+        /* Main Modals (Start, Win, Lose) */
+        .modal {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2.5rem;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            max-width: 90%;
+            width: 400px;
+            transform: scale(0.9);
+            opacity: 0;
+            transition: all 0.3s ease;
+            display: none;
+            border-bottom: 6px solid rgba(0,0,0,0.1);
+            pointer-events: auto;
+            position: relative;
+            z-index: 20;
+        }
+
+        .modal.active {
+            transform: scale(1);
+            opacity: 1;
+            display: block;
+        }
+
+        /* Small Instructions Overlay (In-Game) */
+        #help-overlay {
+            position: absolute;
+            top: 70px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            text-align: right;
+            pointer-events: none;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: opacity 0.3s, transform 0.3s;
+            z-index: 7;
+        }
+        #help-overlay.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin: 0 0 15px 0;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 0px rgba(0,0,0,0.1);
+        }
+
+        p {
+            color: #57606f;
+            font-size: 1.2rem;
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            color: white;
+            border: none;
+            padding: 18px 40px;
+            font-size: 1.4rem;
+            border-radius: 50px;
+            cursor: pointer;
+            font-family: 'Fredoka One', cursive;
+            margin-top: 10px;
+            transition: transform 0.1s, background 0.2s;
+            box-shadow: 0 6px 0 rgba(0,0,0,0.2);
+            width: 100%;
+        }
+
+        .btn-green {
+            background: var(--secondary-color);
+            box-shadow: 0 6px 0 #218c54;
+        }
+        .btn-green:hover { background: #26de81; transform: translateY(-2px); }
+
+        .btn-red {
+            background: var(--primary-color);
+            box-shadow: 0 6px 0 #c0392b;
+        }
+        .btn-red:hover { background: #ff6b81; transform: translateY(-2px); }
+
+        .btn:active { transform: translateY(2px); box-shadow: 0 0 0 rgba(0,0,0,0); }
+
+        #fx-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 4;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+    </style>
+</head>
+<body>
+
+    <main id="game-container">
+        <!-- HUD -->
+        <div id="hud">Score: <span id="score-val">0</span></div>
+        
+        <!-- Help/Instructions Icon -->
+        <div id="help-btn">?</div>
+        <div id="help-overlay">
+            Swipe to cut ropes.<br>
+            Bubbles lift candy up!
+        </div>
+
+        <!-- Canvas Layers -->
+        <canvas id="world"></canvas>
+        <canvas id="fx-canvas"></canvas>
+
+        <!-- UI Overlay -->
+        <div class="ui-layer" id="ui-layer">
+            <div id="start-screen" class="modal active">
+                <h1>Candy Chomp</h1>
+                <p>Feed the little green monster!</p>
+                <p>Click the (?) icon anytime for help.</p>
+                <button class="btn btn-green" id="start-btn">Play Now</button>
+            </div>
+
+            <div id="win-screen" class="modal">
+                <h1 style="color: var(--secondary-color)">Delicious!</h1>
+                <p>Yummy! The monster is happy.</p>
+                <p>Score: <span id="win-score">0</span></p>
+                <button class="btn btn-green" id="restart-btn-win">Play Again</button>
+            </div>
+
+            <div id="lose-screen" class="modal">
+                <h1 style="color: var(--primary-color)">Oops!</h1>
+                <p>The candy fell into the abyss.</p>
+                <button class="btn btn-red" id="restart-btn-lose">Try Again</button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // --- Configuration ---
+        const CONFIG = {
+            candySize: 25,
+            ropeWidth: 4,
+            ropeColor: '#8e44ad',
+            bubbleForce: 0.0008,
+        };
+
+        const STATE = {
+            score: 0,
+            isPlaying: false,
+            mousePath: [],
+            lastMousePos: { x: 0, y: 0 }
+        };
+
+        const Engine = Matter.Engine,
+              Runner = Matter.Runner,
+              Bodies = Matter.Bodies,
+              Composite = Matter.Composite,
+              Constraint = Matter.Constraint,
+              Events = Matter.Events,
+              Vector = Matter.Vector,
+              Body = Matter.Body,
+              World = Matter.World;
+
+        let engine, runner;
+        let canvas, ctx, fxCanvas, fxCtx;
+        let width, height;
+        let candy, monsterZone;
+        let ropes = [];
+        let bubbles = [];
+        let particles = [];
+        let helpVisible = false;
+
+        window.addEventListener('load', init);
+
+        function init() {
+            canvas = document.getElementById('world');
+            ctx = canvas.getContext('2d');
+            fxCanvas = document.getElementById('fx-canvas');
+            fxCtx = fxCanvas.getContext('2d');
+
+            resize();
+            window.addEventListener('resize', resize);
+
+            // Init Physics Engine
+            engine = Engine.create();
+            runner = Runner.create();
+
+            // Help Button Listener
+            const helpBtn = document.getElementById('help-btn');
+            const helpOverlay = document.getElementById('help-overlay');
+            
+            helpBtn.addEventListener('click', () => {
+                helpVisible = !helpVisible;
+                if(helpVisible) {
+                    helpOverlay.classList.add('show');
+                    // Auto-hide after 4 seconds
+                    setTimeout(() => {
+                        helpVisible = false;
+                        helpOverlay.classList.remove('show');
+                    }, 4000);
+                } else {
+                    helpOverlay.classList.remove('show');
+                }
+            });
+
+            // Start/Restart Listeners (All call startGame)
+            document.getElementById('start-btn').addEventListener('click', startGame);
+            document.getElementById('restart-btn-win').addEventListener('click', startGame);
+            document.getElementById('restart-btn-lose').addEventListener('click', startGame);
+
+            // Inputs
+            canvas.addEventListener('mousedown', handleInputStart);
+            canvas.addEventListener('mousemove', handleInputMove);
+            canvas.addEventListener('mouseup', handleInputEnd);
+            canvas.addEventListener('touchstart', (e) => handleInputStart(e.touches[0]));
+            canvas.addEventListener('touchmove', (e) => handleInputMove(e.touches[0]));
+            canvas.addEventListener('touchend', handleInputEnd);
+
+            loop();
+        }
+
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            fxCanvas.width = width;
+            fxCanvas.height = height;
+        }
+
+        function startGame() {
+            if (runner) Runner.stop(runner);
+            if (engine) {
+                World.clear(engine.world);
+                Engine.clear(engine);
+            }
+
+            STATE.score = 0;
+            STATE.isPlaying = true;
+            STATE.mousePath = [];
+            particles = [];
+            document.getElementById('score-val').textContent = '0';
+            
+            // UI Toggle: Hide all modals, remove blur
+            document.querySelectorAll('.modal').forEach(m => m.classList.remove('active'));
+            document.getElementById('ui-layer').classList.remove('has-active-modal');
+
+            // Reset Help Overlay
+            document.getElementById('help-overlay').classList.remove('show');
+            helpVisible = false;
+
+            setupLevel();
+            Runner.run(runner, engine);
+        }
+
+        function setupLevel() {
+            engine.world.gravity.y = 1;
+
+            const startX = width / 2;
+            const startY = height / 4;
+
+            // Candy
+            candy = Bodies.circle(startX, startY, CONFIG.candySize, { 
+                density: 0.005,
+                frictionAir: 0.01,
+                restitution: 0.8,
+                label: 'candy'
+            });
+
+            // Ropes
+            ropes = [];
+            const anchors = [
+                { x: width * 0.25, y: 0 },
+                { x: width * 0.75, y: 0 },
+                { x: width * 0.5, y: -20 } 
+            ];
+
+            anchors.forEach(anchor => {
+                const rope = Constraint.create({
+                    pointA: { x: anchor.x, y: anchor.y },
+                    bodyB: candy,
+                    length: (startY - anchor.y) + (Math.random() * 50),
+                    stiffness: 0.9,
+                    damping: 0.05,
+                    render: { visible: false }
+                });
+                rope.label = 'rope';
+                ropes.push(rope);
+                Composite.add(engine.world, rope);
+            });
+
+            Composite.add(engine.world, candy);
+
+            // Bubbles
+            bubbles = [
+                { x: width * 0.3, y: height * 0.5, r: 70 },
+                { x: width * 0.7, y: height * 0.6, r: 70 },
+                { x: width * 0.5, y: height * 0.75, r: 60 }
+            ];
+
+            // Monster Zone
+            monsterZone = { x: width / 2, y: height - 80, r: 40 };
+
+            // Walls (Only sides!)
+            const wallOptions = { isStatic: true, render: { visible: false } };
+            const leftWall = Bodies.rectangle(-50, height/2, 100, height, wallOptions);
+            const rightWall = Bodies.rectangle(width+50, height/2, 100, height, wallOptions);
+            Composite.add(engine.world, [leftWall, rightWall]);
+        }
+
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        }
+
+        function handleInputStart(e) {
+            if (!STATE.isPlaying) return;
+            const pos = getPos(e);
+            STATE.mousePath = [pos];
+            STATE.lastMousePos = pos;
+        }
+
+        function handleInputMove(e) {
+            if (!STATE.isPlaying) return;
+            const pos = getPos(e);
+            STATE.mousePath.push(pos);
+            if (STATE.mousePath.length > 10) STATE.mousePath.shift();
+            checkRopeCut(STATE.lastMousePos, pos);
+            STATE.lastMousePos = pos;
+        }
+
+        function handleInputEnd() {
+            STATE.mousePath = [];
+        }
+
+        function checkRopeCut(p1, p2) {
+            const activeRopes = ropes.filter(r => Composite.get(engine.world, r.id, 'constraint'));
+            activeRopes.forEach(rope => {
+                const anchor = rope.pointA;
+                const candyPos = rope.bodyB.position;
+                if (lineSegmentsIntersect(p1.x, p1.y, p2.x, p2.y, anchor.x, anchor.y, candyPos.x, candyPos.y)) {
+                    Composite.remove(engine.world, rope);
+                    createParticles(anchor.x + (candyPos.x - anchor.x)/2, anchor.y + (candyPos.y - anchor.y)/2, CONFIG.ropeColor, 5);
+                    STATE.score += 10;
+                    document.getElementById('score-val').textContent = STATE.score;
+                }
+            });
+        }
+
+        function updateGameLogic() {
+            if (!STATE.isPlaying || !candy) return;
+
+            // Apply Bubble Forces
+            bubbles.forEach(bubble => {
+                const dist = Vector.magnitude(Vector.sub(candy.position, {x: bubble.x, y: bubble.y}));
+                if (dist < bubble.r + CONFIG.candySize) {
+                    Body.applyForce(candy, candy.position, { x: 0, y: -CONFIG.bubbleForce });
+                }
+            });
+
+            // Win Condition
+            const distToMonster = Vector.magnitude(Vector.sub(candy.position, monsterZone));
+            if (distToMonster < monsterZone.r) {
+                endGame(true);
+            }
+
+            // Lose Condition
+            if (candy.position.y > height + 50) {
+                endGame(false);
+            }
+        }
+
+        function endGame(win) {
+            STATE.isPlaying = false;
+            Runner.stop(runner); 
+            document.getElementById('ui-layer').classList.add('has-active-modal');
+            
+            if (win) {
+                document.getElementById('win-score').textContent = STATE.score;
+                document.getElementById('win-screen').classList.add('active');
+                createParticles(monsterZone.x, monsterZone.y, '#2ed573', 30);
+            } else {
+                document.getElementById('lose-screen').classList.add('active');
+            }
+        }
+
+        function loop() {
+            requestAnimationFrame(loop);
+            ctx.clearRect(0, 0, width, height);
+            fxCtx.clearRect(0, 0, width, height);
+
+            if (STATE.isPlaying) {
+                updateGameLogic();
+                drawGame();
+                drawUIOverlay();
+            }
+            updateAndDrawParticles();
+        }
+
+        function drawGame() {
+            // Ropes
+            ctx.lineWidth = CONFIG.ropeWidth;
+            ctx.lineCap = 'round';
+            const activeRopes = ropes.filter(r => Composite.get(engine.world, r.id, 'constraint'));
+            activeRopes.forEach(rope => {
+                const start = rope.pointA;
+                const end = rope.bodyB.position;
+                ctx.beginPath();
+                ctx.strokeStyle = CONFIG.ropeColor;
+                ctx.moveTo(start.x, start.y);
+                ctx.lineTo(end.x, end.y);
+                ctx.stroke();
+            });
+
+            // Bubbles
+            bubbles.forEach(b => {
+                ctx.fillStyle = 'rgba(135, 206, 235, 0.15)';
+                ctx.strokeStyle = 'rgba(135, 206, 235, 0.5)';
+                ctx.lineWidth = 2;
+                const pulse = Math.sin(Date.now() / 200) * 3;
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, b.r + pulse, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            });
+
+            drawMonster(monsterZone.x, monsterZone.y);
+            drawCandy(candy.position.x, candy.position.y, candy.angle);
+        }
+
+        function drawCandy(x, y, rotation) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(rotation);
+            ctx.fillStyle = '#ff4757';
+            ctx.beginPath();
+            ctx.arc(0, 0, CONFIG.candySize, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(0, 0, CONFIG.candySize - 5, 0.5, Math.PI * 1.5);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawMonster(x, y) {
+            const size = 40;
+            const dist = Vector.magnitude(Vector.sub(candy.position, {x, y}));
+            const openMouth = dist < 150;
+
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.fillStyle = '#2ed573';
+            ctx.beginPath(); ctx.arc(0, 0, size, 0, Math.PI * 2); ctx.fill();
+            
+            const lookDir = Vector.normalise(Vector.sub(candy.position, {x, y}));
+            ctx.fillStyle = '#fff';
+            ctx.beginPath(); ctx.arc(-15, -10, 10, 0, Math.PI * 2); ctx.arc(15, -10, 10, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#000';
+            ctx.beginPath(); ctx.arc(-15 + lookDir.x*3, -10 + lookDir.y*3, 3, 0, Math.PI * 2); 
+            ctx.beginPath(); ctx.arc(15 + lookDir.x*3, -10 + lookDir.y*3, 3, 0, Math.PI * 2); ctx.fill();
+
+            ctx.fillStyle = '#c0392b';
+            if (openMouth) {
+                ctx.beginPath(); ctx.ellipse(0, 15, 15, 15, 0, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(-10, 10, 5, 5); ctx.fillRect(5, 10, 5, 5);
+            } else {
+                ctx.beginPath(); ctx.arc(0, 10, 10, 0, Math.PI); ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        function drawUIOverlay() {
+            if (STATE.mousePath.length > 1) {
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.lineWidth = 5;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.moveTo(STATE.mousePath[0].x, STATE.mousePath[0].y);
+                for (let i = 1; i < STATE.mousePath.length; i++) {
+                    ctx.lineTo(STATE.mousePath[i].x, STATE.mousePath[i].y);
+                }
+                ctx.stroke();
+            }
+        }
+
+        function createParticles(x, y, color, count) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    life: 1.0, color: color, size: Math.random() * 5 + 2
+                });
+            }
+        }
+
+        function updateAndDrawParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx; p.y += p.vy;
+                p.life -= 0.02; p.vy += 0.2;
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                } else {
+                    fxCtx.globalAlpha = p.life;
+                    fxCtx.fillStyle = p.color;
+                    fxCtx.beginPath(); fxCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2); fxCtx.fill();
+                }
+            }
+            fxCtx.globalAlpha = 1.0;
+        }
+
+        function lineSegmentsIntersect(x1, y1, x2, y2, x3, y3, x4, y4) {
+            const uA = ((x4-x3)*(y1-y3) - (y4-y3)*(x1-x3)) / ((y4-y3)*(x2-x1) - (x4-x3)*(y2-y1));
+            const uB = ((x2-x1)*(y1-y3) - (y2-y1)*(x1-x3)) / ((y4-y3)*(x2-x1) - (x4-x3)*(y2-y1));
+            return (uA >= 0 && uA <= 1 && uB >= 0 && uB <= 1);
+        }
+    </script>
+</body>
+</html>
