@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Jump - Material Design</title>
+    <!-- Import Roboto Font for Material Design Look -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Material Design Color Palette */
+            --primary: #6200EE;
+            --primary-dark: #3700B3;
+            --secondary: #03DAC6;
+            --background: #121212;
+            --surface: #1E1E1E;
+            --error: #B00020;
+            --on-primary: #FFFFFF;
+            --on-surface: #FFFFFF;
+            --shadow-1: 0 4px 6px rgba(0,0,0,0.3);
+            --shadow-2: 0 10px 20px rgba(0,0,0,0.5);
+        }
+
+        * {
+            box-sizing: border-box;
+            touch-action: none; /* Prevent zoom/scroll on mobile */
+            user-select: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--background);
+            font-family: 'Roboto', sans-serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: var(--on-surface);
+        }
+
+        /* Game Container */
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: 500px; /* Mobile constraint for desktop viewing */
+            background: linear-gradient(180deg, #2c2c2c 0%, #121212 100%);
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* UI Overlays (Menu, Game Over) */
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(18, 18, 18, 0.85); /* Semi-transparent backdrop */
+            backdrop-filter: blur(5px);
+            z-index: 10;
+            transition: opacity 0.3s ease;
+        }
+
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+            visibility: hidden;
+        }
+
+        /* Material Card */
+        .card {
+            background: var(--surface);
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: var(--shadow-2);
+            text-align: center;
+            width: 85%;
+            max-width: 320px;
+            animation: slideUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        h1 {
+            margin: 0 0 0.5rem 0;
+            font-size: 2rem;
+            color: var(--secondary);
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        p {
+            margin: 0 0 2rem 0;
+            font-size: 1rem;
+            color: #B0B0B0;
+            line-height: 1.5;
+        }
+
+        .score-display {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 1rem;
+        }
+
+        /* Material Button */
+        .btn {
+            background-color: var(--primary);
+            color: var(--on-primary);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 50px; /* Pill shape */
+            font-size: 1rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            box-shadow: var(--shadow-1);
+            transition: transform 0.1s, background-color 0.2s, box-shadow 0.2s;
+            outline: none;
+            width: 100%;
+        }
+
+        .btn:active {
+            transform: scale(0.96);
+            background-color: var(--primary-dark);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* In-game HUD */
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.6);
+            pointer-events: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div id="hud">0</div>
+
+        <!-- Start Menu -->
+        <div id="start-screen" class="ui-layer">
+            <div class="card">
+                <h1>NEON JUMP</h1>
+                <p>Avoid the red spikes.<br>Tap anywhere to jump.</p>
+                <button class="btn" id="start-btn">Start Game</button>
+            </div>
+        </div>
+
+        <!-- Game Over Menu -->
+        <div id="game-over-screen" class="ui-layer hidden">
+            <div class="card">
+                <h1>GAME OVER</h1>
+                <div class="score-display" id="final-score">0</div>
+                <p>Tap to try again</p>
+                <button class="btn" id="restart-btn">Play Again</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    /**
+     * GAME LOGIC
+     * Basic physics: Gravity, Velocity, Collision Detection
+     */
+    
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const hud = document.getElementById('hud');
+    const startScreen = document.getElementById('start-screen');
+    const gameOverScreen = document.getElementById('game-over-screen');
+    const finalScoreDisplay = document.getElementById('final-score');
+    const startBtn = document.getElementById('start-btn');
+    const restartBtn = document.getElementById('restart-btn');
+
+    // Game State
+    let gameRunning = false;
+    let score = 0;
+    let frames = 0;
+    let speed = 5;
+
+    // Canvas Sizing
+    function resizeCanvas() {
+        canvas.width = canvas.parentElement.clientWidth;
+        canvas.height = canvas.parentElement.clientHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Player Object
+    const player = {
+        x: 50,
+        y: 0,
+        size: 30, // Square size
+        dy: 0,
+        jumpForce: 12,
+        gravity: 0.6,
+        grounded: false,
+        color: '#03DAC6', // Material Secondary
+        draw: function() {
+            ctx.fillStyle = this.color;
+            // Add Material Shadow
+            ctx.shadowColor = "rgba(3, 218, 198, 0.4)";
+            ctx.shadowBlur = 15;
+            ctx.fillRect(this.x, this.y, this.size, this.size);
+            
+            // Reset shadow for performance
+            ctx.shadowBlur = 0;
+        },
+        update: function() {
+            // Apply Gravity
+            this.dy += this.gravity;
+            this.y += this.dy;
+
+            // Ground Collision (Floor is at canvas.height - 50)
+            const floorY = canvas.height - 50;
+            
+            if (this.y + this.size > floorY) {
+                this.y = floorY - this.size;
+                this.dy = 0;
+                this.grounded = true;
+            } else {
+                this.grounded = false;
+            }
+        },
+        jump: function() {
+            if (this.grounded) {
+                this.dy = -this.jumpForce;
+                this.grounded = false;
+            }
+        }
+    };
+
+    // Obstacles
+    let obstacles = [];
+    
+    class Obstacle {
+        constructor() {
+            this.w = 30 + Math.random() * 20;
+            this.h = 30 + Math.random() * 40;
+            this.x = canvas.width;
+            this.y = canvas.height - 50 - this.h;
+            this.color = '#B00020'; // Material Error Color
+        }
+        draw() {
+            ctx.fillStyle = this.color;
+            ctx.shadowColor = "rgba(176, 0, 32, 0.4)";
+            ctx.shadowBlur = 10;
+            ctx.fillRect(this.x, this.y, this.w, this.h);
+            ctx.shadowBlur = 0;
+        }
+        update() {
+            this.x -= speed;
+        }
+    }
+
+    // Input Handling
+    function handleInput(e) {
+        if (!gameRunning) return;
+        if (e.type === 'touchstart') e.preventDefault(); // Prevent scroll
+        player.jump();
+    }
+
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' || e.code === 'ArrowUp') handleInput(e);
+    });
+    canvas.addEventListener('touchstart', handleInput);
+    canvas.addEventListener('mousedown', handleInput);
+
+    // Loop
+    function gameLoop() {
+        if (!gameRunning) return;
+
+        requestAnimationFrame(gameLoop);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        frames++;
+
+        // Draw Floor
+        ctx.fillStyle = '#2c2c2c';
+        ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+        
+        // Draw Decorative Line on Floor
+        ctx.strokeStyle = '#3c3c3c';
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height - 50);
+        ctx.lineTo(canvas.width, canvas.height - 50);
+        ctx.stroke();
+
+        // Spawn Obstacles
+        // Random spawn rate between 60 and 140 frames
+        if (frames % Math.floor(Math.random() * 80 + 60) === 0) {
+            obstacles.push(new Obstacle());
+            // Increase speed gradually
+            if(speed < 12) speed += 0.1;
+        }
+
+        // Update Player
+        player.update();
+        player.draw();
+
+        // Update Obstacles
+        for (let i = 0; i < obstacles.length; i++) {
+            let obs = obstacles[i];
+            obs.update();
+            obs.draw();
+
+            // Collision Detection (AABB)
+            if (
+                player.x < obs.x + obs.w &&
+                player.x + player.size > obs.x &&
+                player.y < obs.y + obs.h &&
+                player.y + player.size > obs.y
+            ) {
+                gameOver();
+            }
+
+            // Remove off-screen obstacles & Score
+            if (obs.x + obs.w < 0) {
+                obstacles.splice(i, 1);
+                i--;
+                score++;
+                hud.innerText = score;
+            }
+        }
+    }
+
+    function initGame() {
+        resizeCanvas();
+        score = 0;
+        speed = 5;
+        frames = 0;
+        hud.innerText = score;
+        obstacles = [];
+        player.y = canvas.height - 50 - player.size;
+        player.dy = 0;
+        
+        gameRunning = true;
+        startScreen.classList.add('hidden');
+        gameOverScreen.classList.add('hidden');
+        
+        gameLoop();
+    }
+
+    function gameOver() {
+        gameRunning = false;
+        finalScoreDisplay.innerText = score;
+        gameOverScreen.classList.remove('hidden');
+    }
+
+    // Button Listeners
+    startBtn.addEventListener('click', initGame);
+    restartBtn.addEventListener('click', initGame);
+
+    // Initial Draw
+    resizeCanvas();
+    ctx.fillStyle = '#2c2c2c';
+    ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+    player.y = canvas.height - 50 - player.size;
+    player.draw();
+
+</script>
+</body>
+</html>
