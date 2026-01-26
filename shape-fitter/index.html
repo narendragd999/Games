@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Shape Fitter</title>
+    <style>
+        :root {
+            --primary-color: #6200ea;
+            --primary-light: #b388ff;
+            --secondary-color: #03dac6;
+            --background-color: #f5f5f5;
+            --surface-color: #ffffff;
+            --text-color: #333333;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.12);
+            --shadow-lg: 0 10px 20px rgba(0,0,0,0.15);
+            --header-height: 60px;
+            --gap-size: 20px;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none; /* Prevent text selection during drag */
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Roboto', 'Segoe UI', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- Header --- */
+        header {
+            height: var(--header-height);
+            background-color: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            box-shadow: var(--shadow-md);
+            z-index: 100;
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            margin: 0;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 16px;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            color: white;
+            transition: background 0.2s, transform 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .icon-btn:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .icon-btn:active {
+            transform: scale(0.95);
+        }
+
+        .icon-btn svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+
+        /* --- Game Area --- */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            position: relative;
+        }
+
+        .score-board {
+            margin-bottom: 16px;
+            font-size: 1.1rem;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            width: 100%;
+            max-width: 500px;
+            align-items: center;
+        }
+
+        /* --- Drop Zone (Holes) --- */
+        .drop-zone {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            background: var(--surface-color);
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: var(--shadow-sm);
+            width: 100%;
+            aspect-ratio: 1 / 1; /* Keep it square */
+        }
+
+        .hole {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background-color: #eeeeee;
+            border-radius: 12px;
+            border: 2px dashed #bdbdbd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .hole.filled {
+            border-style: solid;
+            border-color: var(--secondary-color);
+            background-color: rgba(3, 218, 198, 0.1);
+            transform: scale(1.05);
+        }
+
+        /* The "Hole" Shape SVG */
+        .hole svg {
+            width: 70%;
+            height: 70%;
+            fill: #e0e0e0;
+            pointer-events: none;
+        }
+
+        /* --- Spawn Zone (Shapes) --- */
+        .spawn-zone {
+            width: 100%;
+            min-height: 120px;
+            background: var(--surface-color);
+            border-radius: 16px;
+            box-shadow: var(--shadow-sm);
+            padding: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            align-content: center;
+        }
+
+        /* --- Draggable Shapes --- */
+        .shape {
+            width: 80px;
+            height: 80px;
+            cursor: grab;
+            position: relative;
+            touch-action: none; /* Important for pointer events */
+            z-index: 10;
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            filter: drop-shadow(0 2px 3px rgba(0,0,0,0.2));
+        }
+
+        .shape:active {
+            cursor: grabbing;
+            transform: scale(1.1);
+        }
+
+        .shape.dragging {
+            position: fixed;
+            z-index: 1000;
+            pointer-events: none; /* Let clicks pass through to check elements below */
+            transition: none; /* Instant follow */
+        }
+
+        .shape.placed {
+            pointer-events: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            filter: none;
+            z-index: 5;
+        }
+
+        .shape svg {
+            width: 100%;
+            height: 100%;
+            fill: var(--primary-color);
+        }
+
+        /* --- Modals (Instructions / Victory) --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal {
+            background: var(--surface-color);
+            width: 90%;
+            max-width: 400px;
+            border-radius: 8px;
+            box-shadow: var(--shadow-lg);
+            padding: 24px;
+            text-align: center;
+            transform: translateY(20px);
+            transition: transform 0.3s;
+        }
+
+        .modal-overlay.active .modal {
+            transform: translateY(0);
+        }
+
+        .modal h2 {
+            margin-top: 0;
+            color: var(--primary-color);
+        }
+
+        .modal p {
+            line-height: 1.5;
+            color: #555;
+            margin-bottom: 24px;
+        }
+
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            box-shadow: var(--shadow-sm);
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:hover {
+            background-color: #5000ca;
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            color: var(--primary-color);
+            box-shadow: none;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+
+        .btn-secondary:hover {
+            background-color: rgba(98, 0, 234, 0.05);
+        }
+
+        /* Confetti Canvas */
+        #confetti {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1500;
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 400px) {
+            .drop-zone {
+                gap: 8px;
+                padding: 10px;
+            }
+            .shape {
+                width: 70px;
+                height: 70px;
+            }
+            .spawn-zone {
+                min-height: 100px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Shape Fitter</h1>
+        <div class="header-actions">
+            <button class="icon-btn" id="instructions-btn" aria-label="Instructions">
+                <!-- Help Icon -->
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
+                </svg>
+            </button>
+            <button class="icon-btn" id="restart-btn" aria-label="Restart">
+                <!-- Refresh Icon -->
+                <svg viewBox="0 0 24 24">
+                    <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <main>
+        <div class="score-board">Level: <span id="level-display">1</span></div>
+        
+        <div class="game-container">
+            <!-- The Grid of Holes -->
+            <div class="drop-zone" id="drop-zone">
+                <!-- Holes generated by JS -->
+            </div>
+
+            <!-- The Area where shapes appear -->
+            <div class="spawn-zone" id="spawn-zone">
+                <!-- Shapes generated by JS -->
+            </div>
+        </div>
+    </main>
+
+    <canvas id="confetti"></canvas>
+
+    <!-- Instructions Modal -->
+    <div class="modal-overlay active" id="instructions-modal">
+        <div class="modal">
+            <h2>How to Play</h2>
+            <p>1. <strong>Tap</strong> a shape to rotate it 45°.</p>
+            <p>2. <strong>Drag</strong> the shape to the matching hole.</p>
+            <p>3. Match the shape type <em>and</em> the rotation to fit it in!</p>
+            <button class="btn" id="start-game-btn">Got it!</button>
+        </div>
+    </div>
+
+    <!-- Victory Modal -->
+    <div class="modal-overlay" id="victory-modal">
+        <div class="modal">
+            <h2>Level Complete!</h2>
+            <p>Great job fitting all those shapes!</p>
+            <button class="btn" id="next-level-btn">Next Level</button>
+        </div>
+    </div>
+
+<script>
+    /**
+     * Shape Fitter Game Logic
+     * Handles level generation, rotation, drag-and-drop physics, and win states.
+     */
+
+    // --- Configuration & Data ---
+    const SHAPE_TYPES = ['triangle', 'square', 'pentagon', 'star', 'cross'];
+    
+    // SVG Paths for shapes (normalized to 100x100 viewbox)
+    const SHAPE_PATHS = {
+        triangle: "M50 5 L95 90 L5 90 Z",
+        square: "M20 20 L80 20 L80 80 L20 80 Z",
+        pentagon: "M50 5 L95 38 L78 90 L22 90 L5 38 Z",
+        star: "M50 5 L61 35 H95 L68 55 L79 90 L50 72 L21 90 L32 55 L5 35 H39 Z",
+        cross: "M35 10 L65 10 L65 35 L90 35 L90 65 L65 65 L65 90 L35 90 L35 65 L10 65 L10 35 L35 35 Z"
+    };
+
+    // --- State ---
+    let state = {
+        level: 1,
+        shapes: [], // { id, type, rotation, currentX, currentY, isPlaced }
+        holes: [],  // { id, type, requiredRotation, element }
+        draggedShapeId: null,
+        dragOffset: { x: 0, y: 0 },
+        initialDragPos: { x: 0, y: 0 }
+    };
+
+    // --- DOM Elements ---
+    const dropZone = document.getElementById('drop-zone');
+    const spawnZone = document.getElementById('spawn-zone');
+    const levelDisplay = document.getElementById('level-display');
+    const instructionsModal = document.getElementById('instructions-modal');
+    const victoryModal = document.getElementById('victory-modal');
+    const confettiCanvas = document.getElementById('confetti');
+    const ctx = confettiCanvas.getContext('2d');
+
+    // --- Initialization ---
+    function init() {
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        document.getElementById('start-game-btn').addEventListener('click', () => {
+            closeModal(instructionsModal);
+            startLevel();
+        });
+
+        document.getElementById('instructions-btn').addEventListener('click', () => {
+            openModal(instructionsModal);
+        });
+
+        document.getElementById('restart-btn').addEventListener('click', restartLevel);
+        document.getElementById('next-level-btn').addEventListener('click', nextLevel);
+
+        // Global pointer up to handle drops anywhere
+        document.addEventListener('pointerup', handlePointerUp);
+        document.addEventListener('pointermove', handlePointerMove);
+    }
+
+    function resizeCanvas() {
+        confettiCanvas.width = window.innerWidth;
+        confettiCanvas.height = window.innerHeight;
+    }
+
+    // --- Game Logic ---
+
+    function startLevel() {
+        closeModal(victoryModal);
+        closeModal(instructionsModal);
+        generateLevel(state.level);
+    }
+
+    function nextLevel() {
+        state.level++;
+        levelDisplay.textContent = state.level;
+        startLevel();
+    }
+
+    function restartLevel() {
+        startLevel();
+    }
+
+    function generateLevel(levelNum) {
+        // Clear board
+        dropZone.innerHTML = '';
+        spawnZone.innerHTML = '';
+        state.shapes = [];
+        state.holes = [];
+
+        // Determine grid size (3x3 max, or smaller for easier levels)
+        const count = Math.min(3 + Math.floor(levelNum / 2), 9);
+        
+        // Pick random shape types
+        let selectedTypes = [];
+        for(let i=0; i<count; i++) {
+            const type = SHAPE_TYPES[Math.floor(Math.random() * SHAPE_TYPES.length)];
+            selectedTypes.push(type);
+        }
+
+        // Create Holes
+        selectedTypes.forEach((type, index) => {
+            // Random rotation required (increments of 45 deg)
+            const requiredRot = Math.floor(Math.random() * 8) * 45;
+            
+            const holeEl = document.createElement('div');
+            holeEl.className = 'hole';
+            holeEl.dataset.id = index;
+            
+            // SVG for the hole visual
+            holeEl.innerHTML = `<svg viewBox="0 0 100 100"><path d="${SHAPE_PATHS[type]}" transform="rotate(${requiredRot} 50 50)"/></svg>`;
+            
+            dropZone.appendChild(holeEl);
+            
+            state.holes.push({
+                id: index,
+                type: type,
+                requiredRotation: requiredRot,
+                element: holeEl,
+                filled: false
+            });
+        });
+
+        // Create Shapes (Shuffled)
+        // We shuffle the types so they don't spawn in order
+        const shuffledTypes = [...selectedTypes].sort(() => Math.random() - 0.5);
+
+        shuffledTypes.forEach((type, index) => {
+            const shapeId = `shape-${index}`;
+            
+            const shapeEl = document.createElement('div');
+            shapeEl.className = 'shape';
+            shapeEl.id = shapeId;
+            shapeEl.dataset.type = type;
+            
+            // Initial random rotation
+            const initialRot = Math.floor(Math.random() * 8) * 45;
+            
+            shapeEl.innerHTML = `<svg viewBox="0 0 100 100"><path d="${SHAPE_PATHS[type]}"/></svg>`;
+            setShapeRotation(shapeEl, initialRot);
+
+            // Pointer events for this shape
+            shapeEl.addEventListener('pointerdown', (e) => handlePointerDown(e, shapeId, initialRot));
+            
+            spawnZone.appendChild(shapeEl);
+
+            state.shapes.push({
+                id: shapeId,
+                type: type,
+                rotation: initialRot,
+                element: shapeEl,
+                isPlaced: false
+            });
+        });
+    }
+
+    // --- Interaction Logic ---
+
+    function handlePointerDown(e, shapeId, currentRotation) {
+        const shapeObj = state.shapes.find(s => s.id === shapeId);
+        if (shapeObj.isPlaced) return;
+
+        // Distinguish between click (rotate) and drag (move)
+        // We use a small threshold or time. Simple approach: Record start pos/time.
+        state.draggedShapeId = shapeId;
+        const shapeEl = document.getElementById(shapeId);
+        
+        // Get bounding rect for offset calculation
+        const rect = shapeEl.getBoundingClientRect();
+        state.dragOffset.x = e.clientX - rect.left;
+        state.dragOffset.y = e.clientY - rect.top;
+        state.initialDragPos = { x: e.clientX, y: e.clientY };
+
+        // Visual feedback
+        shapeEl.classList.add('dragging');
+        // Move to body to float freely over everything
+        shapeEl.style.width = rect.width + 'px';
+        shapeEl.style.height = rect.height + 'px';
+        document.body.appendChild(shapeEl);
+        
+        // Update position to match mouse immediately
+        moveShape(e.clientX, e.clientY, shapeEl);
+    }
+
+    function handlePointerMove(e) {
+        if (!state.draggedShapeId) return;
+        
+        const shapeEl = document.getElementById(state.draggedShapeId);
+        moveShape(e.clientX, e.clientY, shapeEl);
+    }
+
+    function handlePointerUp(e) {
+        if (!state.draggedShapeId) return;
+
+        const shapeEl = document.getElementById(state.draggedShapeId);
+        const shapeObj = state.shapes.find(s => s.id === state.draggedShapeId);
+
+        // Calculate distance moved to detect tap vs drag
+        const dist = Math.hypot(e.clientX - state.initialDragPos.x, e.clientY - state.initialDragPos.y);
+        const isTap = dist < 10; // 10px threshold
+
+        if (isTap) {
+            // ROTATE logic
+            shapeObj.rotation = (shapeObj.rotation + 45) % 360;
+            setShapeRotation(shapeEl, shapeObj.rotation);
+            
+            // Simple pop animation
+            shapeEl.animate([
+                { transform: `scale(1)` },
+                { transform: `scale(1.2)` },
+                { transform: `scale(1)` }
+            ], { duration: 200 });
+        } else {
+            // DROP logic
+            checkDrop(shapeEl, shapeObj);
+        }
+
+        // Cleanup
+        shapeEl.classList.remove('dragging');
+        shapeEl.style.position = '';
+        shapeEl.style.left = '';
+        shapeEl.style.top = '';
+        shapeEl.style.width = '';
+        shapeEl.style.height = '';
+        shapeEl.style.transform = `rotate(${shapeObj.rotation}deg)`; // Reset transform to only rotation
+
+        // If it wasn't placed correctly, return it to spawn zone
+        if (!shapeObj.isPlaced) {
+            spawnZone.appendChild(shapeEl);
+        }
+
+        state.draggedShapeId = null;
+    }
+
+    function moveShape(x, y, el) {
+        el.style.left = (x - state.dragOffset.x) + 'px';
+        el.style.top = (y - state.dragOffset.y) + 'px';
+    }
+
+    function setShapeRotation(el, deg) {
+        // Store rotation for logic
+        el.dataset.rotation = deg;
+        // Since we might be dragging, we only update rotation transform if not dragging class
+        // But simpler is to keep transform consistent. 
+        // Note: dragging style overrides transform via left/top.
+        // We need to combine them if using transform for both, but here we used top/left for drag pos.
+        // So we can safely set transform just for rotation, UNLESS dragging class applies fixed positioning.
+        // Correction: In .dragging, we use left/top. So we set transform for rotation.
+        el.style.transform = `rotate(${deg}deg)`;
+    }
+
+    function checkDrop(shapeEl, shapeObj) {
+        const shapeRect = shapeEl.getBoundingClientRect();
+        const shapeCenter = {
+            x: shapeRect.left + shapeRect.width / 2,
+            y: shapeRect.top + shapeRect.height / 2
+        };
+
+        let matchedHole = null;
+
+        // Find closest hole
+        state.holes.forEach(hole => {
+            if (hole.filled) return;
+
+            const holeRect = hole.element.getBoundingClientRect();
+            const holeCenter = {
+                x: holeRect.left + holeRect.width / 2,
+                y: holeRect.top + holeRect.height / 2
+            };
+
+            const distance = Math.hypot(shapeCenter.x - holeCenter.x, shapeCenter.y - holeCenter.y);
+
+            // Distance threshold (e.g., within 50px)
+            if (distance < 50) {
+                matchedHole = hole;
+            }
+        });
+
+        if (matchedHole) {
+            // Check Type
+            if (matchedHole.type === shapeObj.type) {
+                // Check Rotation
+                // Note: In SVG coordinate system, 360 == 0. 
+                // We normalize comparison.
+                const holeRot = matchedHole.requiredRotation % 360;
+                const shapeRot = shapeObj.rotation % 360;
+                
+                // Allow slight margin? No, game requires precision usually.
+                // But let's allow 360 vs 0 equality.
+                if (holeRot === shapeRot) {
+                    // SUCCESS
+                    placeShape(shapeObj, matchedHole, shapeEl);
+                } else {
+                    // Wrong rotation feedback (shake?)
+                    shakeElement(shapeEl);
+                }
+            } else {
+                // Wrong shape
+            }
+        }
+    }
+
+    function placeShape(shapeObj, holeObj, shapeEl) {
+        shapeObj.isPlaced = true;
+        holeObj.filled = true;
+        holeObj.element.classList.add('filled');
+
+        // Move shape element into hole element
+        shapeEl.classList.add('placed');
+        holeObj.element.appendChild(shapeEl);
+        
+        // Reset transform visually to match hole perfectly (remove offset from drag)
+        shapeEl.style.transform = `rotate(${shapeObj.rotation}deg)`;
+
+        // Check win condition
+        if (state.holes.every(h => h.filled)) {
+            handleWin();
+        }
+    }
+
+    function shakeElement(el) {
+        el.animate([
+            { transform: `translate(0px, 0px) rotate(${el.dataset.rotation}deg)` },
+            { transform: `translate(-10px, 0px) rotate(${el.dataset.rotation}deg)` },
+            { transform: `translate(10px, 0px) rotate(${el.dataset.rotation}deg)` },
+            { transform: `translate(0px, 0px) rotate(${el.dataset.rotation}deg)` }
+        ], { duration: 300 });
+    }
+
+    function handleWin() {
+        setTimeout(() => {
+            fireConfetti();
+            openModal(victoryModal);
+        }, 500);
+    }
+
+    // --- Modal Utilities ---
+    function openModal(modal) {
+        modal.classList.add('active');
+    }
+
+    function closeModal(modal) {
+        modal.classList.remove('active');
+    }
+
+    // --- Confetti Effect (Simple) ---
+    function fireConfetti() {
+        const particles = [];
+        const colors = ['#6200ea', '#03dac6', '#ff0266', '#ffeb3b'];
+
+        for(let i=0; i<100; i++) {
+            particles.push({
+                x: window.innerWidth / 2,
+                y: window.innerHeight / 2,
+                vx: (Math.random() - 0.5) * 10,
+                vy: (Math.random() - 0.5) * 10 - 5,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                life: 100
+            });
+        }
+
+        function update() {
+            ctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+            let active = false;
+            particles.forEach(p => {
+                if(p.life > 0) {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.2; // Gravity
+                    p.life--;
+                    
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                    active = true;
+                }
+            });
+
+            if(active) requestAnimationFrame(update);
+            else ctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+        }
+        update();
+    }
+
+    // Start Game
+    init();
+
+</script>
+</body>
+</html>
