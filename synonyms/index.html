@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Synonym Fusion 2.0</title>
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            /* Palette */
+            --bg-gradient: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            --primary: #00d2ff;
+            --secondary: #3a7bd5;
+            --accent: #ff0076;
+            --success: #00e676;
+            --glass: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --surface: rgba(0, 0, 0, 0.6);
+            --text-main: #ffffff;
+            --text-muted: #a0a0a0;
+            
+            /* Metrics */
+            --radius-lg: 24px;
+            --radius-md: 16px;
+            --radius-sm: 8px;
+            --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            margin: 0;
+            height: 100dvh;
+            width: 100vw;
+            overflow: hidden;
+            background: var(--bg-gradient);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* --- App Container --- */
+        #app {
+            width: 100%;
+            max-width: 500px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            padding: 20px;
+        }
+
+        /* Canvas for Confetti */
+        #confetti-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 200;
+        }
+
+        /* --- Header --- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 5px;
+            margin-bottom: 10px;
+            z-index: 15;
+        }
+
+        .brand {
+            font-weight: 800;
+            font-size: 1.4rem;
+            background: linear-gradient(to right, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        .stats-pill {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            padding: 6px 16px;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            backdrop-filter: blur(4px);
+        }
+
+        /* --- Main Game Area --- */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        /* Target Card */
+        .target-box {
+            text-align: center;
+            background: var(--surface);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .target-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 5px;
+        }
+
+        .target-word {
+            font-size: 2.5rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            color: var(--primary);
+            text-shadow: 0 0 15px rgba(0, 210, 255, 0.4);
+        }
+
+        /* Found Words Bank */
+        .word-bank {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            min-height: 36px;
+        }
+
+        .bank-chip {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
+            border: 1px solid transparent;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            cursor: default;
+        }
+
+        .bank-chip.revealed {
+            background: rgba(0, 210, 255, 0.2);
+            border-color: var(--primary);
+            color: #fff;
+            box-shadow: 0 0 10px rgba(0, 210, 255, 0.2);
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* Style for Auto-Solved items */
+        .bank-chip.auto-solved {
+            background: rgba(255, 0, 118, 0.2);
+            border-color: var(--accent);
+            box-shadow: 0 0 10px rgba(255, 0, 118, 0.2);
+        }
+
+        .bank-chip.hint-active {
+            border: 1px dashed var(--accent);
+            color: var(--accent);
+            animation: pulse 1.5s infinite;
+        }
+
+        /* Slots Area */
+        .slots-container {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin: 10px 0;
+            min-height: 60px;
+        }
+
+        .slot {
+            width: 44px;
+            height: 54px;
+            background: var(--glass);
+            border-bottom: 4px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: #fff;
+            transition: all 0.2s;
+        }
+
+        .slot.filled {
+            background: rgba(255,255,255,0.2);
+            border-bottom-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .slot.shake {
+            animation: shake 0.5s;
+            border-bottom-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* Keyboard Pool */
+        .pool {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-top: auto;
+            padding-bottom: 20px;
+        }
+
+        .tile {
+            width: 42px;
+            height: 42px;
+            background: var(--surface);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #fff;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.5);
+            cursor: pointer;
+            transition: transform 0.1s, background 0.2s;
+        }
+
+        .tile:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 rgba(0,0,0,0.5);
+        }
+
+        .tile.used {
+            opacity: 0.1;
+            pointer-events: none;
+            box-shadow: none;
+            transform: translateY(4px);
+        }
+
+        /* --- Footer Controls --- */
+        footer {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--glass-border);
+            position: relative;
+            z-index: 10;
+        }
+
+        .control-btn {
+            background: var(--glass);
+            border: none;
+            border-radius: var(--radius-md);
+            padding: 12px;
+            color: #fff;
+            font-size: 0.9rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .control-btn i {
+            font-size: 1.2rem;
+            color: var(--primary);
+        }
+
+        .control-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .control-btn.primary {
+            background: var(--secondary);
+            grid-column: span 2;
+            flex-direction: row;
+            justify-content: center;
+            font-weight: 700;
+            box-shadow: 0 4px 15px rgba(58, 123, 213, 0.4);
+        }
+
+        .control-btn.primary i { color: #fff; }
+        
+        .control-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        /* --- Next Level Button Bar --- */
+        #next-level-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: #1a1a2e;
+            padding: 20px;
+            border-top-left-radius: 30px;
+            border-top-right-radius: 30px;
+            transform: translateY(100%);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
+            z-index: 20; /* FIX: Increased from 5 to 20 to sit above footer (10) */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #next-level-bar.visible {
+            transform: translateY(0);
+        }
+
+        #btn-next-level {
+            background: linear-gradient(90deg, var(--success), #00c853);
+            border: none;
+            color: #fff;
+            padding: 15px 40px;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0, 230, 118, 0.4);
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #btn-next-level:active { transform: scale(0.98); }
+
+        /* --- Overlays & Modals --- */
+        .overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .overlay.active { opacity: 1; pointer-events: all; }
+
+        .modal {
+            background: #1a1a2e;
+            width: 85%;
+            max-width: 380px;
+            padding: 30px;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--glass-border);
+            text-align: center;
+            box-shadow: 0 0 50px rgba(0, 210, 255, 0.2);
+            transform: scale(0.9);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .overlay.active .modal { transform: scale(1); }
+
+        .modal h2 { margin: 0 0 10px 0; color: var(--primary); }
+        .modal p { color: var(--text-muted); margin-bottom: 25px; }
+
+        .btn-action {
+            background: linear-gradient(90deg, var(--secondary), var(--primary));
+            border: none;
+            color: #fff;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-weight: 800;
+            font-size: 1rem;
+            cursor: pointer;
+            width: 100%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        
+        .btn-action:active { transform: scale(0.98); }
+
+        /* Toast */
+        #toast {
+            position: absolute;
+            bottom: 140px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: #fff;
+            color: #000;
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s;
+            z-index: 50;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            white-space: nowrap;
+        }
+        
+        #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        /* Keyframes */
+        @keyframes shake {
+            10%, 90% { transform: translateX(-1px); }
+            20%, 80% { transform: translateX(2px); }
+            30%, 50%, 70% { transform: translateX(-4px); }
+            40%, 60% { transform: translateX(4px); }
+        }
+        @keyframes popIn { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        /* Loader */
+        .spinner {
+            width: 40px; height: 40px;
+            border: 4px solid rgba(255,255,255,0.1);
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px auto;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    </style>
+</head>
+<body>
+
+<canvas id="confetti-canvas"></canvas>
+
+<div id="app">
+    <!-- Header -->
+    <header>
+        <div class="brand"><i class="fas fa-infinity"></i> Synonym</div>
+        <div style="display:flex; gap:10px;">
+            <div class="stats-pill"><i class="fas fa-layer-group"></i> <span id="level-disp">1</span></div>
+            <div class="stats-pill"><i class="fas fa-star"></i> <span id="score-disp">0</span></div>
+        </div>
+        <button id="btn-info" style="background:none; border:none; color:white; font-size:1.2rem;"><i class="fas fa-info-circle"></i></button>
+    </header>
+
+    <main>
+        <!-- Target -->
+        <div class="target-box">
+            <div class="target-label">Find synonyms for</div>
+            <div class="target-word" id="target-word">READY</div>
+        </div>
+
+        <!-- Progress Bank -->
+        <div class="word-bank" id="word-bank">
+            <!-- Generated via JS -->
+        </div>
+
+        <!-- Input Slots -->
+        <div class="slots-container" id="slots-container">
+            <!-- Generated via JS -->
+        </div>
+
+        <!-- Letter Pool -->
+        <div class="pool" id="pool-container">
+            <!-- Generated via JS -->
+        </div>
+    </main>
+
+    <!-- Controls -->
+    <footer>
+        <button class="control-btn" id="btn-shuffle">
+            <i class="fas fa-random"></i>
+            <span>Shuffle</span>
+        </button>
+        <button class="control-btn" id="btn-undo">
+            <i class="fas fa-undo"></i>
+            <span>Undo</span>
+        </button>
+        <button class="control-btn" id="btn-hint">
+            <i class="fas fa-lightbulb"></i>
+            <span>Hint</span>
+        </button>
+        <button class="control-btn primary" id="btn-submit">
+            <i class="fas fa-check"></i> Check Word
+        </button>
+        <button class="control-btn" id="btn-solve" style="grid-column: span 4; margin-top: 5px; background: rgba(255,0,118,0.1);">
+            <i class="fas fa-magic"></i> Reveal Answers
+        </button>
+    </footer>
+
+    <!-- Next Level Bar (Slides up when finished) -->
+    <div id="next-level-bar">
+        <button id="btn-next-level">
+            Next Level <i class="fas fa-arrow-right"></i>
+        </button>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast">Nice!</div>
+
+    <!-- Info Modal -->
+    <div class="overlay" id="modal-info">
+        <div class="modal">
+            <h2>How to Play</h2>
+            <p style="text-align: left; font-size: 0.95rem;">
+                1. We give you a <strong>Target Word</strong>.<br>
+                2. Use the scrambled letters to spell <strong>Synonyms</strong> (words with the same meaning).<br>
+                3. Fill the bank to advance!
+            </p>
+            <button class="btn-action" id="close-info">Play</button>
+        </div>
+    </div>
+    
+    <!-- Loading Overlay -->
+    <div class="overlay active" id="loading-overlay">
+        <div class="spinner"></div>
+        <p style="color: #fff;">Connecting to Brain...</p>
+    </div>
+</div>
+
+<script>
+/**
+ * AUDIO ENGINE
+ */
+class AudioEngine {
+    constructor() {
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.value = 0.3;
+        this.masterGain.connect(this.ctx.destination);
+    }
+
+    playTone(freq, type, duration, slide = 0) {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        if(slide !== 0) {
+            osc.frequency.exponentialRampToValueAtTime(freq + slide, this.ctx.currentTime + duration);
+        }
+        gain.gain.setValueAtTime(1, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+        
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration);
+    }
+
+    playTap() { this.playTone(800, 'sine', 0.1, -200); }
+    playBackspace() { this.playTone(400, 'triangle', 0.15, -100); }
+    playError() { 
+        this.playTone(150, 'sawtooth', 0.2); 
+        setTimeout(() => this.playTone(100, 'sawtooth', 0.3), 100);
+    }
+    playSuccess() {
+        this.playTone(600, 'sine', 0.1);
+        setTimeout(() => this.playTone(900, 'sine', 0.2), 100);
+    }
+    playWin() {
+        [400, 500, 600, 800].forEach((f, i) => {
+            setTimeout(() => this.playTone(f, 'square', 0.3), i * 100);
+        });
+    }
+}
+
+/**
+ * PARTICLE ENGINE (Confetti)
+ */
+class ParticleEngine {
+    constructor() {
+        this.canvas = document.getElementById('confetti-canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.particles = [];
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        this.animate();
+    }
+
+    resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+    }
+
+    explode() {
+        for(let i=0; i<100; i++) {
+            this.particles.push({
+                x: this.canvas.width / 2,
+                y: this.canvas.height / 2,
+                vx: (Math.random() - 0.5) * 15,
+                vy: (Math.random() - 0.5) * 15 - 5,
+                life: 1.0,
+                color: `hsl(${Math.random() * 360}, 100%, 50%)`,
+                size: Math.random() * 8 + 2
+            });
+        }
+    }
+
+    animate() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.particles.forEach((p, i) => {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.2;
+            p.life -= 0.015;
+            p.size *= 0.96;
+            
+            this.ctx.globalAlpha = p.life;
+            this.ctx.fillStyle = p.color;
+            this.ctx.beginPath();
+            this.ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+            this.ctx.fill();
+
+            if(p.life <= 0) this.particles.splice(i, 1);
+        });
+        requestAnimationFrame(() => this.animate());
+    }
+}
+
+/**
+ * GAME STATE & LOGIC
+ */
+const Game = {
+    level: 1,
+    score: 0,
+    target: '',
+    pool: [], 
+    currentInput: [], 
+    targetSynonyms: [], 
+    found: [],
+    
+    fallbackWords: [
+        { w: 'HAPPY', s: ['GLAD', 'JOY', 'GAY'] },
+        { w: 'FAST', s: ['QUICK', 'RAPID', 'SWIFT'] },
+        { w: 'START', s: ['BEGIN', 'COMMENCE'] },
+        { w: 'STOP', s: ['END', 'HALT', 'CEASE'] },
+        { w: 'SMART', s: ['WISE', 'CLEVER', 'BRIGHT'] },
+        { w: 'LOOK', s: ['SEE', 'VIEW', 'WATCH'] },
+        { w: 'OLD', s: ['ANCIENT', 'AGED'] },
+        { w: 'NEW', s: ['FRESH', 'NOVEL', 'LATEST'] },
+        { w: 'BIG', s: ['LARGE', 'HUGE', 'GIANT'] },
+        { w: 'COLD', s: ['COOL', 'FRIGID', 'ICY'] }
+    ]
+};
+
+const audio = new AudioEngine();
+const particles = new ParticleEngine();
+
+const UI = {
+    target: document.getElementById('target-word'),
+    slots: document.getElementById('slots-container'),
+    pool: document.getElementById('pool-container'),
+    bank: document.getElementById('word-bank'),
+    score: document.getElementById('score-disp'),
+    level: document.getElementById('level-disp'),
+    toast: document.getElementById('toast'),
+    nextLevelBar: document.getElementById('next-level-bar'),
+    overlays: {
+        info: document.getElementById('modal-info'),
+        loading: document.getElementById('loading-overlay')
+    }
+};
+
+/**
+ * INITIALIZATION & API
+ */
+async function initLevel() {
+    // Hide Next Level Bar
+    UI.nextLevelBar.classList.remove('visible');
+    
+    UI.overlays.loading.classList.add('active');
+    
+    Game.currentInput = [];
+    Game.found = [];
+    Game.pool = [];
+    
+    const fallbackIndex = (Game.level - 1) % Game.fallbackWords.length;
+    const fallbackData = Game.fallbackWords[fallbackIndex];
+    
+    let targetWord = fallbackData.w;
+    let synonyms = fallbackData.s;
+
+    try {
+        const res = await fetch(`https://api.datamuse.com/words?rel_syn=${targetWord}&max=20`);
+        const data = await res.json();
+        
+        const apiFiltered = data
+            .map(i => i.word.toUpperCase())
+            .filter(w => /^[A-Z]{3,6}$/.test(w) && w !== targetWord);
+
+        if (apiFiltered.length >= 2) {
+            const combined = [...new Set([...apiFiltered, ...synonyms])];
+            combined.sort(() => Math.random() - 0.5);
+            Game.targetSynonyms = combined.slice(0, 4);
+        } else {
+            throw new Error("Not enough API results");
+        }
+    } catch (e) {
+        console.log("Using fallback data for level", Game.level);
+        Game.targetSynonyms = synonyms;
+    }
+    
+    Game.target = targetWord;
+
+    let letterMap = {};
+    Game.targetSynonyms.forEach(word => {
+        for(let char of word) {
+            letterMap[char] = (letterMap[char] || 0) + 1;
+        }
+    });
+
+    Game.pool = Object.entries(letterMap).map(([char, count], index) => {
+        let items = [];
+        for(let i=0; i<count; i++) {
+            items.push({
+                id: `${char}-${index}-${i}`,
+                char: char,
+                used: false
+            });
+        }
+        return items;
+    }).flat();
+
+    Game.pool.sort(() => Math.random() - 0.5);
+
+    render();
+    UI.overlays.loading.classList.remove('active');
+}
+
+/**
+ * RENDERING
+ */
+function render() {
+    UI.target.textContent = Game.target;
+    UI.score.textContent = Game.score;
+    UI.level.textContent = Game.level;
+
+    UI.bank.innerHTML = '';
+    Game.targetSynonyms.forEach(word => {
+        const chip = document.createElement('div');
+        const isFound = Game.found.includes(word);
+        chip.className = `bank-chip ${isFound ? 'revealed' : ''}`;
+        
+        if(isFound) {
+            chip.textContent = word; 
+        } else {
+            chip.textContent = '_'.repeat(word.length);
+        }
+        chip.dataset.word = word;
+        UI.bank.appendChild(chip);
+    });
+
+    UI.slots.innerHTML = '';
+    Game.currentInput.forEach(item => {
+        const slot = document.createElement('div');
+        slot.className = 'slot filled';
+        slot.textContent = item.char;
+        slot.onclick = () => removeLetter(item.id);
+        UI.slots.appendChild(slot);
+    });
+
+    UI.pool.innerHTML = '';
+    Game.pool.forEach(item => {
+        const tile = document.createElement('div');
+        tile.className = `tile ${item.used ? 'used' : ''}`;
+        tile.textContent = item.char;
+        tile.onclick = () => addLetter(item.id);
+        UI.pool.appendChild(tile);
+    });
+
+    // Check if level is finished to show Next Level Bar
+    if (Game.found.length === Game.targetSynonyms.length) {
+        UI.nextLevelBar.classList.add('visible');
+    } else {
+        UI.nextLevelBar.classList.remove('visible');
+    }
+}
+
+/**
+ * INTERACTIONS
+ */
+function addLetter(id) {
+    const item = Game.pool.find(i => i.id === id);
+    if (item && !item.used) {
+        item.used = true;
+        Game.currentInput.push(item);
+        audio.playTap();
+        render();
+    }
+}
+
+function removeLetter(id) {
+    const idx = Game.currentInput.findIndex(i => i.id === id);
+    if (idx > -1) {
+        const item = Game.currentInput[idx];
+        item.used = false;
+        Game.currentInput.splice(idx, 1);
+        audio.playBackspace();
+        render();
+    }
+}
+
+function shufflePool() {
+    Game.pool.sort(() => Math.random() - 0.5); 
+    audio.playTap();
+    render();
+}
+
+function checkWord() {
+    const word = Game.currentInput.map(i => i.char).join('');
+    
+    if (word.length === 0) return;
+
+    if (Game.found.includes(word)) {
+        showToast("Already found!", "warn");
+        shakeSlots();
+        audio.playError();
+        return;
+    }
+
+    if (Game.targetSynonyms.includes(word)) {
+        Game.found.push(word);
+        Game.score += word.length * 10;
+        Game.currentInput = [];
+        Game.pool.forEach(p => p.used = false); 
+        audio.playSuccess();
+        
+        // Note: We removed the automatic popup here. render() will handle the UI change.
+    } else {
+        showToast("Not a synonym");
+        shakeSlots();
+        audio.playError();
+    }
+    render();
+}
+
+function giveHint() {
+    if(Game.score < 30) {
+        showToast("Need 30 pts for hint!");
+        return;
+    }
+
+    const remaining = Game.targetSynonyms.filter(w => !Game.found.includes(w));
+    if(remaining.length === 0) return;
+
+    const targetWord = remaining[0];
+    const firstChar = targetWord[0];
+    const availableTile = Game.pool.find(t => t.char === firstChar && !t.used);
+
+    if(availableTile) {
+        const chips = document.querySelectorAll('.bank-chip');
+        chips.forEach(c => {
+            if(c.dataset.word === targetWord && !c.classList.contains('revealed')) {
+                c.classList.add('hint-active');
+                setTimeout(() => c.classList.remove('hint-active'), 2000);
+            }
+        });
+        addLetter(availableTile.id);
+        Game.score -= 30;
+    } else {
+        showToast("Letter used or not avail");
+    }
+}
+
+/**
+ * AUTO SOLVE LOGIC
+ */
+function autoSolve() {
+    const remaining = Game.targetSynonyms.filter(w => !Game.found.includes(w));
+    if(remaining.length === 0) return;
+    
+    const solveBtn = document.getElementById('btn-solve');
+    solveBtn.disabled = true;
+
+    // Reveal logic
+    remaining.forEach(w => {
+        if(!Game.found.includes(w)) Game.found.push(w);
+    });
+
+    render();
+    
+    // Mark auto-solved items visually
+    const chips = document.querySelectorAll('.bank-chip');
+    chips.forEach(c => {
+        if(c.textContent !== '_'.repeat(c.textContent.length)) {
+             c.classList.add('auto-solved');
+        }
+    });
+
+    showToast("Answers Revealed!");
+    audio.playTap(); 
+
+    // NO AUTO TRANSITION. The user stays on this screen until they click Next Level.
+    
+    setTimeout(() => {
+        solveBtn.disabled = false;
+    }, 1000);
+}
+
+/**
+ * FEEDBACK
+ */
+function shakeSlots() {
+    const slots = document.querySelectorAll('.slot');
+    slots.forEach(s => {
+        s.classList.remove('shake');
+        void s.offsetWidth;
+        s.classList.add('shake');
+    });
+}
+
+function showToast(msg) {
+    UI.toast.textContent = msg;
+    UI.toast.classList.add('show');
+    setTimeout(() => UI.toast.classList.remove('show'), 2000);
+}
+
+function nextLevel() {
+    audio.playWin();
+    particles.explode();
+    Game.level++;
+    initLevel();
+}
+
+/**
+ * EVENT LISTENERS
+ */
+document.getElementById('btn-shuffle').onclick = shufflePool;
+document.getElementById('btn-undo').onclick = () => {
+    if(Game.currentInput.length > 0) {
+        const item = Game.currentInput.pop();
+        item.used = false;
+        audio.playBackspace();
+        render();
+    }
+};
+document.getElementById('btn-submit').onclick = checkWord;
+document.getElementById('btn-hint').onclick = giveHint;
+document.getElementById('btn-solve').onclick = autoSolve;
+document.getElementById('btn-next-level').onclick = nextLevel;
+
+document.getElementById('close-info').onclick = () => {
+    UI.overlays.info.classList.remove('active');
+    if(audio.ctx.state === 'suspended') audio.ctx.resume();
+};
+document.getElementById('btn-info').onclick = () => UI.overlays.info.classList.add('active');
+
+document.addEventListener('keydown', (e) => {
+    const key = e.key.toUpperCase();
+    if(/^[A-Z]$/.test(key)) {
+        const tile = Game.pool.find(t => t.char === key && !t.used);
+        if(tile) addLetter(tile.id);
+    } else if (e.key === 'Backspace') {
+        document.getElementById('btn-undo').click();
+    } else if (e.key === 'Enter') {
+        checkWord();
+    }
+});
+
+window.onload = initLevel;
+
+</script>
+</body>
+</html>
