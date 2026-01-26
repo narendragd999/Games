@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Color Switch</title>
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --ui-text: #ffffff;
+            --accent: #e94560;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            touch-action: none; /* Prevent zooming on mobile */
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            background-color: #16213e;
+            display: block;
+        }
+
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            z-index: 10;
+        }
+
+        #score-display {
+            position: absolute;
+            top: 15%;
+            font-size: 4rem;
+            font-weight: bold;
+            color: rgba(255, 255, 255, 0.2);
+            user-select: none;
+            z-index: 5;
+        }
+
+        #start-screen, #game-over-screen {
+            background: rgba(0, 0, 0, 0.85);
+            padding: 2rem;
+            border-radius: 15px;
+            pointer-events: auto;
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: opacity 0.3s;
+            min-width: 280px;
+        }
+
+        h1 {
+            margin: 0 0 10px 0;
+            color: var(--ui-text);
+            font-size: 2.5rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        p {
+            color: #ddd;
+            margin-bottom: 25px;
+            line-height: 1.5;
+        }
+
+        button {
+            background: linear-gradient(45deg, #FF512F, #DD2476);
+            border: none;
+            padding: 15px 50px;
+            color: white;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(221, 36, 118, 0.4);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        button:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 8px rgba(221, 36, 118, 0.4);
+        }
+
+        button:hover {
+            filter: brightness(1.1);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        #instructions {
+            position: absolute;
+            bottom: 30px;
+            color: rgba(255,255,255,0.4);
+            font-size: 0.9rem;
+            width: 100%;
+            text-align: center;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="score-display">0</div>
+
+    <div id="start-screen" class="ui-layer">
+        <h1>Color Switch</h1>
+        <p>Tap or press Space to jump.<br>Match the color to pass through.</p>
+        <button id="start-btn">Play</button>
+    </div>
+
+    <div id="game-over-screen" class="ui-layer hidden">
+        <h1>Game Over</h1>
+        <p>Score: <span id="final-score">0</span></p>
+        <button id="restart-btn">Try Again</button>
+    </div>
+
+    <div id="instructions">Tap, Click, or Spacebar to Jump</div>
+</div>
+
+<script>
+window.onload = function() {
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score-display');
+    const finalScoreEl = document.getElementById('final-score');
+    const startScreen = document.getElementById('start-screen');
+    const gameOverScreen = document.getElementById('game-over-screen');
+    const startBtn = document.getElementById('start-btn');
+    const restartBtn = document.getElementById('restart-btn');
+
+    // Palette
+    const COLORS = [
+        '#FF0000', // Red
+        '#00FF00', // Green
+        '#0000FF', // Blue
+        '#FFFF00'  // Yellow
+    ];
+
+    let gameRunning = false;
+    let animationId;
+    let score = 0;
+    let frameCount = 0;
+
+    // Physics constants
+    const GRAVITY = 0.25;
+    const JUMP_FORCE = -7.0; // Slightly increased to ensure we clear the big wheel
+    const RADIUS = 14; 
+    const RING_THICKNESS = 25; // INCREASED THICKNESS (Was 20)
+    const COLLISION_THICKNESS = 18; // Adjusted for visual accuracy
+
+    /**
+     * Resize Handling
+     */
+    function resize() {
+        canvas.width = window.innerWidth > 500 ? 500 : window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize(); 
+
+    /**
+     * Game Objects
+     */
+
+    class Ball {
+        constructor() {
+            this.reset();
+            this.y = canvas.height - 150;
+        }
+
+        reset() {
+            this.x = canvas.width / 2;
+            this.y = canvas.height / 2 + 100;
+            this.radius = RADIUS;
+            this.dy = 0;
+            this.colorIndex = 0;
+            this.color = COLORS[this.colorIndex];
+            this.rotation = 0;
+        }
+
+        draw() {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            this.rotation += 0.05;
+            ctx.rotate(this.rotation);
+
+            ctx.beginPath();
+            ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+            ctx.fillStyle = this.color;
+            ctx.fill();
+            ctx.closePath();
+
+            ctx.beginPath();
+            ctx.arc(-4, -4, this.radius / 3, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            ctx.fill();
+            ctx.closePath();
+
+            ctx.restore();
+        }
+
+        update() {
+            this.dy += GRAVITY;
+            this.y += this.dy;
+
+            if (this.y + this.radius > canvas.height) {
+                this.y = canvas.height - this.radius;
+                this.dy = 0;
+            }
+            
+            if (this.y - this.radius < 0) {
+                 this.y = this.radius;
+                 this.dy = 0;
+            }
+        }
+
+        jump() {
+            this.dy = JUMP_FORCE;
+        }
+
+        changeColor() {
+            this.colorIndex = (this.colorIndex + 1) % COLORS.length;
+            this.color = COLORS[this.colorIndex];
+        }
+    }
+
+    class Obstacle {
+        constructor(y) {
+            this.x = canvas.width / 2;
+            this.y = y;
+            this.radius = 120; // SIGNIFICANTLY INCREASED SIZE (Was 90)
+            this.rotation = Math.random() * Math.PI * 2;
+            // Slightly slower rotation for bigger wheel to keep it readable
+            this.rotationSpeed = (Math.random() - 0.5) * 0.04; 
+            this.segments = COLORS.length;
+            this.passed = false;
+        }
+
+        draw() {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(this.rotation);
+
+            const angleStep = (Math.PI * 2) / this.segments;
+
+            for (let i = 0; i < this.segments; i++) {
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, i * angleStep, (i + 1) * angleStep);
+                ctx.lineWidth = RING_THICKNESS;
+                ctx.strokeStyle = COLORS[i];
+                ctx.stroke();
+            }
+
+            ctx.beginPath();
+            ctx.arc(0, 0, this.radius - RING_THICKNESS, 0, Math.PI*2);
+            ctx.fillStyle = '#16213e';
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        update() {
+            this.rotation += this.rotationSpeed;
+        }
+
+        checkCollision(ball) {
+            const dx = ball.x - this.x;
+            const dy = ball.y - this.y;
+            const distance = Math.sqrt(dx*dx + dy*dy);
+
+            const hitZoneStart = this.radius - COLLISION_THICKNESS - ball.radius;
+            const hitZoneEnd = this.radius + COLLISION_THICKNESS + ball.radius;
+
+            if (distance >= hitZoneStart && distance <= hitZoneEnd) {
+                
+                let angle = Math.atan2(dy, dx); 
+                angle = angle - this.rotation;
+                while (angle < 0) angle += Math.PI * 2;
+                while (angle >= Math.PI * 2) angle -= Math.PI * 2;
+
+                const segmentSize = (Math.PI * 2) / this.segments;
+                const segmentIndex = Math.floor(angle / segmentSize);
+
+                const ringColor = COLORS[segmentIndex];
+                const ballColor = ball.color;
+
+                if (ringColor !== ballColor) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    class ColorSwitcher {
+        constructor(y) {
+            this.x = canvas.width / 2;
+            this.y = y;
+            this.radius = 20; // Larger star
+            this.particles = [];
+        }
+
+        draw() {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(frameCount * 0.05);
+            ctx.beginPath();
+            for (let i = 0; i < 4; i++) {
+                ctx.rotate(Math.PI / 2);
+                ctx.moveTo(14, 0);
+                ctx.lineTo(-14, 14);
+                ctx.lineTo(-14, -14);
+            }
+            const gradient = ctx.createRadialGradient(0,0,2, 0,0,20);
+            gradient.addColorStop(0, COLORS[0]);
+            gradient.addColorStop(0.5, COLORS[1]);
+            gradient.addColorStop(1, COLORS[2]);
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            ctx.restore();
+
+            this.particles.forEach((p, index) => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.05;
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+                if (p.life <= 0) this.particles.splice(index, 1);
+            });
+        }
+
+        checkCollision(ball) {
+            const dx = ball.x - this.x;
+            const dy = ball.y - this.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+
+            if (dist < this.radius + ball.radius) {
+                this.createExplosion(ball.x, ball.y);
+                return true;
+            }
+            return false;
+        }
+
+        createExplosion(x, y) {
+            for(let i=0; i<8; i++) {
+                this.particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 5,
+                    vy: (Math.random() - 0.5) * 5,
+                    life: 1.0,
+                    color: ball.color,
+                    size: Math.random() * 3 + 2
+                });
+            }
+        }
+    }
+
+    class DeathParticle {
+        constructor(x, y, color) {
+            this.x = x;
+            this.y = y;
+            this.vx = (Math.random() - 0.5) * 10;
+            this.vy = (Math.random() - 0.5) * 10;
+            this.life = 1.0;
+            this.color = color;
+            this.size = Math.random() * 5 + 3;
+        }
+        update() {
+            this.x += this.vx;
+            this.y += this.vy;
+            this.vy += 0.2;
+            this.life -= 0.02;
+        }
+        draw() {
+            ctx.globalAlpha = this.life;
+            ctx.fillStyle = this.color;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+        }
+    }
+
+    /**
+     * Game Logic
+     */
+
+    let ball;
+    let obstacles = [];
+    let colorSwitchers = [];
+    let particles = [];
+
+    function init() {
+        ball = new Ball();
+        obstacles = [];
+        colorSwitchers = [];
+        particles = [];
+        score = 0;
+        scoreEl.innerText = '0';
+        
+        // Spawn first obstacle at a good distance
+        spawnObstacle(canvas.height / 2 - 100);
+    }
+
+    function spawnObstacle(yPos) {
+        obstacles.push(new Obstacle(yPos));
+    }
+
+    function generateLevel() {
+        if (obstacles.length === 0) return;
+
+        const highestObstacle = obstacles[obstacles.length - 1];
+        const gap = 400; // INCREASED GAP (Was 300) to fit the bigger wheels
+        
+        if (highestObstacle.y > -100) { 
+             const nextY = highestObstacle.y - gap;
+             obstacles.push(new Obstacle(nextY));
+             
+             colorSwitchers.push(new ColorSwitcher(nextY + (gap / 2)));
+        }
+    }
+
+    function update() {
+        if (!gameRunning) return;
+
+        frameCount++;
+        ball.update();
+
+        const scrollThreshold = canvas.height * 0.5;
+        if (ball.y < scrollThreshold) {
+            const diff = scrollThreshold - ball.y;
+            ball.y = scrollThreshold;
+            
+            obstacles.forEach(obs => obs.y += diff);
+            colorSwitchers.forEach(sw => sw.y += diff);
+            particles.forEach(p => p.y += diff);
+
+            generateLevel();
+        }
+
+        obstacles = obstacles.filter(obs => obs.y < canvas.height + 100);
+        colorSwitchers = colorSwitchers.filter(sw => sw.y < canvas.height + 100);
+
+        obstacles.forEach(obs => {
+            obs.update();
+            if (obs.checkCollision(ball)) {
+                gameOver();
+            }
+            
+            if (!obs.passed && ball.y > obs.y + obs.radius + ball.radius) {
+                score++;
+                scoreEl.innerText = score;
+                obs.passed = true;
+            }
+        });
+
+        colorSwitchers.forEach((sw, index) => {
+            if (sw.checkCollision(ball)) {
+                ball.changeColor();
+                colorSwitchers.splice(index, 1);
+            }
+        });
+
+        particles.forEach((p, i) => {
+            p.update();
+            if(p.life <= 0) particles.splice(i, 1);
+        });
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        colorSwitchers.forEach(sw => sw.draw());
+        obstacles.forEach(obs => obs.draw());
+        ball.draw();
+        particles.forEach(p => p.draw());
+    }
+
+    function loop() {
+        if (gameRunning) {
+            update();
+            draw();
+            animationId = requestAnimationFrame(loop);
+        }
+    }
+
+    function startGame() {
+        startScreen.classList.add('hidden');
+        gameOverScreen.classList.add('hidden');
+        gameRunning = true;
+        init();
+        loop();
+    }
+
+    function gameOver() {
+        gameRunning = false;
+        cancelAnimationFrame(animationId);
+        
+        for(let i=0; i<20; i++) {
+            particles.push(new DeathParticle(ball.x, ball.y, ball.color));
+        }
+        draw(); 
+        
+        finalScoreEl.innerText = score;
+        setTimeout(() => {
+            gameOverScreen.classList.remove('hidden');
+        }, 500);
+    }
+
+    function handleInput(e) {
+        if (e.type === 'keydown' && e.code !== 'Space') return;
+        if (e.type === 'keydown') e.preventDefault();
+
+        if (gameRunning) {
+            ball.jump();
+        }
+    }
+
+    window.addEventListener('pointerdown', handleInput);
+    window.addEventListener('keydown', handleInput);
+
+    if (startBtn) startBtn.addEventListener('click', startGame);
+    if (restartBtn) restartBtn.addEventListener('click', startGame);
+};
+</script>
+</body>
+</html>
