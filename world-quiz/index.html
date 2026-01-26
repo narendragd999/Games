@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>World Capitals - Educational Edition</title>
+    <style>
+        /* --- CSS Reset & Variables --- */
+        :root {
+            --primary: #6200ee;
+            --primary-dark: #3700b3;
+            --secondary: #03dac6;
+            --secondary-dark: #018786;
+            --background: #f8f9fa;
+            --surface: #ffffff;
+            --error: #b00020;
+            --success: #2e7d32; /* Slightly darker for text readability */
+            --text-primary: #202124;
+            --text-secondary: #5f6368;
+            --shadow-1: 0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+            --shadow-2: 0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15);
+            --font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--background);
+            color: var(--text-primary);
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        /* --- App Container --- */
+        #app {
+            background-color: var(--surface);
+            width: 100%;
+            max-width: 500px;
+            box-shadow: var(--shadow-2);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        @media (min-width: 501px) {
+            #app {
+                min-height: 90vh;
+                margin-top: 5vh;
+                border-radius: 12px;
+            }
+        }
+
+        /* --- Header --- */
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 24px;
+            text-align: center;
+            box-shadow: var(--shadow-1);
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-top: 4px;
+        }
+
+        /* --- Screens --- */
+        .screen {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* --- Typography & Elements --- */
+        .question-text {
+            font-size: 2rem;
+            font-weight: 400;
+            margin-bottom: 8px;
+            text-align: center;
+            color: var(--text-primary);
+            line-height: 1.2;
+        }
+
+        .question-subtext {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+        }
+
+        .stats-bar {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            background: #f1f3f4;
+            padding: 8px 16px;
+            border-radius: 8px;
+        }
+
+        /* --- Buttons --- */
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 6px;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            max-width: 300px;
+            margin-bottom: 12px;
+            box-shadow: var(--shadow-1);
+            transition: all 0.2s ease;
+            outline: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn:hover {
+            box-shadow: var(--shadow-2);
+            background-color: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        /* Option specific styles */
+        .option-btn {
+            background-color: white;
+            border: 1px solid #dadce0;
+            color: var(--text-primary);
+            text-align: left;
+            padding: 18px 24px;
+            text-transform: none;
+            letter-spacing: normal;
+            border-radius: 8px;
+            font-weight: 400;
+            font-size: 1.05rem;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .option-btn:hover {
+            background-color: #f1f3f4;
+            border-color: #bdc1c6;
+        }
+
+        /* Feedback States */
+        .option-btn.correct {
+            background-color: var(--success);
+            color: white;
+            border-color: var(--success);
+        }
+
+        .option-btn.wrong {
+            background-color: var(--error);
+            color: white;
+            border-color: var(--error);
+        }
+
+        .options-container.disabled {
+            pointer-events: none;
+        }
+
+        /* --- Review Section (Education) --- */
+        .review-container {
+            width: 100%;
+            margin-top: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            text-align: left;
+        }
+
+        .review-card {
+            background: #f1f3f4;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .review-country {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .review-details {
+            font-size: 0.9rem;
+            display: block;
+        }
+        .text-correct { color: var(--success); font-weight: 500; }
+        .text-wrong { color: var(--text-secondary); text-decoration: line-through; margin-right: 8px; }
+
+        /* --- Progress Bar --- */
+        .progress-container {
+            width: 100%;
+            height: 4px;
+            background-color: #e0e0e0;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background-color: var(--secondary);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* --- Ripple --- */
+        span.ripple {
+            position: absolute;
+            border-radius: 50%;
+            transform: scale(0);
+            animation: ripple 0.6s linear;
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+        @keyframes ripple {
+            to { transform: scale(4); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div class="progress-container">
+        <div id="progress-bar" class="progress-bar"></div>
+    </div>
+
+    <header>
+        <h1>World Capitals</h1>
+        <div class="subtitle">Educational Geography Quiz</div>
+    </header>
+
+    <!-- Start Screen -->
+    <div id="start-screen" class="screen">
+        <div style="text-align: center; margin: 20px 0;">
+            <p style="font-size: 1.1rem; color: var(--text-secondary); line-height: 1.6;">
+                Master the capitals of 195 countries.<br>
+                Each session consists of 10 random questions.
+            </p>
+        </div>
+        <button class="btn" onclick="game.start()">Start Learning</button>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="screen hidden">
+        <div class="stats-bar">
+            <span id="question-counter">1 / 10</span>
+            <span id="score-counter">Score: 0</span>
+        </div>
+        
+        <div id="question-text" class="question-text">Loading...</div>
+        <div class="question-subtext">Select the correct capital</div>
+        
+        <div id="options-container" class="options-container">
+            <!-- Buttons injected by JS -->
+        </div>
+    </div>
+
+    <!-- Result Screen -->
+    <div id="result-screen" class="screen hidden">
+        <h2 style="font-size: 1.5rem; margin-bottom: 10px;">Session Complete</h2>
+        <div style="font-size: 3rem; font-weight: 300; color: var(--primary);" id="final-score">0</div>
+        <div style="color: var(--text-secondary); margin-bottom: 24px;" id="final-message">Well done!</div>
+        
+        <button class="btn" onclick="game.start()">Practice Again</button>
+        
+        <div id="review-section" class="review-container hidden">
+            <h3 style="font-size: 1.1rem; margin: 20px 0 10px 0; border-bottom: 1px solid #ccc; padding-bottom: 5px;">Review Missed Answers</h3>
+            <div id="review-list"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- Data: 195 Sovereign States + Vatican City ---
+    // Format: [Country, Capital]
+    const countryDataRaw = [
+        ["Afghanistan","Kabul"], ["Albania","Tirana"], ["Algeria","Algiers"], ["Andorra","Andorra la Vella"],
+        ["Angola","Luanda"], ["Antigua and Barbuda","Saint John's"], ["Argentina","Buenos Aires"], ["Armenia","Yerevan"],
+        ["Australia","Canberra"], ["Austria","Vienna"], ["Azerbaijan","Baku"], ["Bahamas","Nassau"],
+        ["Bahrain","Manama"], ["Bangladesh","Dhaka"], ["Barbados","Bridgetown"], ["Belarus","Minsk"],
+        ["Belgium","Brussels"], ["Belize","Belmopan"], ["Benin","Porto-Novo"], ["Bhutan","Thimphu"],
+        ["Bolivia","Sucre"], ["Bosnia and Herzegovina","Sarajevo"], ["Botswana","Gaborone"], ["Brazil","Brasília"],
+        ["Brunei","Bandar Seri Begawan"], ["Bulgaria","Sofia"], ["Burkina Faso","Ouagadougou"], ["Burundi","Gitega"],
+        ["Cabo Verde","Praia"], ["Cambodia","Phnom Penh"], ["Cameroon","Yaoundé"], ["Canada","Ottawa"],
+        ["Central African Republic","Bangui"], ["Chad","N'Djamena"], ["Chile","Santiago"], ["China","Beijing"],
+        ["Colombia","Bogotá"], ["Comoros","Moroni"], ["Congo (Congo-Brazzaville)","Brazzaville"], ["Costa Rica","San José"],
+        ["Croatia","Zagreb"], ["Cuba","Havana"], ["Cyprus","Nicosia"], ["Czech Republic (Czechia)","Prague"],
+        ["Denmark","Copenhagen"], ["Djibouti","Djibouti"], ["Dominica","Roseau"], ["Dominican Republic","Santo Domingo"],
+        ["East Timor (Timor-Leste)","Dili"], ["Ecuador","Quito"], ["Egypt","Cairo"], ["El Salvador","San Salvador"],
+        ["Equatorial Guinea","Malabo"], ["Eritrea","Asmara"], ["Estonia","Tallinn"], ["Eswatini","Mbabane"],
+        ["Ethiopia","Addis Ababa"], ["Fiji","Suva"], ["Finland","Helsinki"], ["France","Paris"],
+        ["Gabon","Libreville"], ["Gambia","Banjul"], ["Georgia","Tbilisi"], ["Germany","Berlin"],
+        ["Ghana","Accra"], ["Greece","Athens"], ["Grenada","St. George's"], ["Guatemala","Guatemala City"],
+        ["Guinea","Conakry"], ["Guinea-Bissau","Bissau"], ["Guyana","Georgetown"], ["Haiti","Port-au-Prince"],
+        ["Honduras","Tegucigalpa"], ["Hungary","Budapest"], ["Iceland","Reykjavik"], ["India","New Delhi"],
+        ["Indonesia","Jakarta"], ["Iran","Tehran"], ["Iraq","Baghdad"], ["Ireland","Dublin"],
+        ["Israel","Jerusalem"], ["Italy","Rome"], ["Ivory Coast","Yamoussoukro"], ["Jamaica","Kingston"],
+        ["Japan","Tokyo"], ["Jordan","Amman"], ["Kazakhstan","Astana"], ["Kenya","Nairobi"],
+        ["Kiribati","South Tarawa"], ["Kuwait","Kuwait City"], ["Kyrgyzstan","Bishkek"], ["Laos","Vientiane"],
+        ["Latvia","Riga"], ["Lebanon","Beirut"], ["Lesotho","Maseru"], ["Liberia","Monrovia"],
+        ["Libya","Tripoli"], ["Liechtenstein","Vaduz"], ["Lithuania","Vilnius"], ["Luxembourg","Luxembourg"],
+        ["Madagascar","Antananarivo"], ["Malawi","Lilongwe"], ["Malaysia","Kuala Lumpur"], ["Maldives","Malé"],
+        ["Mali","Bamako"], ["Malta","Valletta"], ["Marshall Islands","Majuro"], ["Mauritania","Nouakchott"],
+        ["Mauritius","Port Louis"], ["Mexico","Mexico City"], ["Micronesia","Palikir"], ["Moldova","Chișinău"],
+        ["Monaco","Monaco"], ["Mongolia","Ulaanbaatar"], ["Montenegro","Podgorica"], ["Morocco","Rabat"],
+        ["Mozambique","Maputo"], ["Myanmar (formerly Burma)","Naypyidaw"], ["Namibia","Windhoek"], ["Nauru","Yaren"],
+        ["Nepal","Kathmandu"], ["Netherlands","Amsterdam"], ["New Zealand","Wellington"], ["Nicaragua","Managua"],
+        ["Niger","Niamey"], ["Nigeria","Abuja"], ["North Korea","Pyongyang"], ["North Macedonia","Skopje"],
+        ["Norway","Oslo"], ["Oman","Muscat"], ["Pakistan","Islamabad"], ["Palau","Ngerulmud"],
+        ["Palestine","Ramallah"], ["Panama","Panama City"], ["Papua New Guinea","Port Moresby"], ["Paraguay","Asunción"],
+        ["Peru","Lima"], ["Philippines","Manila"], ["Poland","Warsaw"], ["Portugal","Lisbon"],
+        ["Qatar","Doha"], ["Romania","Bucharest"], ["Russia","Moscow"], ["Rwanda","Kigali"],
+        ["Saint Kitts and Nevis","Basseterre"], ["Saint Lucia","Castries"], ["Saint Vincent and the Grenadines","Kingstown"],
+        ["Samoa","Apia"], ["San Marino","San Marino"], ["Sao Tome and Principe","São Tomé"], ["Saudi Arabia","Riyadh"],
+        ["Senegal","Dakar"], ["Serbia","Belgrade"], ["Seychelles","Victoria"], ["Sierra Leone","Freetown"],
+        ["Singapore","Singapore"], ["Slovakia","Bratislava"], ["Slovenia","Ljubljana"], ["Solomon Islands","Honiara"],
+        ["Somalia","Mogadishu"], ["South Africa","Pretoria"], ["South Korea","Seoul"], ["South Sudan","Juba"],
+        ["Spain","Madrid"], ["Sri Lanka","Colombo"], ["Sudan","Khartoum"], ["Suriname","Paramaribo"],
+        ["Sweden","Stockholm"], ["Switzerland","Bern"], ["Syria","Damascus"], ["Taiwan","Taipei"],
+        ["Tajikistan","Dushanbe"], ["Tanzania","Dodoma"], ["Thailand","Bangkok"], ["Togo","Lomé"],
+        ["Tonga","Nuku'alofa"], ["Trinidad and Tobago","Port of Spain"], ["Tunisia","Tunis"], ["Turkey","Ankara"],
+        ["Turkmenistan","Ashgabat"], ["Tuvalu","Funafuti"], ["Uganda","Kampala"], ["Ukraine","Kyiv"],
+        ["United Arab Emirates","Abu Dhabi"], ["United Kingdom","London"], ["United States","Washington, D.C."],
+        ["Uruguay","Montevideo"], ["Uzbekistan","Tashkent"], ["Vanuatu","Port Vila"], ["Vatican City","Vatican City"],
+        ["Venezuela","Caracas"], ["Vietnam","Hanoi"], ["Yemen","Sana'a"], ["Zambia","Lusaka"], ["Zimbabwe","Harare"]
+    ];
+
+    // --- Game Engine ---
+    const game = {
+        questions: [],
+        missedQuestions: [], // For educational review
+        currentQuestionIndex: 0,
+        score: 0,
+        totalQuestions: 10,
+        isAnswering: false,
+
+        // DOM Elements
+        dom: {
+            startScreen: document.getElementById('start-screen'),
+            gameScreen: document.getElementById('game-screen'),
+            resultScreen: document.getElementById('result-screen'),
+            questionText: document.getElementById('question-text'),
+            optionsContainer: document.getElementById('options-container'),
+            questionCounter: document.getElementById('question-counter'),
+            scoreCounter: document.getElementById('score-counter'),
+            finalScore: document.getElementById('final-score'),
+            finalMessage: document.getElementById('final-message'),
+            progressBar: document.getElementById('progress-bar'),
+            reviewSection: document.getElementById('review-section'),
+            reviewList: document.getElementById('review-list')
+        },
+
+        // Shuffle helper
+        shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        },
+
+        start() {
+            this.score = 0;
+            this.currentQuestionIndex = 0;
+            this.missedQuestions = [];
+            
+            // Prepare questions from the full dataset
+            const shuffledData = this.shuffle([...countryDataRaw]);
+            
+            // Map raw data to question objects
+            this.questions = shuffledData.slice(0, this.totalQuestions).map(data => {
+                const correct = data[1];
+                const country = data[0];
+                
+                // Get 3 random wrong capitals from OTHER countries
+                const wrongCapitals = countryDataRaw
+                    .filter(d => d[1] !== correct)
+                    .map(d => d[1]);
+                const wrongOptions = this.shuffle(wrongCapitals).slice(0, 3);
+                const allOptions = this.shuffle([correct, ...wrongOptions]);
+
+                return {
+                    country: country,
+                    correctCapital: correct,
+                    options: allOptions
+                };
+            });
+
+            // UI Transitions
+            this.dom.startScreen.classList.add('hidden');
+            this.dom.resultScreen.classList.add('hidden');
+            this.dom.gameScreen.classList.remove('hidden');
+            
+            this.renderQuestion();
+        },
+
+        renderQuestion() {
+            this.isAnswering = false;
+            const q = this.questions[this.currentQuestionIndex];
+            
+            this.dom.questionText.textContent = q.country;
+            this.dom.questionCounter.textContent = `Question ${this.currentQuestionIndex + 1} / ${this.totalQuestions}`;
+            this.dom.scoreCounter.textContent = `Score: ${this.score}`;
+
+            // Progress Bar
+            const progress = (this.currentQuestionIndex / this.totalQuestions) * 100;
+            this.dom.progressBar.style.width = `${progress}%`;
+
+            // Clear options
+            this.dom.optionsContainer.innerHTML = '';
+            this.dom.optionsContainer.classList.remove('disabled');
+
+            q.options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'btn option-btn';
+                btn.textContent = opt;
+                btn.onclick = (e) => this.handleAnswer(opt, q.correctCapital, q.country, e, btn);
+                this.dom.optionsContainer.appendChild(btn);
+            });
+        },
+
+        handleAnswer(selected, correct, country, event, btnElement) {
+            if (this.isAnswering) return;
+            this.isAnswering = true;
+            
+            this.createRipple(event);
+
+            const allButtons = this.dom.optionsContainer.querySelectorAll('.option-btn');
+            this.dom.optionsContainer.classList.add('disabled');
+
+            if (selected === correct) {
+                this.score++;
+                btnElement.classList.add('correct');
+            } else {
+                btnElement.classList.add('wrong');
+                // Highlight correct answer
+                allButtons.forEach(b => {
+                    if (b.textContent === correct) b.classList.add('correct');
+                });
+                // Log for review
+                this.missedQuestions.push({
+                    country: country,
+                    yourAnswer: selected,
+                    correctAnswer: correct
+                });
+            }
+
+            setTimeout(() => {
+                this.currentQuestionIndex++;
+                if (this.currentQuestionIndex < this.totalQuestions) {
+                    this.renderQuestion();
+                } else {
+                    this.endGame();
+                }
+            }, 1500); // Slightly longer delay for reading
+        },
+
+        endGame() {
+            this.dom.gameScreen.classList.add('hidden');
+            this.dom.resultScreen.classList.remove('hidden');
+            this.dom.progressBar.style.width = '100%';
+            this.dom.finalScore.textContent = `${this.score} / ${this.totalQuestions}`;
+
+            // Generate Message
+            const percentage = this.score / this.totalQuestions;
+            let msg = "";
+            if (percentage === 1) msg = "Perfect Score! Geography Master!";
+            else if (percentage >= 0.8) msg = "Excellent! You know your world capitals.";
+            else if (percentage >= 0.5) msg = "Good effort. Keep practicing!";
+            else msg = "Don't give up. Review the answers below.";
+            this.dom.finalMessage.textContent = msg;
+
+            // Render Review Section if there are missed questions
+            this.dom.reviewList.innerHTML = '';
+            if (this.missedQuestions.length > 0) {
+                this.dom.reviewSection.classList.remove('hidden');
+                this.missedQuestions.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'review-card';
+                    div.innerHTML = `
+                        <span class="review-country">${item.country}</span>
+                        <span class="review-details">
+                            <span class="text-wrong">${item.yourAnswer}</span>
+                            <span class="text-correct">✔ ${item.correctAnswer}</span>
+                        </span>
+                    `;
+                    this.dom.reviewList.appendChild(div);
+                });
+            } else {
+                this.dom.reviewSection.classList.add('hidden');
+            }
+        },
+
+        createRipple(event) {
+            const button = event.currentTarget;
+            const circle = document.createElement("span");
+            const diameter = Math.max(button.clientWidth, button.clientHeight);
+            const radius = diameter / 2;
+
+            circle.style.width = circle.style.height = `${diameter}px`;
+            circle.style.left = `${event.clientX - button.getBoundingClientRect().left - radius}px`;
+            circle.style.top = `${event.clientY - button.getBoundingClientRect().top - radius}px`;
+            circle.classList.add("ripple");
+
+            const ripple = button.getElementsByClassName("ripple")[0];
+            if (ripple) {
+                ripple.remove();
+            }
+            button.appendChild(circle);
+        }
+    };
+
+    // Expose to window
+    window.game = game;
+</script>
+
+</body>
+</html>
