@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sequence Pro</title>
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --primary: #6e8efb;
+            --accent: #a777e3;
+            --text: #2d3436;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, sans-serif; }
+
+        body {
+            background: var(--bg-gradient);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden; /* No scrolling */
+            color: var(--text);
+        }
+
+        #game-container {
+            width: 90%;
+            max-width: 400px;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        
+        .sequence-display {
+            font-size: 1.5rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+            margin: 20px 0;
+            padding: 15px;
+            background: #f1f2f6;
+            border-radius: 12px;
+            min-height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        input[type="number"] {
+            width: 80px;
+            padding: 12px;
+            border: 2px solid #dfe6e9;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            text-align: center;
+            outline: none;
+            transition: border 0.3s;
+        }
+
+        input:focus { border-color: var(--primary); }
+
+        .btn-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.1s, opacity 0.2s;
+            background: var(--primary);
+            color: white;
+        }
+
+        button:active { transform: scale(0.95); }
+        .btn-hint { background: var(--accent); }
+        .btn-solve { background: #ff7675; }
+        .btn-check { background: #55efc4; color: #2d3436; }
+
+        /* Modal Styles */
+        #modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 20px;
+            width: 80%;
+            max-width: 300px;
+        }
+
+        .icon-btn { background: none; color: var(--text); font-size: 1.5rem; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div class="header">
+        <button class="icon-btn" onclick="toggleModal(true)">ℹ️</button>
+        <h3>SEQUENCE</h3>
+        <div id="score">Lvl: 1</div>
+    </div>
+
+    <div class="sequence-display" id="sequence-text">2, 4, 8, 16, ?</div>
+    
+    <input type="number" id="user-input" placeholder="?">
+
+    <div class="btn-grid">
+        <button class="btn-check" onclick="checkSolution()">Check</button>
+        <button class="btn-hint" onclick="giveHint()">Hint</button>
+        <button onclick="generatePuzzle()">New Puzzle</button>
+        <button class="btn-solve" onclick="autoSolve()">Solve</button>
+    </div>
+</div>
+
+<div id="modal" onclick="toggleModal(false)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <h4>How to Play</h4>
+        <p style="margin: 15px 0; font-size: 0.9rem;">Find the pattern and enter the next number in the sequence. Patterns can be addition, multiplication, or squares!</p>
+        <button style="width:100%" onclick="toggleModal(false)">Got it!</button>
+    </div>
+</div>
+
+<script>
+    let currentSolution = 0;
+    let currentHint = "";
+    let level = 1;
+
+    // Sound effects using AudioContext for "no-file" dependency
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playSound(freq, type = 'sine') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.5);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.5);
+    }
+
+    function generatePuzzle() {
+        const types = ['add', 'mul', 'square', 'fib'];
+        const type = types[Math.floor(Math.random() * types.length)];
+        let seq = [];
+        let start = Math.floor(Math.random() * 10) + 1;
+        
+        if (type === 'add') {
+            let diff = Math.floor(Math.random() * 5) + 2;
+            for(let i=0; i<4; i++) seq.push(start + (i * diff));
+            currentSolution = seq[3] + diff;
+            currentHint = `Add ${diff} each time`;
+        } else if (type === 'mul') {
+            let factor = Math.floor(Math.random() * 2) + 2;
+            for(let i=0; i<4; i++) seq.push(start * Math.pow(factor, i));
+            currentSolution = seq[3] * factor;
+            currentHint = `Multiply by ${factor}`;
+        } else if (type === 'square') {
+            let base = Math.floor(Math.random() * 4) + 1;
+            for(let i=0; i<4; i++) seq.push(Math.pow(base + i, 2));
+            currentSolution = Math.pow(base + 4, 2);
+            currentHint = "Consecutive squares";
+        } else {
+            seq = [1, 2, 3, 5];
+            currentSolution = 8;
+            currentHint = "Sum of previous two";
+        }
+
+        document.getElementById('sequence-text').innerText = seq.join(', ') + ', ?';
+        document.getElementById('user-input').value = "";
+        document.getElementById('user-input').focus();
+    }
+
+    function checkSolution() {
+        const val = parseInt(document.getElementById('user-input').value);
+        if (val === currentSolution) {
+            playSound(800);
+            level++;
+            document.getElementById('score').innerText = `Lvl: ${level}`;
+            alert("Correct!");
+            generatePuzzle();
+        } else {
+            playSound(200, 'sawtooth');
+            alert("Try again!");
+        }
+    }
+
+    function giveHint() {
+        playSound(400);
+        alert(currentHint);
+    }
+
+    function autoSolve() {
+        document.getElementById('user-input').value = currentSolution;
+        playSound(600);
+    }
+
+    function toggleModal(show) {
+        document.getElementById('modal').style.display = show ? 'flex' : 'none';
+    }
+
+    // Initialize
+    generatePuzzle();
+</script>
+</body>
+</html>
