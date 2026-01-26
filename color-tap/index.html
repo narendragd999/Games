@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Color Tap - Playable</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #CFD8DC; /* Blue Grey */
+            font-family: 'Roboto', sans-serif;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .menu {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            width: 85%;
+            max-width: 320px;
+            pointer-events: auto;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        h1 { margin: 0 0 10px; color: #212121; font-size: 2.5rem; }
+        p { color: #757575; margin-bottom: 25px; }
+        #final-score { font-size: 4rem; font-weight: bold; color: #212121; margin: 10px 0; }
+
+        button {
+            background: #212121;
+            color: white;
+            border: none;
+            padding: 18px 40px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            border-radius: 50px;
+            cursor: pointer;
+            width: 100%;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        button:active { transform: scale(0.98); }
+
+        #score-hud {
+            position: absolute;
+            top: 50px;
+            width: 100%;
+            text-align: center;
+            pointer-events: none;
+            font-size: 4rem;
+            font-weight: 900;
+            color: rgba(0,0,0,0.1);
+            z-index: 5;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="ui-layer">
+        <div id="start-menu" class="menu">
+            <h1>COLOR TAP</h1>
+            <p>Tap the <strong>Black Tile</strong>.</p>
+            <button id="start-btn">PLAY NOW</button>
+        </div>
+
+        <div id="game-over-menu" class="menu hidden">
+            <h1>GAME OVER</h1>
+            <div id="final-score">0</div>
+            <p>Best: <span id="best-score">0</span></p>
+            <button id="restart-btn">TRY AGAIN</button>
+        </div>
+    </div>
+
+    <div id="score-hud">0</div>
+
+<script>
+    // --- SETUP ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    const scoreHud = document.getElementById('score-hud');
+    const startMenu = document.getElementById('start-menu');
+    const gameOverMenu = document.getElementById('game-over-menu');
+    const startBtn = document.getElementById('start-btn');
+    const restartBtn = document.getElementById('restart-btn');
+    const finalScoreEl = document.getElementById('final-score');
+    const bestScoreEl = document.getElementById('best-score');
+
+    // Game State
+    let isPlaying = false;
+    let score = 0;
+    let highScore = localStorage.getItem('ct_high') || 0;
+    
+    // Speed Config (Fixed slow start)
+    let speed = 4; 
+    let animationId = null;
+
+    // Grid
+    const COLS = 4;
+    let TILE_W = 0;
+    let TILE_H = 0;
+    
+    let rows = []; 
+    let ripples = []; 
+
+    // --- RESIZE ---
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        TILE_W = canvas.width / COLS;
+        TILE_H = TILE_W; 
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // --- GAME LOGIC ---
+    
+    function createRow(yPos) {
+        return {
+            y: yPos,
+            targetCol: Math.floor(Math.random() * COLS),
+            tapped: false
+        };
+    }
+
+    function startGame() {
+        resize();
+        
+        score = 0;
+        speed = 4; // Start slow
+        rows = [];
+        ripples = [];
+        isPlaying = true;
+
+        scoreHud.innerText = '0';
+        bestScoreEl.innerText = highScore;
+
+        startMenu.classList.add('hidden');
+        gameOverMenu.classList.add('hidden');
+
+        // SPAWN STRATEGY: Start with one row in the middle
+        // This gives the user plenty of time to tap before it leaves screen
+        rows.push(createRow(canvas.height * 0.3));
+
+        if (animationId) cancelAnimationFrame(animationId);
+        loop();
+    }
+
+    function loop() {
+        if (!isPlaying) return;
+
+        update();
+        draw();
+        animationId = requestAnimationFrame(loop);
+    }
+
+    function update() {
+        // Increase speed very slowly
+        if (speed < 12) {
+            speed += 0.005;
+        }
+
+        // Move Rows
+        for (let i = 0; i < rows.length; i++) {
+            let row = rows[i];
+            row.y += speed;
+
+            // DIE CONDITION: Top of tile passed bottom of screen
+            if (row.y > canvas.height && !row.tapped) {
+                endGame();
+                return;
+            }
+        }
+
+        // Remove rows that are way off screen
+        while (rows.length > 0 && rows[0].y > canvas.height + TILE_H) {
+            rows.shift();
+        }
+
+        // SPAWN CONDITION:
+        // If the top-most row has moved down enough, spawn a new one above it
+        const topRow = rows[rows.length - 1];
+        // If the top of the top row is above -1 TileHeight, spawn another
+        if (topRow.y > -TILE_H) {
+            rows.push(createRow(topRow.y - TILE_H));
+        }
+    }
+
+    function draw() {
+        // Clear
+        ctx.fillStyle = '#CFD8DC';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw Rows
+        for (let row of rows) {
+            for (let c = 0; c < COLS; c++) {
+                let isTarget = (c === row.targetCol);
+
+                if (row.tapped) {
+                    ctx.fillStyle = '#B0BEC5'; // Gray
+                } else {
+                    ctx.fillStyle = isTarget ? '#212121' : '#FFFFFF';
+                }
+
+                ctx.fillRect(c * TILE_W, row.y, TILE_W, TILE_H);
+                
+                ctx.strokeStyle = '#B0BEC5';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(c * TILE_W, row.y, TILE_W, TILE_H);
+            }
+        }
+
+        // Draw Ripples
+        for (let i = 0; i < ripples.length; i++) {
+            let r = ripples[i];
+            r.r += 3;
+            r.a -= 0.04;
+
+            if (r.a <= 0) {
+                ripples.splice(i, 1);
+                i--;
+                continue;
+            }
+
+            ctx.beginPath();
+            ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(255, 255, 255, ${r.a})`;
+            ctx.fill();
+        }
+    }
+
+    function endGame() {
+        isPlaying = false;
+        
+        if (score > highScore) {
+            highScore = score;
+            localStorage.setItem('ct_high', highScore);
+        }
+
+        finalScoreEl.innerText = score;
+        bestScoreEl.innerText = highScore;
+        gameOverMenu.classList.remove('hidden');
+    }
+
+    // --- INPUT ---
+    function handleInput(x, y) {
+        if (!isPlaying) return;
+
+        for (let i = rows.length - 1; i >= 0; i--) {
+            let row = rows[i];
+
+            // Check Y
+            if (y >= row.y && y <= row.y + TILE_H) {
+                if (row.tapped) return;
+
+                let col = Math.floor(x / TILE_W);
+
+                if (col === row.targetCol) {
+                    // Success
+                    row.tapped = true;
+                    score++;
+                    scoreHud.innerText = score;
+                    speed += 0.2; // Instant speed boost on tap
+
+                    ripples.push({
+                        x: (col * TILE_W) + (TILE_W / 2),
+                        y: row.y + (TILE_H / 2),
+                        r: 0,
+                        a: 0.6
+                    });
+                } else {
+                    // Fail
+                    ctx.fillStyle = '#FF5252';
+                    ctx.fillRect(col * TILE_W, row.y, TILE_W, TILE_H);
+                    endGame();
+                }
+                return;
+            }
+        }
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+        handleInput(e.clientX, e.clientY);
+    });
+
+    canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault(); 
+        const touch = e.touches[0];
+        handleInput(touch.clientX, touch.clientY);
+    }, { passive: false });
+
+    startBtn.addEventListener('click', startGame);
+    restartBtn.addEventListener('click', startGame);
+
+</script>
+</body>
+</html>
