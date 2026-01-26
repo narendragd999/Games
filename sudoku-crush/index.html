@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sudoku Crush: Match Numbers</title>
+    <style>
+        /* --- RESET & BASE STYLES --- */
+        :root {
+            --bg-grad-start: #2b1055;
+            --bg-grad-end: #7597de;
+            --glass-bg: rgba(255, 255, 255, 0.15);
+            --glass-border: rgba(255, 255, 255, 0.3);
+            --text-color: #fff;
+            --accent: #ff007f;
+            --success: #00ff88;
+            --danger: #ff4b2b;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden; /* No scrolling */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-color);
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--bg-grad-start), var(--bg-grad-end));
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-width: 320px;
+            min-height: 500px;
+        }
+
+        /* --- UI LAYOUT --- */
+        #game-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 600px;
+            height: 100%;
+            padding: 2vmin;
+        }
+
+        /* HEADER */
+        header {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            padding: 1.5vmin 3vmin;
+            border-radius: 15px;
+            border: 1px solid var(--glass-border);
+            margin-bottom: 2vmin;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .stat-box {
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 2vmin;
+            opacity: 0.8;
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            font-size: 4.5vmin;
+            font-weight: 800;
+        }
+
+        /* GAME BOARD */
+        #board-container {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            gap: 0.8vmin;
+            width: 90vmin;
+            height: 90vmin;
+            max-width: 500px;
+            max-height: 500px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 1vmin;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+        }
+
+        .cell {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        /* Thicker borders for 3x3 boxes (Candy Crush Style) */
+        .cell:nth-child(3n) { margin-right: 1.5vmin; }
+        .cell:nth-child(9n) { margin-right: 0; }
+        .cell:nth-child(n+19):nth-child(-n+27),
+        .cell:nth-child(n+46):nth-child(-n+54) {
+            margin-bottom: 1.5vmin;
+        }
+
+        .cell.fixed { background: rgba(0, 0, 0, 0.3); }
+        .cell.selected { background: rgba(255, 255, 255, 0.3); box-shadow: inset 0 0 10px rgba(255,255,255,0.1); }
+        .cell.highlight { background: rgba(255, 255, 255, 0.15); }
+        .cell.error { background: rgba(255, 50, 50, 0.5); animation: shake 0.3s; }
+        .cell.win-anim { animation: pulse-green 1s infinite alternate; border: 2px solid var(--success); }
+
+        /* CANDY STYLING */
+        .candy {
+            width: 85%;
+            height: 85%;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 5vmin;
+            color: white;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            box-shadow: inset 0 3px 5px rgba(255,255,255,0.4), 0 2px 4px rgba(0,0,0,0.3);
+            transition: transform 0.1s;
+        }
+        
+        .candy.placed { animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+        /* Candy Colors */
+        .candy[data-val="1"] { background: radial-gradient(circle at 30% 30%, #ff7e5f, #c0392b); }
+        .candy[data-val="2"] { background: radial-gradient(circle at 30% 30%, #f79d00, #e67e22); color: #fff; }
+        .candy[data-val="3"] { background: radial-gradient(circle at 30% 30%, #8e44ad, #9b59b6); }
+        .candy[data-val="4"] { background: radial-gradient(circle at 30% 30%, #2ecc71, #27ae60); }
+        .candy[data-val="5"] { background: radial-gradient(circle at 30% 30%, #3498db, #2980b9); }
+        .candy[data-val="6"] { background: radial-gradient(circle at 30% 30%, #e74c3c, #c0392b); }
+        .candy[data-val="7"] { background: radial-gradient(circle at 30% 30%, #f1c40f, #f39c12); color: #333; text-shadow: none; }
+        .candy[data-val="8"] { background: radial-gradient(circle at 30% 30%, #e056fd, #be2edd); }
+        .candy[data-val="9"] { background: radial-gradient(circle at 30% 30%, #34495e, #2c3e50); }
+
+        /* CONTROLS */
+        #controls {
+            width: 100%;
+            padding: 1vmin 0;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5vmin;
+        }
+
+        #palette {
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            gap: 1vmin;
+            width: 100%;
+        }
+
+        .palette-item {
+            aspect-ratio: 1;
+            background: var(--glass-bg);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.1s;
+        }
+
+        .palette-item:active { transform: scale(0.9); }
+        .palette-item.active-candy { border-color: #fff; box-shadow: 0 0 10px #fff; transform: scale(1.1); }
+
+        /* ACTION BUTTONS */
+        .actions-row {
+            display: flex;
+            gap: 1vmin;
+            width: 100%;
+        }
+
+        .btn {
+            flex: 1;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: white;
+            padding: 2vmin 0;
+            border-radius: 10px;
+            font-size: 2.5vmin;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+        }
+
+        .btn:active { opacity: 0.8; transform: scale(0.98); }
+        .btn-accent { background: var(--accent); border: none; }
+        .btn-help { width: auto; min-width: 60px; flex: 0; }
+
+        /* MODALS */
+        .modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .modal.active { opacity: 1; pointer-events: auto; }
+        
+        .modal-card {
+            background: #2b1055;
+            width: 85%;
+            max-width: 400px;
+            padding: 4vmin;
+            border-radius: 20px;
+            text-align: center;
+            border: 2px solid var(--glass-border);
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        .modal h2 { margin-top: 0; color: var(--success); }
+        .btn-large {
+            display: block;
+            width: 100%;
+            padding: 3vmin;
+            margin-top: 2vmin;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 4vmin;
+            cursor: pointer;
+        }
+
+        /* ANIMATIONS */
+        @keyframes popIn { 0% { transform: scale(0); } 70% { transform: scale(1.2); } 100% { transform: scale(1); } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+        @keyframes pulse-green { from { box-shadow: 0 0 0 rgba(0,255,136,0.4); } to { box-shadow: 0 0 15px rgba(0,255,136,0.8); } }
+
+        /* TOAST */
+        #toast {
+            position: fixed;
+            bottom: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            padding: 2vmin 4vmin;
+            border-radius: 20px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 50;
+            font-weight: bold;
+        }
+        #toast.show { opacity: 1; }
+
+    </style>
+</head>
+<body>
+
+    <div id="game-wrapper">
+        <header>
+            <div class="stat-box">
+                <div class="stat-label">Mistakes</div>
+                <div class="stat-value" id="mistakes">0/3</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Time</div>
+                <div class="stat-value" id="timer">00:00</div>
+            </div>
+        </header>
+
+        <div id="board-container">
+            <div id="grid">
+                <!-- Grid generated by JS -->
+            </div>
+        </div>
+
+        <div id="controls">
+            <div id="palette">
+                <!-- 1-9 generated by JS -->
+            </div>
+            <div class="actions-row">
+                <button class="btn" onclick="game.undo()">Undo</button>
+                <button class="btn" onclick="game.erase()">Erase</button>
+                <button class="btn" onclick="game.hint()">Hint</button>
+                <button class="btn" onclick="game.check()">Check</button>
+                <button class="btn btn-accent" onclick="game.newGame()">New</button>
+                <button class="btn btn-help" onclick="ui.showModal('modal-instructions')">?</button>
+            </div>
+            <div class="actions-row">
+                <button class="btn" onclick="game.solve()" style="flex: 2;">Auto-Solve</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instructions Modal -->
+    <div id="modal-instructions" class="modal">
+        <div class="modal-card">
+            <h2 style="color: #fff">How to Play</h2>
+            <p>1. Tap a candy number below.<br>
+               2. Tap a grid cell to place it.<br>
+               3. Fill rows, cols, and 3x3 boxes.<br>
+               4. No repeats!</p>
+            <button class="btn-large" onclick="ui.hideModal('modal-instructions')">Got it!</button>
+        </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="modal-gameover" class="modal">
+        <div class="modal-card">
+            <h2 style="color: var(--danger)">Game Over</h2>
+            <p id="gameover-msg">Too many mistakes!</p>
+            <button class="btn-large" onclick="game.newGame(); ui.hideModal('modal-gameover')">Try Again</button>
+        </div>
+    </div>
+
+    <!-- Win Modal -->
+    <div id="modal-win" class="modal">
+        <div class="modal-card">
+            <h2 style="color: var(--success)">Victory!</h2>
+            <p style="font-size: 4vmin" id="final-time">00:00</p>
+            <button class="btn-large" onclick="game.newGame(); ui.hideModal('modal-win')">Play Again</button>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast">Message</div>
+
+    <script>
+        /* --- AUDIO ENGINE --- */
+        const audio = {
+            ctx: null,
+            init: function() {
+                if (!this.ctx) {
+                    try {
+                        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    } catch(e) { console.log("Audio not supported"); }
+                }
+            },
+            playTone: function(freq, type, duration, vol=0.1) {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            },
+            playSelect: () => audio.playTone(400, 'sine', 0.1),
+            playPlace: () => audio.playTone(600, 'sine', 0.15),
+            playError: () => { audio.playTone(150, 'sawtooth', 0.2); setTimeout(()=>audio.playTone(100, 'sawtooth', 0.2), 100); },
+            playWin: () => [523, 659, 783, 1046].forEach((f, i) => setTimeout(()=>audio.playTone(f, 'sine', 0.4), i*150)),
+            playErase: () => audio.playTone(300, 'triangle', 0.1)
+        };
+
+        /* --- GAME LOGIC --- */
+        class SudokuGame {
+            constructor() {
+                this.grid = Array(81).fill(0);
+                this.solution = Array(81).fill(0);
+                this.fixed = Array(81).fill(false);
+                this.history = [];
+                this.mistakes = 0;
+                this.maxMistakes = 6;
+                this.selectedNum = null;
+                this.selectedIndex = -1;
+                this.timerInterval = null;
+                this.seconds = 0;
+                this.gameOver = false;
+            }
+
+            newGame() {
+                audio.init();
+                this.reset();
+                this.generatePuzzle();
+                ui.renderGrid();
+                ui.renderPalette();
+                ui.updateStats();
+                this.startTimer();
+                ui.toast("New Puzzle!");
+            }
+
+            reset() {
+                this.grid = Array(81).fill(0);
+                this.fixed = Array(81).fill(false);
+                this.history = [];
+                this.mistakes = 0;
+                this.gameOver = false;
+                this.seconds = 0;
+                clearInterval(this.timerInterval);
+            }
+
+            // Generate valid Sudoku board
+            generatePuzzle() {
+                // 1. Fill diagonal boxes (independent) to randomize
+                this.fillDiagonal();
+                // 2. Solve the rest recursively
+                this.solveBoard(this.grid);
+                this.solution = [...this.grid];
+                
+                // 3. Remove K digits
+                let attempts = 45; 
+                while(attempts > 0) {
+                    let idx = Math.floor(Math.random() * 81);
+                    if(this.grid[idx] !== 0) {
+                        this.grid[idx] = 0;
+                        attempts--;
+                    }
+                }
+
+                // 4. Set fixed
+                for(let i=0; i<81; i++) {
+                    if(this.grid[i] !== 0) this.fixed[i] = true;
+                }
+            }
+
+            fillDiagonal() {
+                for(let i=0; i<9; i+=3) {
+                    this.fillBox(i, i);
+                }
+            }
+            
+            fillBox(row, col) {
+                let num;
+                for(let i=0; i<3; i++) {
+                    for(let j=0; j<3; j++) {
+                        do { num = Math.floor(Math.random() * 9) + 1; } 
+                        while(!this.isSafeInBox(row, col, num));
+                        this.grid[(row+i)*9 + (col+j)] = num;
+                    }
+                }
+            }
+
+            isSafeInBox(rowStart, colStart, num) {
+                for(let i=0; i<3; i++) {
+                    for(let j=0; j<3; j++) {
+                        if(this.grid[(rowStart+i)*9 + (colStart+j)] === num) return false;
+                    }
+                }
+                return true;
+            }
+
+            solveBoard(board) {
+                for(let i=0; i<81; i++) {
+                    if(board[i] === 0) {
+                        for(let num=1; num<=9; num++) {
+                            if(this.isSafe(board, i, num)) {
+                                board[i] = num;
+                                if(this.solveBoard(board)) return true;
+                                board[i] = 0;
+                            }
+                        }
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            isSafe(board, index, num) {
+                const row = Math.floor(index/9);
+                const col = index%9;
+                const startRow = row - row%3;
+                const startCol = col - col%3;
+
+                for(let i=0; i<9; i++) {
+                    if(board[row*9+i] === num) return false; // Row
+                    if(board[i*9+col] === num) return false; // Col
+                    if(board[(startRow+Math.floor(i/3))*9 + (startCol+i%3)] === num) return false; // Box
+                }
+                return true;
+            }
+
+            // --- ACTIONS ---
+            selectNum(num) {
+                if(this.gameOver) return;
+                this.selectedNum = num;
+                audio.playSelect();
+                ui.highlightPalette(num);
+                if(this.selectedIndex !== -1 && !this.fixed[this.selectedIndex]) {
+                    this.fill(this.selectedIndex, num);
+                }
+            }
+
+            selectCell(idx) {
+                if(this.gameOver) return;
+                this.selectedIndex = idx;
+                ui.highlightCell(idx);
+                
+                if(this.selectedNum !== null && !this.fixed[idx]) {
+                    this.fill(idx, this.selectedNum);
+                } else if(this.grid[idx] !== 0) {
+                    ui.highlightPalette(this.grid[idx]);
+                    this.selectedNum = this.grid[idx];
+                } else {
+                    ui.clearPaletteHighlight();
+                }
+            }
+
+            fill(idx, num) {
+                if(this.fixed[idx] || this.gameOver) return;
+                
+                const prev = this.grid[idx];
+                if(prev === num) return;
+
+                if(num === this.solution[idx]) {
+                    // Correct
+                    this.grid[idx] = num;
+                    audio.playPlace();
+                    ui.updateCell(idx, num);
+                    this.checkWin();
+                } else {
+                    // Wrong
+                    audio.playError();
+                    ui.showError(idx);
+                    this.mistakes++;
+                    ui.updateStats();
+                    if(this.mistakes >= this.maxMistakes) this.endGame(false);
+                    else ui.toast(`Mistakes: ${this.mistakes}/${this.maxMistakes}`);
+                }
+            }
+
+            undo() {
+                if(this.gameOver) return;
+                if(this.history.length === 0) return;
+                // Simplified Undo: only works if we tracked moves. 
+                // In this strict mode, wrong moves aren't placed, so Undo clears the last CORRECT move.
+                let last = this.history.pop();
+                if(last) {
+                    this.grid[last.idx] = 0;
+                    ui.updateCell(last.idx, 0);
+                    audio.playErase();
+                }
+            }
+
+            erase() {
+                if(this.gameOver || this.selectedIndex === -1) return;
+                if(!this.fixed[this.selectedIndex]) {
+                    this.grid[this.selectedIndex] = 0;
+                    ui.updateCell(this.selectedIndex, 0);
+                    audio.playErase();
+                }
+            }
+
+            hint() {
+                if(this.gameOver) return;
+                const empty = this.grid.map((v,i) => v===0?i:-1).filter(i=>i!==-1);
+                if(empty.length === 0) return;
+                const rand = empty[Math.floor(Math.random()*empty.length)];
+                this.grid[rand] = this.solution[rand];
+                audio.playPlace();
+                ui.updateCell(rand, this.solution[rand]);
+                ui.toast("Hint Applied!");
+                this.checkWin();
+            }
+
+            check() {
+                if(this.gameOver) return;
+                let error = false;
+                for(let i=0; i<81; i++) {
+                    if(this.grid[i] !== 0 && this.grid[i] !== this.solution[i]) {
+                        ui.showError(i);
+                        error = true;
+                    }
+                }
+                if(!error) ui.toast("Perfect so far!");
+            }
+
+            solve() {
+                if(this.gameOver) return;
+                this.grid = [...this.solution];
+                ui.renderGrid();
+                this.endGame(true);
+            }
+
+            checkWin() {
+                if(this.grid.every((v,i) => v === this.solution[i])) {
+                    this.endGame(true);
+                }
+            }
+
+            endGame(win) {
+                this.gameOver = true;
+                clearInterval(this.timerInterval);
+                if(win) {
+                    audio.playWin();
+                    document.getElementById('final-time').textContent = ui.formatTime(this.seconds);
+                    ui.showModal('modal-win');
+                } else {
+                    ui.showModal('modal-gameover');
+                }
+            }
+
+            startTimer() {
+                this.timerInterval = setInterval(() => {
+                    this.seconds++;
+                    ui.updateStats();
+                }, 1000);
+            }
+        }
+
+        /* --- UI MANAGER --- */
+        const ui = {
+            gridEl: document.getElementById('grid'),
+            paletteEl: document.getElementById('palette'),
+            
+            renderGrid: function() {
+                this.gridEl.innerHTML = '';
+                game.grid.forEach((v, i) => {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    if(game.fixed[i]) cell.classList.add('fixed');
+                    cell.dataset.idx = i;
+                    cell.onclick = () => game.selectCell(i);
+                    if(v !== 0) {
+                        cell.appendChild(this.createCandy(v));
+                    }
+                    this.gridEl.appendChild(cell);
+                });
+            },
+
+            renderPalette: function() {
+                this.paletteEl.innerHTML = '';
+                for(let i=1; i<=9; i++) {
+                    const item = document.createElement('div');
+                    item.className = 'palette-item';
+                    item.onclick = () => game.selectNum(i);
+                    item.appendChild(this.createCandy(i));
+                    this.paletteEl.appendChild(item);
+                }
+            },
+
+            createCandy: function(val) {
+                const c = document.createElement('div');
+                c.className = 'candy';
+                c.dataset.val = val;
+                c.textContent = val;
+                return c;
+            },
+
+            updateCell: function(idx, val) {
+                const cell = this.gridEl.children[idx];
+                cell.innerHTML = '';
+                if(val !== 0) {
+                    const c = this.createCandy(val);
+                    c.classList.add('placed');
+                    cell.appendChild(c);
+                    // Track for undo
+                    game.history.push({idx: idx});
+                }
+            },
+
+            showError: function(idx) {
+                const cell = this.gridEl.children[idx];
+                cell.classList.remove('error');
+                void cell.offsetWidth; // trigger reflow
+                cell.classList.add('error');
+            },
+
+            highlightCell: function(idx) {
+                Array.from(this.gridEl.children).forEach(c => {
+                    c.classList.remove('selected', 'highlight');
+                });
+                if(idx === -1) return;
+
+                const cell = this.gridEl.children[idx];
+                cell.classList.add('selected');
+
+                const row = Math.floor(idx/9);
+                const col = idx%9;
+
+                // Highlight neighbors
+                for(let i=0; i<81; i++) {
+                    const r = Math.floor(i/9);
+                    const c = i%9;
+                    const br = Math.floor(r/3);
+                    const bc = Math.floor(c/3);
+                    const curBr = Math.floor(row/3);
+                    const curBc = Math.floor(col/3);
+
+                    if(r === row || c === col || (br === curBr && bc === curBc)) {
+                        if(i !== idx) this.gridEl.children[i].classList.add('highlight');
+                    }
+                }
+            },
+
+            highlightPalette: function(num) {
+                Array.from(this.paletteEl.children).forEach(c => c.classList.remove('active-candy'));
+                const target = Array.from(this.paletteEl.children).find(c => parseInt(c.dataset.val) === num);
+                if(target) target.classList.add('active-candy');
+            },
+            
+            clearPaletteHighlight: function() {
+                Array.from(this.paletteEl.children).forEach(c => c.classList.remove('active-candy'));
+            },
+
+            updateStats: function() {
+                document.getElementById('mistakes').textContent = `${game.mistakes}/${game.maxMistakes}`;
+                document.getElementById('timer').textContent = this.formatTime(game.seconds);
+            },
+
+            formatTime: function(s) {
+                return Math.floor(s/60).toString().padStart(2,'0') + ':' + (s%60).toString().padStart(2,'0');
+            },
+
+            showModal: function(id) {
+                document.getElementById(id).classList.add('active');
+            },
+
+            hideModal: function(id) {
+                document.getElementById(id).classList.remove('active');
+            },
+
+            toast: function(msg) {
+                const t = document.getElementById('toast');
+                t.textContent = msg;
+                t.classList.add('show');
+                setTimeout(() => t.classList.remove('show'), 2000);
+            }
+        };
+
+        // --- INITIALIZATION ---
+        const game = new SudokuGame();
+
+        // Auto-start game on load to prevent blank screen
+        window.addEventListener('DOMContentLoaded', () => {
+            game.newGame();
+        });
+
+    </script>
+</body>
+</html>
