@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Bubble Pop Pro - Visible Ammo</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;400&display=swap');
+
+        :root {
+            --primary: #00f3ff;
+            --secondary: #ff0055;
+            --bg: #050508;
+        }
+
+        * {
+            box-sizing: border-box;
+            touch-action: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            color: white;
+            font-family: 'Roboto', sans-serif;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        #game-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 480px;
+            aspect-ratio: 480 / 640;
+            box-shadow: 0 0 50px rgba(0, 243, 255, 0.1);
+            background: #000;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(5, 5, 8, 0.9);
+            backdrop-filter: blur(4px);
+            z-index: 20;
+            padding: 20px;
+            text-align: center;
+            pointer-events: none; 
+        }
+        
+        .screen:not(.hidden) {
+            pointer-events: auto;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 32px;
+            margin: 0 0 15px 0;
+            text-transform: uppercase;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 15px rgba(0, 243, 255, 0.3);
+        }
+
+        .instructions {
+            font-size: 14px;
+            color: #ccc;
+            margin-bottom: 25px;
+            line-height: 1.6;
+            max-width: 320px;
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .key {
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+        #hud {
+            position: absolute;
+            top: 10px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 15px;
+            pointer-events: none;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 16px;
+            z-index: 10;
+        }
+
+        .stat {
+            background: rgba(0,0,0,0.6);
+            padding: 5px 12px;
+            border-radius: 15px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        #danger-line {
+            position: absolute;
+            top: 75%;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: repeating-linear-gradient(90deg, var(--secondary), var(--secondary) 10px, transparent 10px, transparent 20px);
+            pointer-events: none;
+            z-index: 5;
+            opacity: 0.6;
+        }
+
+        #next-bubble-label {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 10px;
+            color: #888;
+            z-index: 10;
+            text-transform: uppercase;
+            pointer-events: none;
+        }
+
+        button {
+            background: linear-gradient(90deg, var(--secondary), #d60047);
+            border: none;
+            padding: 15px 40px;
+            color: white;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 18px;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(255, 0, 85, 0.4);
+            text-transform: uppercase;
+            transition: transform 0.1s;
+            pointer-events: auto;
+        }
+        
+        button:active {
+            transform: scale(0.95);
+        }
+
+    </style>
+</head>
+<body>
+
+<div id="game-wrapper">
+    <canvas id="gameCanvas" width="480" height="640"></canvas>
+    <div id="danger-line"></div>
+
+    <div id="hud" class="hidden">
+        <div class="stat">SCORE: <span id="scoreVal">0</span></div>
+        <div class="stat">HIGH: <span id="highScoreVal">0</span></div>
+    </div>
+
+    <div id="next-bubble-label" class="hidden">NEXT</div>
+
+    <div id="start-screen" class="screen">
+        <h1>Neon Pop</h1>
+        <div class="instructions">
+            <p><span class="key">DESKTOP:</span> Move to Aim, Click to Shoot.</p>
+            <p><span class="key">MOBILE:</span> Drag to Aim, Release to Shoot.</p>
+        </div>
+        <button onclick="startGame()">PLAY NOW</button>
+    </div>
+
+    <div id="game-over-screen" class="screen hidden">
+        <h1 style="color:var(--secondary)">GAME OVER</h1>
+        <div style="font-size: 20px; margin-bottom: 20px;">Score: <span id="finalScore">0</span></div>
+        <button onclick="startGame()">RETRY</button>
+    </div>
+</div>
+
+<script>
+/**
+ * AUDIO SYSTEM
+ */
+const AudioSys = {
+    ctx: null,
+    init: function() {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new AudioContext();
+    },
+    playTone: function(freq, type, duration, vol=0.1) {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration);
+    },
+    shoot: function() { this.playTone(600, 'square', 0.1, 0.05); },
+    pop: function() { this.playTone(800 + Math.random()*200, 'sine', 0.1, 0.1); },
+    bounce: function() { this.playTone(200, 'triangle', 0.05, 0.05); },
+    gameOver: function() { this.playTone(150, 'sawtooth', 0.8, 0.2); }
+};
+
+/**
+ * GAME CONSTANTS
+ */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const GAME_WIDTH = 480;
+const GAME_HEIGHT = 640;
+
+const BUBBLE_RADIUS = 20;
+const ROW_HEIGHT = BUBBLE_RADIUS * Math.sqrt(3);
+const COLS = 12; 
+const ROWS = 16;
+const GAME_OVER_Y = 480; 
+
+const COLORS = ['#FF2E63', '#08D9D6', '#F9ED69', '#6C5CE7', '#00FF87'];
+
+// Game State
+let grid = [];
+let particles = [];
+let bullet = null;
+
+// Ammo System
+let currentAmmoColor = null; // The one inside the cannon
+let nextColor = null;       // The small preview on the side
+
+let angle = -Math.PI / 2;
+let score = 0;
+let highScore = localStorage.getItem('neonBubbleHigh') || 0;
+let isPlaying = false;
+let animationId;
+
+// Input
+let inputX = GAME_WIDTH / 2;
+let inputY = GAME_HEIGHT - 100;
+
+// DOM
+const scoreEl = document.getElementById('scoreVal');
+const highScoreEl = document.getElementById('highScoreVal');
+const finalScoreEl = document.getElementById('finalScore');
+const startScreen = document.getElementById('start-screen');
+const gameOverScreen = document.getElementById('game-over-screen');
+const hud = document.getElementById('hud');
+const nextBubbleLabel = document.getElementById('next-bubble-label');
+
+highScoreEl.innerText = highScore;
+
+/**
+ * INPUT HANDLING
+ */
+
+function getCanvasCoordinates(e) {
+    const rect = canvas.getBoundingClientRect();
+    let clientX, clientY;
+    
+    if(e.changedTouches && e.changedTouches.length > 0) {
+        clientX = e.changedTouches[0].clientX;
+        clientY = e.changedTouches[0].clientY;
+    } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+    }
+
+    const scaleX = GAME_WIDTH / rect.width;
+    const scaleY = GAME_HEIGHT / rect.height;
+
+    return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY
+    };
+}
+
+function aim(e) {
+    if (!isPlaying) return;
+    if(e.type === 'touchmove') e.preventDefault(); 
+
+    const pos = getCanvasCoordinates(e);
+    const shooterX = GAME_WIDTH / 2;
+    const shooterY = GAME_HEIGHT - 40;
+
+    const dx = pos.x - shooterX;
+    const dy = pos.y - shooterY;
+    
+    let targetAngle = Math.atan2(dy, dx);
+
+    if (targetAngle > -0.2) targetAngle = -0.2;
+    if (targetAngle < -Math.PI + 0.2) targetAngle = -Math.PI + 0.2;
+
+    angle = targetAngle;
+}
+
+function fireBullet() {
+    if (!isPlaying) return;
+    if (bullet) return; 
+
+    AudioSys.shoot();
+    const shooterX = GAME_WIDTH / 2;
+    const shooterY = GAME_HEIGHT - 40;
+    
+    bullet = {
+        x: shooterX,
+        y: shooterY,
+        dx: Math.cos(angle) * 16, 
+        dy: Math.sin(angle) * 16,
+        color: currentAmmoColor
+    };
+    
+    // Cycle Ammo
+    currentAmmoColor = nextColor;
+    nextColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+}
+
+// EVENT LISTENERS
+canvas.addEventListener('mousemove', aim);
+canvas.addEventListener('mousedown', (e) => { aim(e); fireBullet(); });
+canvas.addEventListener('touchstart', aim, { passive: false });
+canvas.addEventListener('touchmove', aim, { passive: false });
+canvas.addEventListener('touchend', fireBullet);
+
+
+/**
+ * GAME LOGIC
+ */
+
+function initGrid() {
+    grid = [];
+    for(let r=0; r<ROWS; r++) {
+        let row = [];
+        for(let c=0; c<COLS; c++) row.push({ x: 0, y: 0, color: null, active: false });
+        grid.push(row);
+    }
+}
+
+function updateGridPositions() {
+    for(let r=0; r<ROWS; r++) {
+        for(let c=0; c<COLS; c++) {
+            let xOffset = (r % 2 === 1) ? BUBBLE_RADIUS : 0;
+            grid[r][c].x = c * (BUBBLE_RADIUS*2) + xOffset + BUBBLE_RADIUS;
+            grid[r][c].y = r * ROW_HEIGHT + BUBBLE_RADIUS;
+        }
+    }
+}
+
+function fillInitialRows() {
+    for(let r=0; r<5; r++) {
+        for(let c=0; c<COLS; c++) {
+            grid[r][c].active = true;
+            grid[r][c].color = COLORS[Math.floor(Math.random() * COLORS.length)];
+        }
+    }
+}
+
+function getNeighbors(r, c) {
+    let n = [];
+    if (r % 2 === 0) {
+        n.push([r-1, c-1], [r-1, c], [r, c-1], [r, c+1], [r+1, c-1], [r+1, c]);
+    } else {
+        n.push([r-1, c], [r-1, c+1], [r, c-1], [r, c+1], [r+1, c], [r+1, c+1]);
+    }
+    return n.filter(p => p[0] >= 0 && p[0] < ROWS && p[1] >= 0 && p[1] < COLS);
+}
+
+function findMatches(startR, startC, color) {
+    let matches = [];
+    let queue = [[startR, startC]];
+    let visited = new Set([`${startR},${startC}`]);
+
+    while(queue.length) {
+        let [r, c] = queue.shift();
+        matches.push({r, c});
+        getNeighbors(r, c).forEach(([nr, nc]) => {
+            if (!visited.has(`${nr},${nc}`) && grid[nr][nc].active && grid[nr][nc].color === color) {
+                visited.add(`${nr},${nc}`);
+                queue.push([nr, nc]);
+            }
+        });
+    }
+    return matches;
+}
+
+function dropFloatingBubbles() {
+    let visited = new Set();
+    let queue = [];
+    for(let c=0; c<COLS; c++) if(grid[0][c].active) { queue.push([0, c]); visited.add(`0,${c}`); }
+    
+    let i=0;
+    while(i < queue.length) {
+        let [r, c] = queue[i++];
+        getNeighbors(r, c).forEach(([nr, nc]) => {
+            if(grid[nr][nc].active && !visited.has(`${nr},${nc}`)) {
+                visited.add(`${nr},${nc}`);
+                queue.push([nr, nc]);
+            }
+        });
+    }
+
+    let dropped = false;
+    for(let r=0; r<ROWS; r++) {
+        for(let c=0; c<COLS; c++) {
+            if(grid[r][c].active && !visited.has(`${r},${c}`)) {
+                createExplosion(grid[r][c].x, grid[r][c].y, grid[r][c].color);
+                grid[r][c].active = false;
+                grid[r][c].color = null;
+                score += 20; dropped = true;
+            }
+        }
+    }
+    return dropped;
+}
+
+function snapBullet() {
+    let bestDist = Infinity;
+    let bestR = -1;
+    let bestC = -1;
+
+    for(let r=0; r<ROWS; r++) {
+        for(let c=0; c<COLS; c++) {
+            let dx = bullet.x - grid[r][c].x;
+            let dy = bullet.y - grid[r][c].y;
+            let dist = dx*dx + dy*dy;
+            if(dist < bestDist) { bestDist = dist; bestR = r; bestC = c; }
+        }
+    }
+
+    if(grid[bestR][bestC].active) {
+        let neighbors = getNeighbors(bestR, bestC);
+        let bestN = null;
+        let minDist = Infinity;
+        neighbors.forEach(([nr, nc]) => {
+            if(!grid[nr][nc].active) {
+                let dx = bullet.x - grid[nr][nc].x;
+                let dy = bullet.y - grid[nr][nc].y;
+                let dist = dx*dx + dy*dy;
+                if(dist < minDist) { minDist = dist; bestN = {r: nr, c: nc}; }
+            }
+        });
+        if(bestN) { bestR = bestN.r; bestC = bestN.c; }
+    }
+
+    grid[bestR][bestC].active = true;
+    grid[bestR][bestC].color = bullet.color;
+
+    let matches = findMatches(bestR, bestC, bullet.color);
+    if(matches.length >= 3) {
+        matches.forEach(m => {
+            createExplosion(grid[m.r][m.c].x, grid[m.r][m.c].y, grid[m.r][m.c].color);
+            grid[m.r][m.c].active = false;
+            grid[m.r][m.c].color = null;
+        });
+        score += matches.length * 10;
+        dropFloatingBubbles();
+    }
+
+    checkGameOver();
+    bullet = null;
+    scoreEl.innerText = score;
+}
+
+function checkGameOver() {
+    for(let r=0; r<ROWS; r++) {
+        for(let c=0; c<COLS; c++) {
+            if(grid[r][c].active && grid[r][c].y > GAME_OVER_Y) { endGame(); return; }
+        }
+    }
+}
+
+/**
+ * PARTICLE SYSTEM
+ */
+class Particle {
+    constructor(x, y, color) {
+        this.x = x; this.y = y; this.color = color;
+        let a = Math.random() * Math.PI * 2;
+        let s = Math.random() * 3 + 1;
+        this.dx = Math.cos(a)*s; this.dy = Math.sin(a)*s;
+        this.life = 1.0; this.decay = Math.random() * 0.03 + 0.02;
+    }
+    update() {
+        this.x+=this.dx; this.y+=this.dy; this.dy+=0.1; this.life-=this.decay;
+    }
+    draw(ctx) {
+        ctx.globalAlpha = this.life;
+        ctx.fillStyle = this.color;
+        ctx.beginPath(); ctx.arc(this.x, this.y, 3, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+}
+function createExplosion(x, y, color) {
+    AudioSys.pop();
+    for(let i=0; i<8; i++) particles.push(new Particle(x, y, color));
+}
+
+/**
+ * DRAWING
+ */
+function draw() {
+    ctx.fillStyle = '#050508';
+    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+    if(!isPlaying) return;
+
+    // Danger Line
+    ctx.strokeStyle = 'rgba(255, 0, 85, 0.4)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([10, 10]);
+    ctx.beginPath(); ctx.moveTo(0, GAME_OVER_Y); ctx.lineTo(GAME_WIDTH, GAME_OVER_Y); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Grid
+    for(let r=0; r<ROWS; r++) {
+        for(let c=0; c<COLS; c++) {
+            if(grid[r][c].active) drawBubble(grid[r][c].x, grid[r][c].y, grid[r][c].color);
+        }
+    }
+
+    // Particles
+    for(let i=particles.length-1; i>=0; i--) {
+        particles[i].update();
+        particles[i].draw(ctx);
+        if(particles[i].life <= 0) particles.splice(i, 1);
+    }
+
+    drawCannon();
+
+    if(bullet) drawBubble(bullet.x, bullet.y, bullet.color);
+
+    drawNextBubbleIndicator();
+}
+
+function drawBubble(x, y, color) {
+    ctx.beginPath();
+    ctx.arc(x, y, BUBBLE_RADIUS - 1, 0, Math.PI*2);
+    ctx.fillStyle = color;
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = color;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    
+    // Shine
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.beginPath(); ctx.arc(x - BUBBLE_RADIUS/3, y - BUBBLE_RADIUS/3, BUBBLE_RADIUS/4, 0, Math.PI*2); ctx.fill();
+}
+
+function drawNextBubbleIndicator() {
+    const x = GAME_WIDTH - 30;
+    const y = GAME_HEIGHT - 30;
+    
+    ctx.beginPath();
+    ctx.arc(x, y, 12, 0, Math.PI*2); 
+    ctx.fillStyle = nextColor || '#555';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Shine
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.beginPath(); ctx.arc(x - 3, y - 3, 3, 0, Math.PI*2); ctx.fill();
+}
+
+function drawCannon() {
+    const shooterX = GAME_WIDTH / 2;
+    const shooterY = GAME_HEIGHT - 40;
+
+    // FIX: Draw Static Base FIRST (Underneath)
+    ctx.fillStyle = '#222';
+    ctx.beginPath(); ctx.arc(shooterX, shooterY, 30, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#00f3ff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.save();
+    ctx.translate(shooterX, shooterY);
+    ctx.rotate(angle + Math.PI/2);
+
+    // Barrel
+    ctx.fillStyle = '#444';
+    ctx.fillRect(-8, -60, 16, 50); 
+    ctx.strokeStyle = '#222';
+    ctx.strokeRect(-8, -60, 16, 50);
+
+    // Pivot Ring (Framing the ammo)
+    ctx.fillStyle = '#666';
+    ctx.beginPath(); ctx.arc(0, 0, 24, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#333';
+    ctx.stroke();
+
+    // AMMO BUBBLE (Current Color)
+    // This must be drawn LAST so it's on top
+    if(currentAmmoColor) {
+        drawBubbleInCannon(0, 0, currentAmmoColor, 18); 
+    }
+    
+    ctx.restore();
+}
+
+function drawBubbleInCannon(x, y, color, r) {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI*2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    
+    // White Border for visibility
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Shine
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.beginPath(); ctx.arc(x - r/3, y - r/3, r/4, 0, Math.PI*2); ctx.fill();
+}
+
+function gameLoop() {
+    if(!isPlaying) return;
+    
+    if(bullet) {
+        bullet.x += bullet.dx;
+        bullet.y += bullet.dy;
+
+        if(bullet.x < BUBBLE_RADIUS || bullet.x > GAME_WIDTH - BUBBLE_RADIUS) {
+            bullet.dx *= -1;
+            AudioSys.bounce();
+        }
+        if(bullet.y < BUBBLE_RADIUS) {
+            snapBullet();
+        } else {
+            let hit = false;
+            for(let r=0; r<ROWS; r++) {
+                for(let c=0; c<COLS; c++) {
+                    if(grid[r][c].active) {
+                        let dx = bullet.x - grid[r][c].x;
+                        let dy = bullet.y - grid[r][c].y;
+                        let dist = Math.sqrt(dx*dx + dy*dy);
+                        if(dist < BUBBLE_RADIUS*2 - 4) { snapBullet(); hit = true; break; }
+                    }
+                }
+                if(hit) break;
+            }
+        }
+    }
+
+    draw();
+    animationId = requestAnimationFrame(gameLoop);
+}
+
+/**
+ * GAME STATE
+ */
+function startGame() {
+    AudioSys.init();
+    score = 0; scoreEl.innerText = '0';
+    initGrid(); updateGridPositions(); fillInitialRows();
+    particles = []; bullet = null;
+    
+    currentAmmoColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+    nextColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+    
+    isPlaying = true;
+    
+    startScreen.classList.add('hidden');
+    gameOverScreen.classList.add('hidden');
+    hud.classList.remove('hidden');
+    nextBubbleLabel.classList.remove('hidden');
+    
+    gameLoop();
+}
+
+function endGame() {
+    isPlaying = false;
+    cancelAnimationFrame(animationId);
+    AudioSys.gameOver();
+    if(score > highScore) {
+        highScore = score;
+        localStorage.setItem('neonBubbleHigh', highScore);
+        highScoreEl.innerText = highScore;
+    }
+    finalScoreEl.innerText = score;
+    hud.classList.add('hidden');
+    nextBubbleLabel.classList.add('hidden');
+    gameOverScreen.classList.remove('hidden');
+}
+
+document.body.addEventListener('touchmove', function(e) { e.preventDefault(); }, { passive: false });
+
+</script>
+</body>
+</html>
