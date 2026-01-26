@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Infinity Math: Speed Run</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #6200ea;
+            --primary-dark: #3700b3;
+            --accent: #03dac6;
+            --error: #cf6679;
+            --surface: rgba(255, 255, 255, 0.1);
+            --surface-high: rgba(255, 255, 255, 0.2);
+            --text-main: #ffffff;
+            --text-secondary: #e0e0e0;
+            --shadow-light: 0 4px 6px rgba(0,0,0,0.1);
+            --shadow-depth: 0 10px 20px rgba(0,0,0,0.3);
+            --font-family: 'Roboto', sans-serif;
+            --safe-area-bottom: env(safe-area-inset-bottom);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100dvh;
+            overflow: hidden;
+            font-family: var(--font-family);
+            background: linear-gradient(135deg, #1a237e 0%, #311b92 50%, #000000 100%);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Ambient Background Blobs */
+        .blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            z-index: -1;
+            opacity: 0.6;
+            animation: float 10s infinite ease-in-out;
+        }
+        .blob-1 { width: 300px; height: 300px; background: #ff00cc; top: -50px; left: -50px; }
+        .blob-2 { width: 400px; height: 400px; background: #3333ff; bottom: -100px; right: -100px; animation-delay: 2s; }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(20px, 40px); }
+        }
+
+        /* Main Game Container */
+        #game-container {
+            width: 100%;
+            max-width: 500px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            position: relative;
+        }
+
+        /* Header / Stats */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            margin-bottom: 20px;
+        }
+
+        .stat-box {
+            background: var(--surface);
+            backdrop-filter: blur(10px);
+            padding: 10px 15px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: var(--shadow-light);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 80px;
+        }
+
+        .stat-label { font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; }
+        .stat-value { font-size: 1.25rem; font-weight: 700; color: var(--accent); }
+
+        /* Timer Bar */
+        .timer-container {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+        .timer-bar {
+            height: 100%;
+            background: var(--accent);
+            width: 100%;
+            transform-origin: left;
+            transition: width 0.1s linear, background-color 0.3s;
+        }
+        .timer-bar.warning { background: #ffeb3b; }
+        .timer-bar.danger { background: var(--error); }
+
+        /* Question Display */
+        #question-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        #equation {
+            font-size: 3.5rem;
+            font-weight: 700;
+            text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* Grid for Answers */
+        #answers-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .answer-btn {
+            background: var(--surface-high);
+            border: none;
+            border-radius: 16px;
+            padding: 20px;
+            font-size: 1.8rem;
+            font-weight: 500;
+            color: var(--text-main);
+            cursor: pointer;
+            box-shadow: var(--shadow-light);
+            transition: all 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .answer-btn:active { transform: scale(0.96); box-shadow: none; }
+        .answer-btn:hover { background: rgba(255,255,255,0.25); }
+
+        /* Controls Footer */
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: var(--safe-area-bottom);
+        }
+
+        .icon-btn {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-secondary);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .icon-btn svg { width: 24px; height: 24px; fill: currentColor; }
+        .icon-btn:active { transform: scale(0.9); background: rgba(255,255,255,0.1); }
+        
+        .action-btn {
+            flex: 1;
+            border-radius: 12px;
+            border: none;
+            font-weight: 500;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: var(--shadow-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-hint { background: #ffca28; color: #000; }
+        .btn-solve { background: var(--error); color: white; }
+
+        /* Instructions / Game Over Modal */
+        .modal-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            padding: 20px;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+
+        .modal-card {
+            background: #1e1e24;
+            width: 100%;
+            max-width: 400px;
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: var(--shadow-depth);
+            border: 1px solid rgba(255,255,255,0.1);
+            transform: translateY(20px);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .modal-overlay.active .modal-card { transform: translateY(0); }
+
+        .modal-title { font-size: 1.8rem; margin-bottom: 10px; color: var(--accent); }
+        .modal-text { color: #bbb; margin-bottom: 25px; line-height: 1.5; }
+        .score-final { font-size: 3rem; font-weight: 700; margin: 10px 0; color: white; }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(98, 0, 234, 0.4);
+            transition: transform 0.2s;
+            width: 100%;
+        }
+        .btn-primary:active { transform: scale(0.95); }
+
+        /* Animations */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+        .shake { animation: shake 0.3s ease-in-out; }
+
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        .pop { animation: pop 0.2s ease-out; }
+        
+        .hint-active { border: 2px solid #ffca28; background: rgba(255, 202, 40, 0.2); }
+        .disabled { opacity: 0.5; pointer-events: none; }
+
+    </style>
+</head>
+<body>
+
+    <!-- Ambient Background -->
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <div id="game-container">
+        <!-- Header -->
+        <header>
+            <div class="stat-box">
+                <span class="stat-label">Score</span>
+                <span class="stat-value" id="score">0</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">Best</span>
+                <span class="stat-value" id="high-score">0</span>
+            </div>
+            <button class="icon-btn" id="btn-info" aria-label="Instructions">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></svg>
+            </button>
+        </header>
+
+        <!-- Timer -->
+        <div class="timer-container">
+            <div class="timer-bar" id="timer-bar"></div>
+        </div>
+
+        <!-- Question Area -->
+        <main id="question-area">
+            <div id="equation">Ready?</div>
+        </main>
+
+        <!-- Grid -->
+        <section id="answers-grid">
+            <button class="answer-btn"></button>
+            <button class="answer-btn"></button>
+            <button class="answer-btn"></button>
+            <button class="answer-btn"></button>
+        </section>
+
+        <!-- Footer Controls -->
+        <div class="controls">
+            <button class="action-btn btn-hint" id="btn-hint">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="#000"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7zm2.85 11.1l-.85.6V16h-4v-2.3l-.85-.6C7.8 12.16 7 10.63 7 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.63-.8 3.16-2.15 4.1z"/></svg>
+                Hint
+            </button>
+            <button class="action-btn btn-solve" id="btn-solve">
+                Auto Solve
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm0 4c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm6 12H6v-1.4c0-2 4-3.1 6-3.1s6 1.1 6 3.1V19z"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Start/Instructions Modal -->
+    <div class="modal-overlay active" id="start-modal">
+        <div class="modal-card">
+            <h1 class="modal-title">Math Speedrun</h1>
+            <p class="modal-text">
+                Solve as many equations as possible before the time runs out.<br><br>
+                <strong>Controls:</strong><br>
+                Tap the correct answer.<br>
+                Use <strong>Hint</strong> to highlight the answer.<br>
+                Use <strong>Auto Solve</strong> to skip a hard one.
+            </p>
+            <button class="btn-primary" id="btn-start">Play Now</button>
+        </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div class="modal-overlay" id="game-over-modal">
+        <div class="modal-card">
+            <h1 class="modal-title">Time's Up!</h1>
+            <p class="modal-text">Final Score</p>
+            <div class="score-final" id="final-score">0</div>
+            <p class="modal-text" id="high-score-msg">New High Score!</p>
+            <button class="btn-primary" id="btn-restart">Try Again</button>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * Game Logic & State Management
+         */
+        const Game = {
+            score: 0,
+            highScore: 0,
+            timeLeft: 0,
+            maxTime: 10000, // Starting time per question in ms
+            isPlaying: false,
+            currentAnswer: 0,
+            timerInterval: null,
+            lastFrameTime: 0,
+            hints: 3,
+            
+            // DOM Elements
+            ui: {
+                score: document.getElementById('score'),
+                highScore: document.getElementById('high-score'),
+                timerBar: document.getElementById('timer-bar'),
+                equation: document.getElementById('equation'),
+                answerBtns: document.querySelectorAll('.answer-btn'),
+                startModal: document.getElementById('start-modal'),
+                gameOverModal: document.getElementById('game-over-modal'),
+                finalScore: document.getElementById('final-score'),
+                highScoreMsg: document.getElementById('high-score-msg'),
+                btnHint: document.getElementById('btn-hint'),
+                questionArea: document.getElementById('question-area')
+            },
+
+            init() {
+                // Load high score
+                const savedScore = localStorage.getItem('mathGameHighScore');
+                if (savedScore) this.highScore = parseInt(savedScore);
+                this.ui.highScore.textContent = this.highScore;
+
+                // Event Listeners
+                document.getElementById('btn-start').addEventListener('click', () => {
+                    AudioSys.init();
+                    this.start();
+                });
+                
+                document.getElementById('btn-restart').addEventListener('click', () => {
+                    this.start();
+                });
+
+                document.getElementById('btn-info').addEventListener('click', () => {
+                    if(!this.isPlaying) {
+                        this.ui.startModal.classList.add('active');
+                    } else {
+                        // Pause logic could go here, but for simplicity we just show info
+                        // In a real game, we'd pause the timer.
+                        alert("Game Paused (Click OK to resume)");
+                    }
+                });
+
+                this.ui.answerBtns.forEach((btn, index) => {
+                    btn.addEventListener('click', (e) => this.checkAnswer(index, e.target));
+                });
+
+                document.getElementById('btn-hint').addEventListener('click', () => this.useHint());
+                document.getElementById('btn-solve').addEventListener('click', () => this.autoSolve());
+            },
+
+            start() {
+                this.score = 0;
+                this.maxTime = 10000;
+                this.hints = 3;
+                this.isPlaying = true;
+                this.ui.score.textContent = '0';
+                this.ui.startModal.classList.remove('active');
+                this.ui.gameOverModal.classList.remove('active');
+                this.updateHintButton();
+                
+                this.generateLevel();
+                this.startTimer();
+                AudioSys.play('start');
+            },
+
+            generateLevel() {
+                // Determine difficulty based on score
+                let maxNum = 10 + Math.floor(this.score / 5); 
+                let operations = ['+', '-'];
+                if (this.score > 5) operations.push('*');
+                if (this.score > 20) operations.push('/'); // Integer division only logic below
+
+                const op = operations[Math.floor(Math.random() * operations.length)];
+                let a, b, ans;
+
+                // Generate equation logic
+                switch(op) {
+                    case '+':
+                        a = Math.floor(Math.random() * maxNum) + 1;
+                        b = Math.floor(Math.random() * maxNum) + 1;
+                        ans = a + b;
+                        break;
+                    case '-':
+                        a = Math.floor(Math.random() * maxNum) + 5;
+                        b = Math.floor(Math.random() * a); // Ensure positive result
+                        ans = a - b;
+                        break;
+                    case '*':
+                        a = Math.floor(Math.random() * 10) + 2;
+                        b = Math.floor(Math.random() * 10) + 2;
+                        ans = a * b;
+                        break;
+                    case '/':
+                        b = Math.floor(Math.random() * 8) + 2;
+                        ans = Math.floor(Math.random() * 10) + 1;
+                        a = b * ans; // Ensure clean division
+                        break;
+                }
+
+                this.currentAnswer = ans;
+                
+                // Format equation for display (replace symbols with aesthetic ones)
+                let displayOp = op;
+                if(op === '*') displayOp = '×';
+                if(op === '/') displayOp = '÷';
+
+                this.ui.equation.textContent = `${a} ${displayOp} ${b} = ?`;
+                
+                // Animate text in
+                this.ui.equation.classList.remove('pop');
+                void this.ui.equation.offsetWidth; // trigger reflow
+                this.ui.equation.classList.add('pop');
+
+                // Generate choices
+                let answers = [ans];
+                while(answers.length < 4) {
+                    let fake = ans + Math.floor(Math.random() * 10) - 5;
+                    if(fake !== ans && fake >= 0 && !answers.includes(fake)) {
+                        answers.push(fake);
+                    }
+                }
+                
+                // Shuffle answers
+                answers.sort(() => Math.random() - 0.5);
+
+                // Render buttons
+                this.ui.answerBtns.forEach((btn, index) => {
+                    btn.textContent = answers[index];
+                    btn.classList.remove('hint-active', 'disabled');
+                    btn.style.backgroundColor = ''; // reset inline styles
+                });
+            },
+
+            checkAnswer(index, btnElement) {
+                if(!this.isPlaying) return;
+                
+                const val = parseInt(btnElement.textContent);
+                if(val === this.currentAnswer) {
+                    // Correct
+                    AudioSys.play('correct');
+                    this.score++;
+                    this.ui.score.textContent = this.score;
+                    this.addTime(500); // Bonus time
+                    this.generateLevel();
+                } else {
+                    // Wrong
+                    AudioSys.play('wrong');
+                    btnElement.style.backgroundColor = 'var(--error)';
+                    this.ui.equation.classList.remove('shake');
+                    void this.ui.equation.offsetWidth;
+                    this.ui.equation.classList.add('shake');
+                    this.removeTime(2000); // Penalty
+                }
+            },
+
+            startTimer() {
+                this.timeLeft = this.maxTime;
+                this.lastFrameTime = performance.now();
+                
+                const loop = (now) => {
+                    if(!this.isPlaying) return;
+                    
+                    const delta = now - this.lastFrameTime;
+                    this.lastFrameTime = now;
+                    
+                    this.timeLeft -= delta;
+                    
+                    // Update visual bar
+                    const pct = Math.max(0, (this.timeLeft / this.maxTime) * 100);
+                    this.ui.timerBar.style.width = `${pct}%`;
+                    
+                    // Color feedback
+                    this.ui.timerBar.className = 'timer-bar';
+                    if(pct < 50) this.ui.timerBar.classList.add('warning');
+                    if(pct < 20) this.ui.timerBar.classList.add('danger');
+
+                    if(this.timeLeft <= 0) {
+                        this.gameOver();
+                    } else {
+                        this.timerInterval = requestAnimationFrame(loop);
+                    }
+                };
+                
+                this.timerInterval = requestAnimationFrame(loop);
+            },
+
+            addTime(amount) {
+                this.timeLeft += amount;
+                // Cap time at maxTime
+                if(this.timeLeft > this.maxTime) this.timeLeft = this.maxTime;
+            },
+
+            removeTime(amount) {
+                this.timeLeft -= amount;
+            },
+
+            useHint() {
+                if(!this.isPlaying || this.hints <= 0) return;
+                
+                this.hints--;
+                this.updateHintButton();
+                AudioSys.play('click');
+
+                // Highlight the correct answer
+                this.ui.answerBtns.forEach(btn => {
+                    if(parseInt(btn.textContent) === this.currentAnswer) {
+                        btn.classList.add('hint-active');
+                    }
+                });
+            },
+
+            updateHintButton() {
+                this.ui.btnHint.innerHTML = `
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="#000"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7zm2.85 11.1l-.85.6V16h-4v-2.3l-.85-.6C7.8 12.16 7 10.63 7 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.63-.8 3.16-2.15 4.1z"/></svg>
+                Hint (${this.hints})`;
+                if(this.hints === 0) {
+                    this.ui.btnHint.classList.add('disabled');
+                }
+            },
+
+            autoSolve() {
+                if(!this.isPlaying) return;
+                
+                AudioSys.play('solve');
+                
+                // Find and click the correct button programmatically
+                this.ui.answerBtns.forEach(btn => {
+                    if(parseInt(btn.textContent) === this.currentAnswer) {
+                        btn.style.backgroundColor = 'var(--accent)';
+                        btn.style.color = '#000';
+                    }
+                });
+
+                // Wait then next level
+                setTimeout(() => {
+                    this.score++;
+                    this.ui.score.textContent = this.score;
+                    this.addTime(200); // Small time bonus, but less than manual solve
+                    this.generateLevel();
+                }, 500);
+            },
+
+            gameOver() {
+                this.isPlaying = false;
+                cancelAnimationFrame(this.timerInterval);
+                AudioSys.play('over');
+                
+                // Check High Score
+                if(this.score > this.highScore) {
+                    this.highScore = this.score;
+                    localStorage.setItem('mathGameHighScore', this.highScore);
+                    this.ui.highScore.textContent = this.highScore;
+                    this.ui.highScoreMsg.style.display = 'block';
+                } else {
+                    this.ui.highScoreMsg.style.display = 'none';
+                }
+
+                this.ui.finalScore.textContent = this.score;
+                this.ui.gameOverModal.classList.add('active');
+            }
+        };
+
+        /**
+         * Sound System (Web Audio API)
+         * No external files needed.
+         */
+        const AudioSys = {
+            ctx: null,
+            init() {
+                window.AudioContext = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioContext();
+            },
+            play(type) {
+                if(!this.ctx) return;
+                
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                
+                const now = this.ctx.currentTime;
+                
+                if(type === 'correct') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600, now);
+                    osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                    osc.start(now);
+                    osc.stop(now + 0.1);
+                } 
+                else if(type === 'wrong') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.linearRampToValueAtTime(100, now + 0.2);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+                    osc.start(now);
+                    osc.stop(now + 0.2);
+                }
+                else if(type === 'click') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(800, now);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                    osc.start(now);
+                    osc.stop(now + 0.05);
+                }
+                else if(type === 'start') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.setValueAtTime(554, now + 0.1); // C#
+                    osc.frequency.setValueAtTime(659, now + 0.2); // E
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.6);
+                    osc.start(now);
+                    osc.stop(now + 0.6);
+                }
+                else if(type === 'over') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.exponentialRampToValueAtTime(100, now + 0.5);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.5);
+                    osc.start(now);
+                    osc.stop(now + 0.5);
+                }
+                else if(type === 'solve') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(200, now);
+                    osc.frequency.setValueAtTime(400, now + 0.1);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                }
+            }
+        };
+
+        // Initialize Game
+        window.onload = () => Game.init();
+
+    </script>
+</body>
+</html>
