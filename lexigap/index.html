@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LexiGap: Infinite Words</title>
+    <meta name="description" content="A pro-level word puzzle game with infinite words from API.">
+    
+    <style>
+        :root {
+            /* Materialistic Palette */
+            --primary: #6200ea;
+            --primary-dark: #3700b3;
+            --secondary: #03dac6;
+            --background-grad-start: #2c3e50;
+            --background-grad-end: #000000;
+            --surface: rgba(255, 255, 255, 0.1);
+            --surface-blur: 20px;
+            --text-main: #ffffff;
+            --text-muted: #b0bec5;
+            --success: #00e676;
+            --error: #ff1744;
+            --warning: #ffea00;
+            
+            /* Dimensions */
+            --tile-size: 60px;
+            --gap: 8px;
+            --radius: 12px;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, var(--background-grad-start), var(--background-grad-end));
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* --- Header --- */
+        header {
+            width: 100%;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(var(--surface-blur));
+            z-index: 10;
+        }
+
+        .brand {
+            font-size: 1.2rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: var(--secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 15px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .stat-item span {
+            color: var(--secondary);
+            font-weight: bold;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-main);
+            font-size: 1.2rem;
+            padding: 8px;
+            border-radius: 50%;
+            transition: background 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* --- Main Game Area --- */
+        main {
+            flex: 1;
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        /* Word Container */
+        .word-display {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: var(--gap);
+            margin-bottom: 40px;
+            min-height: 80px; /* Prevent jump when loading */
+        }
+
+        .tile {
+            width: var(--tile-size);
+            height: var(--tile-size);
+            background: var(--surface);
+            border-radius: var(--radius);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            border: 2px solid transparent;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        .tile.active {
+            border-color: var(--secondary);
+            background: rgba(3, 218, 198, 0.15);
+            animation: pulse 2s infinite;
+        }
+
+        .tile.solved {
+            background: var(--success);
+            color: #000;
+            border-color: var(--success);
+        }
+
+        .tile.error {
+            background: var(--error);
+            animation: shake 0.5s;
+        }
+
+        /* Loading State */
+        .loader-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: var(--tile-size);
+            gap: 5px;
+            width: 100%;
+        }
+        .dot {
+            width: 10px;
+            height: 10px;
+            background: var(--secondary);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+        .dot:nth-child(1) { animation-delay: -0.32s; }
+        .dot:nth-child(2) { animation-delay: -0.16s; }
+
+        /* Hint Area */
+        .hint-area {
+            height: 30px;
+            margin-bottom: 30px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 1rem;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s ease;
+            padding: 0 20px;
+        }
+
+        .hint-area.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Controls (Buttons) */
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            width: 100%;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            border: none;
+            padding: 14px;
+            border-radius: 30px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transition: transform 0.1s, filter 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            filter: grayscale(100%);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            grid-column: span 2;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .btn-solve {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            padding: 10px;
+        }
+
+        /* Keyboard */
+        .keyboard {
+            width: 100%;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 0;
+        }
+
+        .key {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            font-size: 1.1rem;
+            font-weight: 500;
+            cursor: pointer;
+            width: 9%;
+            height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .key:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .key.used {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        /* --- Overlays / Modals --- */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(5px);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal {
+            background: #1e1e2f;
+            width: 90%;
+            max-width: 400px;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.1);
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+        }
+
+        .overlay.active .modal {
+            transform: translateY(0);
+        }
+
+        .modal h2 {
+            margin-top: 0;
+            color: var(--secondary);
+        }
+
+        .modal p {
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+
+        .modal-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-size: 0.95rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s ease;
+            z-index: 50;
+            white-space: nowrap;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            max-width: 90%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .toast.success { background: var(--success); color: #000; }
+        .toast.error { background: var(--error); color: white; }
+        .toast.info { background: var(--primary); color: white; }
+
+        /* Animations */
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(3, 218, 198, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(3, 218, 198, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(3, 218, 198, 0); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
+        }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        /* Responsive Fixes */
+        @media (max-height: 700px) {
+            :root { --tile-size: 45px; }
+            .brand { font-size: 1rem; }
+            .key { height: 40px; width: 8.5%; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header>
+        <div class="brand">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+            LexiGap
+        </div>
+        <div class="stats">
+            <div class="stat-item">Streak: <span id="streak-display">0</span></div>
+            <button class="icon-btn" id="btn-mute" aria-label="Toggle Sound">
+                <svg id="icon-sound-on" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                <svg id="icon-sound-off" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+            </button>
+            <button class="icon-btn" id="btn-help" aria-label="Instructions">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Game Container -->
+    <main>
+        <div class="word-display" id="word-container">
+            <!-- Tiles or Loader generated by JS -->
+            <div class="loader-container">
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+            </div>
+        </div>
+
+        <div class="hint-area" id="hint-text">
+            Hint: Category will appear here
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-secondary" id="btn-hint">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                Hint
+            </button>
+            <button class="btn btn-secondary" id="btn-solve">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.66 10.56a5.5 5.5 0 0 1 7.28-7.28"></path><path d="M14.34 13.44a5.5 5.5 0 0 0-7.28 7.28"></path><path d="M5.6 5.6l12.8 12.8"></path></svg>
+                Skip
+            </button>
+            <button class="btn btn-primary" id="btn-check">Check Solution</button>
+        </div>
+
+        <div class="keyboard" id="keyboard">
+            <!-- Keys A-Z -->
+        </div>
+    </main>
+
+    <!-- Instructions Modal -->
+    <div class="overlay active" id="modal-overlay">
+        <div class="modal" id="modal-content">
+            <span class="modal-icon">🎮</span>
+            <h2 id="modal-title">How to Play</h2>
+            <p id="modal-message">
+                Words are fetched live from the web!<br><br>
+                1. A word is missing a letter.<br>
+                2. Tap the keyboard to guess it.<br>
+                3. Press <strong>Check Solution</strong>.<br>
+                4. Hints are definitions from the API.
+            </p>
+            <button class="btn btn-primary" id="btn-start" style="width: 100%">Start Game</button>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">Message</div>
+
+    <script>
+        /**
+         * LEXIGAP - INFINITE API VERSION
+         */
+
+        // --- Backup Data (Used if API fails) ---
+        const backupData = [
+            { word: "JAVASCRIPT", hint: "Programming Language" },
+            { word: "BROWSER", hint: "Software to surf the web" },
+            { word: "KEYBOARD", hint: "Input device" },
+            { word: "MONITOR", hint: "Output screen" },
+            { word: "ALGORITHM", hint: "Step-by-step procedure" },
+            { word: "DATABASE", hint: "Organized data collection" },
+            { word: "NETWORK", hint: "Connected computers" },
+            { word: "VARIABLE", hint: "Stores data value" },
+            { word: "FUNCTION", hint: "Reusable code block" },
+            { word: "PIXEL", hint: "Smallest unit of an image" }
+        ];
+
+        // --- State ---
+        let currentWordObj = {};
+        let currentWord = "";
+        let missingIndex = -1;
+        let userLetter = "";
+        let streak = 0;
+        let score = 0;
+        let isMuted = false;
+
+        // --- Audio System (Web Audio API) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        const playSound = (type) => {
+            if (isMuted) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'click') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(300, now + 0.1);
+                gainNode.gain.setValueAtTime(0.05, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'success') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.linearRampToValueAtTime(1200, now + 0.1);
+                gainNode.gain.setValueAtTime(0.1, now);
+                gainNode.gain.linearRampToValueAtTime(0, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'error') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.linearRampToValueAtTime(100, now + 0.2);
+                gainNode.gain.setValueAtTime(0.1, now);
+                gainNode.gain.linearRampToValueAtTime(0, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'win') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.setValueAtTime(600, now + 0.1);
+                osc.frequency.setValueAtTime(1000, now + 0.2);
+                gainNode.gain.setValueAtTime(0.1, now);
+                gainNode.gain.linearRampToValueAtTime(0, now + 0.6);
+                osc.start(now);
+                osc.stop(now + 0.6);
+            }
+        };
+
+        // --- DOM Elements ---
+        const ui = {
+            wordContainer: document.getElementById('word-container'),
+            keyboard: document.getElementById('keyboard'),
+            hintText: document.getElementById('hint-text'),
+            streak: document.getElementById('streak-display'),
+            modalOverlay: document.getElementById('modal-overlay'),
+            modalTitle: document.getElementById('modal-title'),
+            modalMsg: document.getElementById('modal-message'),
+            btnStart: document.getElementById('btn-start'),
+            btnCheck: document.getElementById('btn-check'),
+            btnHint: document.getElementById('btn-hint'),
+            btnSolve: document.getElementById('btn-solve'),
+            btnMute: document.getElementById('btn-mute'),
+            btnHelp: document.getElementById('btn-help'),
+            iconSoundOn: document.getElementById('icon-sound-on'),
+            iconSoundOff: document.getElementById('icon-sound-off'),
+            toast: document.getElementById('toast')
+        };
+
+        // --- Initialization ---
+        const initGame = () => {
+            createKeyboard();
+            
+            ui.btnStart.addEventListener('click', () => {
+                ui.modalOverlay.classList.remove('active');
+                playSound('click');
+                startNewRound();
+            });
+
+            ui.btnCheck.addEventListener('click', checkSolution);
+            ui.btnHint.addEventListener('click', showHint);
+            ui.btnSolve.addEventListener('click', skipRound);
+            
+            ui.btnMute.addEventListener('click', toggleMute);
+            ui.btnHelp.addEventListener('click', showInstructions);
+
+            document.addEventListener('keydown', (e) => {
+                const char = e.key.toUpperCase();
+                if (char.match(/^[A-Z]$/)) {
+                    handleInput(char);
+                } else if (e.key === 'Enter') {
+                    checkSolution();
+                }
+            });
+        };
+
+        const createKeyboard = () => {
+            const keys = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+            ui.keyboard.innerHTML = '';
+            keys.forEach(key => {
+                const btn = document.createElement('button');
+                btn.textContent = key;
+                btn.className = 'key';
+                btn.dataset.key = key;
+                btn.addEventListener('click', () => handleInput(key));
+                ui.keyboard.appendChild(btn);
+            });
+        };
+
+        // --- API Logic ---
+        async function fetchRandomWord() {
+            // Display Loading
+            ui.wordContainer.innerHTML = `
+                <div class="loader-container">
+                    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                </div>
+            `;
+            ui.btnCheck.disabled = true;
+            ui.btnSolve.disabled = true;
+            ui.btnHint.disabled = true;
+
+            try {
+                // 1. Fetch Random Word
+                const wordRes = await fetch('https://random-word-api.herokuapp.com/word');
+                if (!wordRes.ok) throw new Error("Word API failed");
+                const wordList = await wordRes.json();
+                let word = wordList[0].toUpperCase();
+
+                // 2. Fetch Definition for Hint
+                let definition = "No definition found.";
+                try {
+                    const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+                    if (dictRes.ok) {
+                        const dictData = await dictRes.json();
+                        // Extract short definition
+                        definition = dictData[0].meanings[0].definitions[0].definition;
+                    }
+                } catch (e) {
+                    // If definition fetch fails, proceed anyway
+                    console.warn("Definition fetch failed");
+                }
+
+                // 3. Format Object
+                return { word, hint: definition };
+
+            } catch (error) {
+                console.warn("API Error, using backup:", error);
+                // Fallback to hardcoded list
+                const randIndex = Math.floor(Math.random() * backupData.length);
+                return backupData[randIndex];
+            }
+        }
+
+        // --- Core Game Logic ---
+        const startNewRound = async () => {
+            // Reset Round State
+            userLetter = "";
+            ui.hintText.classList.remove('visible');
+            ui.hintText.textContent = "";
+            
+            // Reset Keyboard UI
+            document.querySelectorAll('.key').forEach(k => k.classList.remove('used'));
+
+            // Fetch Data
+            const data = await fetchRandomWord();
+            
+            // Set State
+            currentWordObj = data;
+            currentWord = data.word;
+
+            // Pick random missing index
+            missingIndex = Math.floor(Math.random() * currentWord.length);
+
+            renderBoard();
+            
+            // Re-enable buttons
+            ui.btnCheck.disabled = false;
+            ui.btnSolve.disabled = false;
+            ui.btnHint.disabled = false;
+        };
+
+        const renderBoard = () => {
+            ui.wordContainer.innerHTML = '';
+            for (let i = 0; i < currentWord.length; i++) {
+                const tile = document.createElement('div');
+                tile.className = 'tile';
+                
+                if (i === missingIndex) {
+                    tile.classList.add('active');
+                    tile.id = 'missing-tile';
+                } else {
+                    tile.textContent = currentWord[i];
+                }
+                ui.wordContainer.appendChild(tile);
+            }
+        };
+
+        const handleInput = (letter) => {
+            if (ui.modalOverlay.classList.contains('active')) return;
+            if (ui.btnCheck.disabled) return;
+
+            playSound('click');
+            userLetter = letter;
+            
+            const missingTile = document.getElementById('missing-tile');
+            if (missingTile) {
+                missingTile.textContent = letter;
+            }
+        };
+
+        const checkSolution = () => {
+            if (ui.btnCheck.disabled) return;
+            
+            const correctLetter = currentWord[missingIndex];
+            const missingTile = document.getElementById('missing-tile');
+
+            if (userLetter === correctLetter) {
+                playSound('success');
+                missingTile.classList.remove('active');
+                missingTile.classList.add('solved');
+                streak++;
+                ui.streak.textContent = streak;
+                ui.btnCheck.disabled = true;
+                
+                showToast(`Correct! Streak: ${streak}`, 'success');
+                
+                setTimeout(() => {
+                    playSound('win');
+                    startNewRound();
+                }, 1200);
+
+            } else {
+                playSound('error');
+                missingTile.classList.add('error');
+                showToast(`Wrong letter! Try again.`, 'error');
+                streak = 0;
+                ui.streak.textContent = streak;
+                
+                setTimeout(() => {
+                    missingTile.classList.remove('error');
+                }, 500);
+            }
+        };
+
+        const showHint = () => {
+            if (ui.hintText.classList.contains('visible')) return; 
+            playSound('click');
+            // Truncate long hints
+            let hintText = currentWordObj.hint;
+            if (hintText.length > 60) hintText = hintText.substring(0, 60) + "...";
+            
+            ui.hintText.textContent = `Hint: ${hintText}`;
+            ui.hintText.classList.add('visible');
+            
+            streak = 0; 
+            ui.streak.textContent = streak;
+        };
+
+        const skipRound = () => {
+            playSound('click');
+            const correctLetter = currentWord[missingIndex];
+            const missingTile = document.getElementById('missing-tile');
+            missingTile.textContent = correctLetter;
+            missingTile.classList.remove('active');
+            missingTile.classList.add('solved');
+            
+            streak = 0;
+            ui.streak.textContent = 0;
+            showToast(`Skipped. The word was ${currentWord}`, 'info');
+            
+            ui.btnCheck.disabled = true;
+            setTimeout(startNewRound, 2000);
+        };
+
+        const showInstructions = () => {
+            ui.modalTitle.textContent = "How to Play";
+            ui.modalMsg.innerHTML = `
+                Words are fetched live from the web!<br><br>
+                1. A word is missing a letter.<br>
+                2. Tap the keyboard to guess it.<br>
+                3. Press <strong>Check Solution</strong>.<br>
+                4. Hints are definitions from the API.
+            `;
+            ui.btnStart.textContent = "Resume";
+            ui.modalOverlay.classList.add('active');
+        };
+
+        const toggleMute = () => {
+            isMuted = !isMuted;
+            ui.iconSoundOn.style.display = isMuted ? 'none' : 'block';
+            ui.iconSoundOff.style.display = isMuted ? 'block' : 'none';
+        };
+
+        const showToast = (msg, type = 'info') => {
+            ui.toast.textContent = msg;
+            ui.toast.className = `toast show ${type}`;
+            
+            if (window.toastTimeout) clearTimeout(window.toastTimeout);
+            
+            window.toastTimeout = setTimeout(() => {
+                ui.toast.classList.remove('show');
+            }, 2500);
+        };
+
+        // Start
+        initGame();
+
+    </script>
+</body>
+</html>
