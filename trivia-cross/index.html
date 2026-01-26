@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Trivia Crossword</title>
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #1a1c2c 0%, #4a192c 100%);
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --primary: #ff0055;
+            --primary-glow: #ff005580;
+            --accent: #00e5ff;
+            --text-main: #ffffff;
+            --text-muted: #aaaaaa;
+            --cell-size: 34px; /* Base size, adjustable via JS/Media Query */
+            --cell-bg: #ffffff;
+            --cell-empty: #00000000;
+            --cell-block: #00000055;
+            --cell-selected: #ffe600;
+            --cell-correct: #00ff66;
+            --cell-wrong: #ff3333;
+            --font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            font-family: var(--font-family);
+            overflow: hidden; /* No scrolling */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* --- UI Components --- */
+        
+        .app-container {
+            width: 100%;
+            max-width: 500px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            padding: 10px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 5px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            margin-bottom: 10px;
+            flex-shrink: 0;
+        }
+
+        .logo {
+            font-size: 1.2rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 15px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .stat-item span {
+            color: var(--primary);
+        }
+
+        /* --- Game Area --- */
+
+        .game-board {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            overflow-y: auto;
+            padding-bottom: 20px;
+        }
+
+        /* The Crossword Grid */
+        #crossword-grid {
+            display: grid;
+            gap: 2px;
+            background: var(--glass-border);
+            padding: 4px;
+            border-radius: 8px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            /* Grid template columns set via JS */
+        }
+
+        .cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            background-color: var(--cell-bg);
+            color: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-radius: 2px;
+            transition: transform 0.1s, background-color 0.2s;
+            user-select: none;
+            position: relative;
+        }
+
+        .cell.block {
+            background-color: transparent;
+            cursor: default;
+        }
+
+        .cell.selected {
+            background-color: var(--cell-selected);
+            transform: scale(1.05);
+            z-index: 10;
+            box-shadow: 0 0 10px var(--cell-selected);
+        }
+
+        .cell.active-word {
+            background-color: #fffacd; /* Light yellow for related word */
+        }
+
+        .cell.correct {
+            background-color: var(--cell-correct);
+            color: #003300;
+            animation: pop 0.3s ease;
+        }
+
+        .cell.wrong {
+            background-color: var(--cell-wrong);
+            color: white;
+            animation: shake 0.4s ease;
+        }
+
+        /* Trivia Card */
+        .trivia-card {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 15px;
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            position: relative;
+            transition: opacity 0.3s;
+        }
+
+        .trivia-label {
+            font-size: 0.75rem;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 8px;
+        }
+
+        .trivia-question {
+            font-size: 1.1rem;
+            line-height: 1.4;
+            font-weight: 500;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        .btn-icon {
+            padding: 10px;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Keyboard */
+        .keyboard {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 4px;
+            width: 100%;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 12px 12px 0 0;
+            margin-top: auto; /* Push to bottom */
+        }
+
+        .key {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 10px 0;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .key:active {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .key-wide {
+            grid-column: span 2;
+            font-size: 0.9rem;
+            background: rgba(255,0,85,0.3);
+        }
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal {
+            background: #2a2a3e;
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 25px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            transform: translateY(20px);
+            transition: transform 0.3s;
+        }
+
+        .modal-overlay.active .modal {
+            transform: translateY(0);
+        }
+
+        .modal h2 {
+            margin-top: 0;
+            color: var(--accent);
+        }
+
+        .modal p {
+            color: #ccc;
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+
+        /* Animations */
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        /* Responsive */
+        @media (min-width: 500px) {
+            :root { --cell-size: 40px; }
+            .keyboard { display: none; } /* Hide virtual keyboard on desktop, use physical */
+        }
+        
+        @media (max-height: 700px) {
+            .header { padding: 5px; }
+            .trivia-card { padding: 8px; min-height: 80px; }
+            .trivia-question { font-size: 0.95rem; }
+            .keyboard { padding: 5px; }
+            .key { padding: 8px 0; }
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header>
+        <div class="logo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><path d="M3 9h18"></path><path d="M9 21V9"></path></svg>
+            TriviaCross
+        </div>
+        <div class="stats">
+            <div class="stat-item">Lvl: <span id="level-display">1</span></div>
+            <div class="stat-item">Score: <span id="score-display">0</span></div>
+        </div>
+        <button class="btn btn-icon" id="btn-info" aria-label="Instructions">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+        </button>
+    </header>
+
+    <div class="game-board">
+        <div id="crossword-grid">
+            <!-- Grid generated by JS -->
+        </div>
+    </div>
+
+    <div class="trivia-card">
+        <div class="trivia-label">Current Trivia</div>
+        <div class="trivia-question" id="trivia-text">Tap a word to start!</div>
+    </div>
+
+    <div class="controls">
+        <button class="btn" id="btn-hint">💡 Hint</button>
+        <button class="btn" id="btn-check">✓ Check</button>
+        <button class="btn" id="btn-solve">⚡ Solve</button>
+        <button class="btn" id="btn-new">🔄 New</button>
+    </div>
+
+    <div class="keyboard" id="keyboard">
+        <!-- Generated by JS -->
+    </div>
+</div>
+
+<!-- Instructions Modal -->
+<div class="modal-overlay" id="modal-instructions">
+    <div class="modal">
+        <h2>How to Play</h2>
+        <p>1. <strong>Tap a white box</strong> to select a word.<br>
+           2. <strong>Read the trivia</strong> question displayed below.<br>
+           3. <strong>Type the answer</strong> to fill the grid.<br>
+           4. Use <strong>Check</strong> to verify or <strong>Hint</strong> for help.</p>
+        <button class="btn btn-primary" onclick="closeModal('modal-instructions')">Got it!</button>
+    </div>
+</div>
+
+<!-- Win Modal -->
+<div class="modal-overlay" id="modal-win">
+    <div class="modal">
+        <h2 style="color: var(--cell-correct)">Puzzle Solved!</h2>
+        <p id="win-msg">Great job! You're a trivia master.</p>
+        <button class="btn btn-primary" id="btn-next-level">Next Puzzle</button>
+    </div>
+</div>
+
+<script>
+/**
+ * Game Configuration & Data
+ */
+const LEVELS = [
+    {
+        id: 1,
+        rows: 8,
+        cols: 8,
+        words: [
+            { word: "HTML", x: 1, y: 1, dir: "across", q: "The standard markup language for documents designed to be displayed in a web browser." },
+            { word: "HTTP", x: 0, y: 1, dir: "down", q: "The foundation of data communication for the World Wide Web." },
+            { word: "CSS", x: 3, y: 1, dir: "down", q: "Style sheet language used for describing the presentation of a document written in HTML." },
+            { word: "JAVA", x: 1, y: 3, dir: "across", q: "A class-based, object-oriented programming language that is designed to have as few implementation dependencies as possible." },
+            { word: "API", x: 4, y: 0, dir: "down", q: "A set of functions and procedures allowing the creation of applications." }
+        ]
+    },
+    {
+        id: 2,
+        rows: 9,
+        cols: 9,
+        words: [
+            { word: "PLANET", x: 2, y: 2, dir: "across", q: "Celestial body moving in an elliptical orbit around a star." },
+            { word: "PLUTO", x: 2, y: 2, dir: "down", q: "Formerly the ninth planet, now a dwarf planet." },
+            { word: "MARS", x: 0, y: 5, dir: "across", q: "The Red Planet." },
+            { word: "MOON", x: 7, y: 2, dir: "down", q: "Earth's only natural satellite." },
+            { word: "SUN", x: 5, y: 4, dir: "across", q: "The star at the center of our Solar System." }
+        ]
+    },
+    {
+        id: 3,
+        rows: 10,
+        cols: 10,
+        words: [
+            { word: "PYTHON", x: 1, y: 1, dir: "across", q: "A high-level programming language named after a snake." },
+            { word: "PIXEL", x: 0, y: 3, dir: "down", q: "The smallest controllable element of a picture represented on the screen." },
+            { word: "LINUX", x: 2, y: 1, dir: "down", q: "A family of open-source Unix-like operating systems." },
+            { word: "SERVER", x: 4, y: 1, dir: "down", q: "A computer that provides data to other computers." },
+            { word: "DATA", x: 0, y: 6, dir: "across", q: "Facts and statistics collected together for reference or analysis." }
+        ]
+    }
+];
+
+/* --- Game State --- */
+let currentLevelIdx = 0;
+let gridState = []; // 2D array storing user input
+let solutionGrid = []; // 2D array storing correct answers
+let currentLevel = null;
+let selectedCell = { r: -1, c: -1 };
+let activeWordIndex = -1;
+let score = 0;
+let isGameOver = false;
+
+/* --- Audio Context (Synthesizer) --- */
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+const audioCtx = new AudioContext();
+
+function playSound(type) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    const now = audioCtx.currentTime;
+    
+    if (type === 'click') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800, now);
+        gainNode.gain.setValueAtTime(0.05, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+        osc.start(now);
+        osc.stop(now + 0.1);
+    } else if (type === 'type') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(400, now);
+        gainNode.gain.setValueAtTime(0.05, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+        osc.start(now);
+        osc.stop(now + 0.05);
+    } else if (type === 'correct') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(600, now);
+        osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
+        gainNode.gain.setValueAtTime(0.1, now);
+        gainNode.gain.linearRampToValueAtTime(0, now + 0.3);
+        osc.start(now);
+        osc.stop(now + 0.3);
+    } else if (type === 'wrong') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.linearRampToValueAtTime(100, now + 0.2);
+        gainNode.gain.setValueAtTime(0.1, now);
+        gainNode.gain.linearRampToValueAtTime(0, now + 0.2);
+        osc.start(now);
+        osc.stop(now + 0.2);
+    } else if (type === 'win') {
+        osc.type = 'triangle';
+        // Simple Arpeggio
+        [0, 0.1, 0.2, 0.3].forEach((t, i) => {
+            const o = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            o.connect(g);
+            g.connect(audioCtx.destination);
+            o.frequency.value = 400 + (i * 100);
+            g.gain.setValueAtTime(0.1, now + t);
+            g.gain.linearRampToValueAtTime(0, now + t + 0.3);
+            o.start(now + t);
+            o.stop(now + t + 0.3);
+        });
+    }
+}
+
+/* --- Initialization --- */
+function initGame() {
+    setupKeyboard();
+    loadLevel(currentLevelIdx);
+    
+    // Event Listeners
+    document.getElementById('btn-info').addEventListener('click', () => {
+        playSound('click');
+        openModal('modal-instructions');
+    });
+    
+    document.getElementById('btn-hint').addEventListener('click', () => { playSound('click'); useHint(); });
+    document.getElementById('btn-check').addEventListener('click', () => { playSound('click'); checkSolution(); });
+    document.getElementById('btn-solve').addEventListener('click', () => { playSound('click'); autoSolve(); });
+    document.getElementById('btn-new').addEventListener('click', () => { playSound('click'); nextLevel(true); });
+    document.getElementById('btn-next-level').addEventListener('click', () => { 
+        playSound('click'); 
+        closeModal('modal-win');
+        nextLevel();
+    });
+
+    // Physical Keyboard
+    document.addEventListener('keydown', handlePhysicalInput);
+}
+
+function setupKeyboard() {
+    const keyboard = document.getElementById('keyboard');
+    const keys = "QWERTYUIOPASDFGHJKLZXCVBNM".split("");
+    keys.forEach(k => {
+        const btn = document.createElement('button');
+        btn.className = 'key';
+        btn.textContent = k;
+        btn.dataset.key = k;
+        btn.addEventListener('touchstart', (e) => { e.preventDefault(); handleInput(k); });
+        btn.addEventListener('mousedown', (e) => { e.preventDefault(); handleInput(k); });
+        keyboard.appendChild(btn);
+    });
+
+    // Add Backspace
+    const back = document.createElement('button');
+    back.className = 'key key-wide';
+    back.innerHTML = '⌫';
+    back.addEventListener('touchstart', (e) => { e.preventDefault(); handleInput('BACKSPACE'); });
+    back.addEventListener('mousedown', (e) => { e.preventDefault(); handleInput('BACKSPACE'); });
+    keyboard.appendChild(back);
+}
+
+/* --- Core Game Logic --- */
+
+function loadLevel(index) {
+    currentLevel = LEVELS[index % LEVELS.length];
+    document.getElementById('level-display').innerText = currentLevel.id;
+    isGameOver = false;
+    
+    // Initialize Grid Data
+    const rows = currentLevel.rows;
+    const cols = currentLevel.cols;
+    gridState = Array(rows).fill(null).map(() => Array(cols).fill(null));
+    solutionGrid = Array(rows).fill(null).map(() => Array(cols).fill(null));
+
+    // Map words to solution grid
+    currentLevel.words.forEach(w => {
+        for(let i=0; i<w.word.length; i++) {
+            const r = w.dir === 'across' ? w.y : w.y + i;
+            const c = w.dir === 'across' ? w.x + i : w.x;
+            solutionGrid[r][c] = w.word[i];
+        }
+    });
+
+    renderGrid();
+    updateTriviaPrompt();
+}
+
+function renderGrid() {
+    const container = document.getElementById('crossword-grid');
+    container.innerHTML = '';
+    
+    const rows = currentLevel.rows;
+    const cols = currentLevel.cols;
+    
+    container.style.gridTemplateColumns = `repeat(${cols}, var(--cell-size))`;
+    container.style.gridTemplateRows = `repeat(${rows}, var(--cell-size))`;
+
+    for(let r=0; r<rows; r++) {
+        for(let c=0; c<cols; c++) {
+            const cell = document.createElement('div');
+            cell.classList.add('cell');
+            cell.dataset.r = r;
+            cell.dataset.c = c;
+            
+            if (solutionGrid[r][c] === null) {
+                cell.classList.add('block');
+            } else {
+                // Display user input if exists
+                if (gridState[r][c]) cell.textContent = gridState[r][c];
+                
+                cell.addEventListener('mousedown', () => selectCell(r, c));
+                cell.addEventListener('touchstart', (e) => { 
+                    e.preventDefault(); // prevent scroll/zoom
+                    selectCell(r, c); 
+                });
+            }
+            container.appendChild(cell);
+        }
+    }
+}
+
+function selectCell(r, c) {
+    if (isGameOver) return;
+    
+    // Check if cell is part of any word
+    // Find which word belongs to this cell
+    const wordIndices = [];
+    currentLevel.words.forEach((w, idx) => {
+        let isPart = false;
+        if (w.dir === 'across') {
+            if (r === w.y && c >= w.x && c < w.x + w.word.length) isPart = true;
+        } else {
+            if (c === w.x && r >= w.y && r < w.y + w.word.length) isPart = true;
+        }
+        if (isPart) wordIndices.push(idx);
+    });
+
+    if (wordIndices.length === 0) return;
+
+    // Determine active word: if clicking same cell, toggle direction if intersecting
+    if (selectedCell.r === r && selectedCell.c === c) {
+        if (wordIndices.length > 1) {
+            // Toggle to the other word
+            const currentIdx = activeWordIndex;
+            activeWordIndex = wordIndices.find(idx => idx !== currentIdx);
+        }
+    } else {
+        // Default to first word found, or prefer one that matches previous selection if continuing
+        selectedCell = { r, c };
+        // Simple logic: just pick the first one for now to avoid complexity, 
+        // or prioritize if we already had one selected
+        if (!wordIndices.includes(activeWordIndex)) {
+            activeWordIndex = wordIndices[0];
+        }
+    }
+
+    highlightGrid();
+    updateTriviaPrompt();
+}
+
+function highlightGrid() {
+    const cells = document.querySelectorAll('.cell');
+    cells.forEach(c => {
+        c.classList.remove('selected', 'active-word');
+    });
+
+    const word = currentLevel.words[activeWordIndex];
+    if (!word) return;
+
+    // Highlight active word cells
+    for(let i=0; i<word.word.length; i++) {
+        const r = word.dir === 'across' ? word.y : word.y + i;
+        const c = word.dir === 'across' ? word.x + i : word.x;
+        const cell = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+        if (cell) cell.classList.add('active-word');
+    }
+
+    // Highlight specific selected cell
+    const selCell = document.querySelector(`.cell[data-r="${selectedCell.r}"][data-c="${selectedCell.c}"]`);
+    if (selCell) selCell.classList.add('selected');
+}
+
+function updateTriviaPrompt() {
+    const label = document.querySelector('.trivia-label');
+    const text = document.getElementById('trivia-text');
+    
+    if (activeWordIndex !== -1) {
+        const word = currentLevel.words[activeWordIndex];
+        label.textContent = `${word.dir.toUpperCase()} ${wordIndexToNum(activeWordIndex)}`;
+        text.textContent = word.q;
+    } else {
+        label.textContent = "TRIVIA";
+        text.textContent = "Select a word to see the question.";
+    }
+}
+
+function wordIndexToNum(idx) {
+    // Simple mapping, usually crosswords number based on grid position.
+    // For simplicity here, we just return index+1 or calculate based on start pos.
+    // Calculating real crossword numbers is complex, so let's just return the word itself as a hint in UI? 
+    // No, let's just use index + 1 for "Q1, Q2".
+    return `Q${idx + 1}`;
+}
+
+/* --- Input Handling --- */
+
+function handlePhysicalInput(e) {
+    if (isGameOver) return;
+    const key = e.key.toUpperCase();
+    if (key === 'BACKSPACE') {
+        handleInput('BACKSPACE');
+    } else if (/^[A-Z]$/.test(key)) {
+        handleInput(key);
+    }
+}
+
+function handleInput(key) {
+    if (isGameOver) return;
+    
+    // If no cell selected, select first cell of first word
+    if (selectedCell.r === -1) {
+        const firstWord = currentLevel.words[0];
+        selectCell(firstWord.y, firstWord.x);
+    }
+
+    // Move Logic
+    if (key === 'BACKSPACE') {
+        if (gridState[selectedCell.r][selectedCell.c] !== null) {
+            gridState[selectedCell.r][selectedCell.c] = null;
+            updateCellDisplay(selectedCell.r, selectedCell.c, '');
+            playSound('type');
+        } else {
+            // Move back
+            moveSelection(-1);
+        }
+    } else {
+        // Letter input
+        gridState[selectedCell.r][selectedCell.c] = key;
+        updateCellDisplay(selectedCell.r, selectedCell.c, key);
+        
+        // Check if word is complete (optional micro-interaction)
+        checkWordCompletion();
+        
+        playSound('type');
+        moveSelection(1);
+    }
+}
+
+function updateCellDisplay(r, c, val) {
+    const cell = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+    if (cell) {
+        cell.textContent = val;
+        cell.classList.remove('correct', 'wrong'); // reset validation status
+    }
+}
+
+function moveSelection(step) {
+    const word = currentLevel.words[activeWordIndex];
+    if (!word) return;
+
+    // Find current index in word
+    let currentIdx = -1;
+    if (word.dir === 'across') {
+        if (selectedCell.r === word.y) currentIdx = selectedCell.c - word.x;
+    } else {
+        if (selectedCell.c === word.x) currentIdx = selectedCell.r - word.y;
+    }
+
+    let nextIdx = currentIdx + step;
+
+    // Bounds check
+    if (nextIdx >= 0 && nextIdx < word.word.length) {
+        const nextR = word.dir === 'across' ? word.y : word.y + nextIdx;
+        const nextC = word.dir === 'across' ? word.x + nextIdx : word.x;
+        selectedCell = { r: nextR, c: nextC };
+        highlightGrid();
+    }
+}
+
+function checkWordCompletion() {
+    const word = currentLevel.words[activeWordIndex];
+    let filled = "";
+    let complete = true;
+    for(let i=0; i<word.word.length; i++) {
+        const r = word.dir === 'across' ? word.y : word.y + i;
+        const c = word.dir === 'across' ? word.x + i : word.x;
+        const val = gridState[r][c];
+        if (!val) { complete = false; break; }
+        filled += val;
+    }
+    
+    if (complete) {
+        if (filled === word.word) {
+            // Word Correct
+            playSound('correct');
+            score += word.word.length * 10;
+            document.getElementById('score-display').innerText = score;
+            markWordCorrect(word);
+            checkWinCondition();
+        } else {
+            playSound('wrong');
+            // Optional: shake the word area
+        }
+    }
+}
+
+function markWordCorrect(wordObj) {
+    for(let i=0; i<wordObj.word.length; i++) {
+        const r = wordObj.dir === 'across' ? wordObj.y : wordObj.y + i;
+        const c = wordObj.dir === 'across' ? wordObj.x + i : wordObj.x;
+        const cell = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+        cell.classList.add('correct');
+        cell.classList.remove('active-word', 'selected');
+    }
+}
+
+/* --- Button Actions --- */
+
+function useHint() {
+    if (activeWordIndex === -1 || isGameOver) return;
+    
+    // Find first empty or wrong cell in active word
+    const word = currentLevel.words[activeWordIndex];
+    let found = false;
+    for(let i=0; i<word.word.length; i++) {
+        const r = word.dir === 'across' ? word.y : word.y + i;
+        const c = word.dir === 'across' ? word.x + i : word.x;
+        if (gridState[r][c] !== solutionGrid[r][c]) {
+            gridState[r][c] = solutionGrid[r][c];
+            updateCellDisplay(r, c, solutionGrid[r][c]);
+            
+            // Visual flair
+            const cell = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+            cell.style.backgroundColor = '#ffeb3b'; // flash yellow
+            setTimeout(() => {
+                if(!cell.classList.contains('correct')) cell.style.backgroundColor = '';
+            }, 300);
+            
+            found = true;
+            score = Math.max(0, score - 5); // Cost for hint
+            document.getElementById('score-display').innerText = score;
+            playSound('click');
+            break; 
+        }
+    }
+    if (!found) {
+        // Word already correct, maybe find another word?
+        playSound('wrong');
+    } else {
+        checkWinCondition();
+    }
+}
+
+function checkSolution() {
+    let allCorrect = true;
+    for(let r=0; r<currentLevel.rows; r++) {
+        for(let c=0; c<currentLevel.cols; c++) {
+            if (solutionGrid[r][c] !== null) {
+                const cell = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+                if (gridState[r][c] === solutionGrid[r][c]) {
+                    if (!cell.classList.contains('correct')) cell.classList.add('correct');
+                } else {
+                    cell.classList.add('wrong');
+                    setTimeout(() => cell.classList.remove('wrong'), 500);
+                    allCorrect = false;
+                }
+            }
+        }
+    }
+    if (allCorrect) {
+        playSound('win');
+        triggerWin();
+    } else {
+        playSound('wrong');
+    }
+}
+
+function autoSolve() {
+    if (isGameOver) return;
+    // Fill everything
+    for(let r=0; r<currentLevel.rows; r++) {
+        for(let c=0; c<currentLevel.cols; c++) {
+            if (solutionGrid[r][c] !== null) {
+                gridState[r][c] = solutionGrid[r][c];
+                const cell = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+                cell.textContent = solutionGrid[r][c];
+                cell.classList.add('correct');
+            }
+        }
+    }
+    playSound('win');
+    triggerWin();
+}
+
+function checkWinCondition() {
+    for(let r=0; r<currentLevel.rows; r++) {
+        for(let c=0; c<currentLevel.cols; c++) {
+            if (solutionGrid[r][c] !== null && gridState[r][c] !== solutionGrid[r][c]) {
+                return;
+            }
+        }
+    }
+    // Win
+    playSound('win');
+    triggerWin();
+}
+
+function triggerWin() {
+    isGameOver = true;
+    document.getElementById('win-msg').innerText = `Score: ${score}`;
+    setTimeout(() => {
+        openModal('modal-win');
+    }, 500);
+}
+
+function nextLevel(forceReset = false) {
+    if (!forceReset) {
+        currentLevelIdx = (currentLevelIdx + 1) % LEVELS.length;
+    }
+    loadLevel(currentLevelIdx);
+    closeModal('modal-win');
+}
+
+/* --- UI Helpers --- */
+function openModal(id) {
+    document.getElementById(id).classList.add('active');
+}
+function closeModal(id) {
+    document.getElementById(id).classList.remove('active');
+}
+
+// Start
+initGame();
+
+</script>
+</body>
+</html>
