@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Infinity Word Flow</title>
+    <style>
+        :root {
+            --bg-grad-1: #0f2027;
+            --bg-grad-2: #203a43;
+            --bg-grad-3: #2c5364;
+            --accent-color: #00d2ff;
+            --accent-glow: #00d2ff80;
+            --tile-bg: rgba(255, 255, 255, 0.1);
+            --tile-border: rgba(255, 255, 255, 0.2);
+            --tile-active: #00d2ff;
+            --text-color: #ffffff;
+            --glass-bg: rgba(0, 0, 0, 0.3);
+            --font-main: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            touch-action: none; /* Prevent scroll */
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            font-family: var(--font-main);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* UI Container */
+        #game-ui {
+            width: 100%;
+            max-width: 500px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--tile-border);
+        }
+
+        .stat-box {
+            text-align: center;
+            min-width: 60px;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        /* Help Icon Button */
+        .btn-help {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: var(--accent-color);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s;
+            margin-left: 10px;
+            flex-shrink: 0;
+        }
+
+        .btn-help:hover, .btn-help:active {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+        }
+
+        /* Game Board Area */
+        #board-container {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            perspective: 1000px;
+        }
+
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            width: 100%;
+            max-width: 350px;
+            aspect-ratio: 1;
+            position: relative;
+            /* Floating Animation */
+            animation: floatGrid 6s ease-in-out infinite;
+            transform-style: preserve-3d;
+        }
+
+        @keyframes floatGrid {
+            0%, 100% { transform: translateY(0) rotateX(0deg); }
+            50% { transform: translateY(-10px) rotateX(2deg); }
+        }
+
+        .tile {
+            background: var(--tile-bg);
+            border: 2px solid var(--tile-border);
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s, border-color 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            position: relative;
+        }
+
+        .tile.selected {
+            background: var(--accent-color);
+            color: #000;
+            border-color: #fff;
+            transform: scale(1.1);
+            z-index: 5;
+            box-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        .tile.found {
+            border-color: #00ff88;
+            color: #00ff88;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* SVG Overlay for connecting lines */
+        #connection-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 4;
+            overflow: visible;
+        }
+
+        path.connector {
+            stroke: var(--accent-color);
+            stroke-width: 6;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            fill: none;
+            filter: drop-shadow(0 0 5px var(--accent-color));
+        }
+
+        /* Current Word Display */
+        #current-word-display {
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            margin: 10px 0;
+            letter-spacing: 2px;
+            color: var(--accent-color);
+            text-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        /* Controls */
+        #controls {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            padding: 10px 0;
+        }
+
+        .btn {
+            background: var(--glass-bg);
+            border: 1px solid var(--tile-border);
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-primary {
+            background: var(--accent-color);
+            color: #000;
+            font-weight: bold;
+            border: none;
+        }
+
+        /* Found Words List (Compact) */
+        #found-words-panel {
+            height: 80px;
+            background: var(--glass-bg);
+            border-radius: 12px;
+            padding: 10px;
+            margin-top: 10px;
+            overflow-x: auto;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid var(--tile-border);
+        }
+
+        .found-tag {
+            background: rgba(255,255,255,0.1);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 90%;
+            width: 400px;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(0, 210, 255, 0.3);
+            border: 1px solid var(--tile-border);
+            transform: translateY(20px);
+            transition: transform 0.3s;
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+
+        h2 { margin-top: 0; color: var(--accent-color); }
+        p { line-height: 1.6; text-align: left; }
+        
+        .close-modal {
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        /* Toast Messages */
+        #toast-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 20;
+        }
+
+        .toast {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 20px rgba(0,0,0,0.8);
+            animation: toastAnim 1s forwards;
+        }
+
+        @keyframes toastAnim {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1.5); opacity: 0; transform: translateY(-50px); }
+        }
+
+    </style>
+</head>
+<body>
+
+<div id="game-ui">
+    <header>
+        <div class="stat-box">
+            <div class="stat-label">Score</div>
+            <div class="stat-value" id="score-val">0</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Words</div>
+            <div class="stat-value" id="words-count">0/0</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Time</div>
+            <div class="stat-value" id="time-val">02:00</div>
+        </div>
+        <!-- Help Icon Button -->
+        <button class="btn-help" id="btn-instructions-trigger" onclick="toggleModal('modal-instructions')">?</button>
+    </header>
+
+    <div id="current-word-display"></div>
+
+    <div id="board-container">
+        <div id="grid">
+            <svg id="connection-svg"></svg>
+            <!-- Tiles generated by JS -->
+        </div>
+    </div>
+
+    <div id="found-words-panel">
+        <span style="opacity: 0.6; font-size: 0.8rem;">Found: </span>
+        <!-- Found words go here -->
+    </div>
+
+    <div id="controls">
+        <button class="btn" id="btn-hint">💡 Hint</button>
+        <button class="btn" id="btn-solve">✨ Solve</button>
+        <button class="btn" id="btn-shuffle">↻ Shuffle</button>
+        <button class="btn btn-primary" id="btn-new">New Game</button>
+    </div>
+</div>
+
+<!-- Instructions Modal -->
+<div class="modal-overlay" id="modal-instructions">
+    <div class="modal-content">
+        <h2 id="modal-title">Infinity Word Flow</h2>
+        <p><strong>Goal:</strong> Find as many words as possible before time runs out.</p>
+        <p><strong>Controls:</strong> Swipe across adjacent letters (horizontally, vertically, or diagonally) to form words.</p>
+        <p><strong>Rules:</strong> Words must be at least 3 letters long.</p>
+        <p><strong>Features:</strong> The grid floats gently. Use <strong>Hints</strong> if stuck or <strong>Shuffle</strong> to rearrange letters.</p>
+        <button class="btn btn-primary close-modal" id="modal-action-btn" onclick="toggleModal('modal-instructions')">Start Playing</button>
+    </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+/**
+ * AUDIO SYSTEM
+ * Synthesized sounds to avoid external assets.
+ */
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+const SoundFX = {
+    playTone: (freq, type, duration, vol = 0.1) => {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    },
+    select: () => SoundFX.playTone(400, 'sine', 0.1, 0.05),
+    found: () => {
+        // Arpeggio
+        SoundFX.playTone(523.25, 'triangle', 0.2, 0.1);
+        setTimeout(() => SoundFX.playTone(659.25, 'triangle', 0.2, 0.1), 100);
+        setTimeout(() => SoundFX.playTone(783.99, 'triangle', 0.2, 0.1), 200);
+    },
+    error: () => SoundFX.playTone(150, 'sawtooth', 0.3, 0.1),
+    win: () => {
+        [523, 659, 783, 1046, 783, 1046].forEach((f, i) => {
+            setTimeout(() => SoundFX.playTone(f, 'square', 0.2, 0.1), i * 100);
+        });
+    }
+};
+
+/**
+ * GAME DATA
+ * Boggle Dice distribution for better letter generation
+ */
+const DICE = [
+    "AAEEGN", "ABBJOO", "ACHOPS", "AFFKPS",
+    "AOOTTW", "CIMOTU", "DEILRX", "DELRVY",
+    "DISTTY", "EEGHNW", "EEINSU", "EHRTVW",
+    "EIOSST", "ELRTTY", "HIMNQU", "HLNNRZ"
+];
+
+// Compressed Dictionary (Common 3-6 letter words)
+const COMMON_WORDS = new Set([
+    "THE","AND","FOR","ARE","BUT","NOT","YOU","ALL","ANY","CAN","HAD","HAS","HIM","HIS","HOW","INK","MAN","NEW","NOW","OLD","ONE","OUT","PUT","RUN","SAW","SAY","SHE","SIT","TOO","TWO","USE","WAS","WAY","WHO","WHY","YES","YET",
+    "ABLE","ACID","AGED","ALSO","AREA","ARMY","AWAY","BABY","BACK","BALL","BAND","BANK","BASE","BATH","BEAR","BEAT","BEER","BELL","BELT","BEST","BIKE","BILL","BIRD","BLOW","BLUE","BOAT","BODY","BOMB","BOND","BONE","BOOK","BOOM","BORN","BOSS","BOTH","BOWL","BULK","BURN","BUSH","BUSY","CALL","CALM","CAMP","CARD","CARE","CASE","CASH","CAST","CELL","CHAT","CHIP","CITY","CLUB","COAL","COAT","CODE","COLD","COME","COOK","COOL","COPY","CORE","COST","CREW","CROP","DARK","DATA","DATE","DAWN","DAYS","DEAD","DEAL","DEAN","DEAR","DEBT","DEEP","DENY","DESK","DIAL","DIET","DIRT","DISK","DOES","DONE","DOOR","DOSE","DOWN","DRAW","DREW","DROP","DRUG","DUAL","DUKE","DUST","DUTY","EACH","EARN","EASE","EAST","EASY","EDGE","ELSE","EVEN","EVER","EVIL","EXIT","FACE","FACT","FAIL","FAIR","FALL","FARM","FAST","FEAR","FEED","FEEL","FEET","FELL","FELT","FILE","FILL","FILM","FIND","FINE","FIRE","FIRM","FISH","FLAT","FLOW","FOOD","FOOT","FORD","FORM","FORT","FOUR","FREE","FROM","FUEL","FULL","FUND","GAIN","GAME","GATE","GEAR","GENE","GIFT","GIRL","GIVE","GLAD","GOAL","GOES","GOLD","GOLF","GONE","GOOD","GRAY","GREY","GROW","HAIR","HALF","HALL","HAND","HANG","HARD","HARM","HATE","HAVE","HEAD","HEAR","HEAT","HELD","HELL","HELP","HERE","HERO","HIGH","HIRE","HOLD","HOLE","HOLY","HOME","HOPE","HOST","HOUR","HUGE","HUNG","HUNT","HURT","IDEA","INCH","INTO","IRON","ITEM","JACK","JANE","JEAN","JOHN","JOIN","JUMP","JURY","JUST","KEEN","KEEP","KEPT","KICK","KILL","KIND","KING","KNEE","KNOW","LACK","LADY","LAID","LAKE","LAND","LANE","LAST","LATE","LEAD","LEFT","LESS","LIFE","LIFT","LIKE","LINE","LINK","LIST","LIVE","LOAD","LOAN","LOCK","LOGO","LONG","LOOK","LORD","LOSE","LOSS","LOST","LOVE","LUCK","MADE","MAIL","MAIN","MAKE","MALE","MANY","MARK","MASS","MEAL","MEAN","MEAT","MEET","MENU","MILE","MILK","MILL","MIND","MINE","MISS","MODE","MOOD","MOON","MORE","MOST","MOVE","MUCH","MUST","NAME","NAVY","NEAR","NECK","NEED","NEWS","NEXT","NICE","NIGHT","NINE","NONE","NOSE","NOTE","OKAY","ONCE","ONLY","ONTO","OPEN","ORAL","OVER","PACE","PACK","PAGE","PAID","PAIN","PAIR","PALM","PARK","PART","PASS","PAST","PATH","PEAK","PICK","PILE","PINK","PIPE","PLAN","PLAY","PLOT","PLUG","PLUS","POLL","POOL","POOR","PORT","POST","PULL","PURE","PUSH","QUIT","RACE","RAIL","RAIN","RANK","RARE","RATE","READ","REAL","REAR","RELY","RENT","REST","RICE","RICH","RIDE","RING","RISE","RISK","ROAD","ROCK","ROLE","ROLL","ROOF","ROOM","ROOT","ROSE","RULE","RUSH","RUTH","SAFE","SAID","SAKE","SALE","SALT","SAME","SAND","SAVE","SEAT","SEED","SEEK","SEEM","SEEN","SELF","SELL","SEND","SENT","SEPT","SHIP","SHOP","SHOT","SHOW","SHUT","SICK","SIDE","SIGN","SILK","SITE","SIZE","SKIN","SLIP","SLOW","SNOW","SOFT","SOIL","SOLD","SOLE","SOME","SONG","SOON","SORT","SOUL","SOUP","SPAN","SPOT","STAR","STAY","STEP","STOP","SUCH","SUIT","SURE","SWIM","TAKE","TALE","TALK","TALL","TANK","TAPE","TASK","TEAM","TEAR","TELL","TENT","TERM","TEST","TEXT","THAN","THAT","THEM","THEN","THIN","THIS","THUS","TILL","TIME","TINY","TOLD","TOLL","TONE","TOOK","TOOL","TOUR","TOWN","TREE","TRIP","TRUE","TUNE","TURN","TWIN","TYPE","UNIT","UPON","USED","USER","VARY","VAST","VERY","VICE","VIEW","VOTE","WAGE","WAIT","WAKE","WALK","WALL","WANT","WARD","WARM","WASH","WAVE","WEAR","WEEK","WELL","WENT","WERE","WEST","WHAT","WHEN","WHOM","WIDE","WIFE","WILD","WILL","WIND","WINE","WING","WIRE","WISE","WISH","WITH","WOLF","WOOD","WORD","WORK","YARD","YEAR","ZERO","ZONE",
+    "ABOUT","ABOVE","ABUSE","ACTOR","ACUTE","ADMIT","ADOPT","ADULT","AFTER","AGAIN","AGENT","AGREE","AHEAD","ALARM","ALBUM","ALERT","ALIKE","ALIVE","ALLOW","ALONE","ALONG","ALTER","AMONG","ANGER","ANGLE","ANGRY","APART","APPLE","APPLY","ARENA","ARGUE","ARISE","ARRAY","ASIDE","ASSET","AVOID","AWARD","AWARE","BADLY","BAKER","BASES","BASIC","BASIS","BEACH","BEGAN","BEGIN","BEGUN","BEING","BELOW","BENCH","BILLY","BIRTH","BLACK","BLAME","BLIND","BLOCK","BLOOD","BOARD","BOOST","BOOTH","BOUND","BRAIN","BRAND","BREAD","BREAK","BREED","BRIEF","BRING","BROAD","BROKE","BROWN","BUILD","BUILT","BUYER","CABLE","CALIF","CARRY","CATCH","CAUSE","CHAIN","CHAIR","CHART","CHASE","CHEAP","CHECK","CHEST","CHIEF","CHILD","CHINA","CHOSE","CIVIL","CLAIM","CLASS","CLEAN","CLEAR","CLICK","CLOCK","CLOSE","COACH","COAST","COULD","COUNT","COURT","COVER","CRAFT","CRASH","CREAM","CRIME","CROSS","CROWD","CROWN","CURVE","CYCLE","DAILY","DANCE","DATED","DEALT","DEATH","DEBUT","DELAY","DEPTH","DOING","DOUBT","DOZEN","DRAFT","DRAMA","DRAWN","DREAM","DRESS","DRILL","DRINK","DRIVE","DROVE","DYING","EAGER","EARLY","EARTH","EIGHT","ELITE","EMPTY","ENEMY","ENJOY","ENTER","ENTRY","EQUAL","ERROR","EVENT","EVERY","EXACT","EXIST","EXTRA","FAITH","FALSE","FAULT","FIBER","FIELD","FIFTH","FIFTY","FIGHT","FINAL","FIRST","FIXED","FLASH","FLEET","FLOOR","FLUID","FOCUS","FORCE","FORTH","FORTY","FORUM","FOUND","FRAME","FRANK","FRAUD","FRESH","FRONT","FRUIT","FULLY","FUNNY","GIANT","GIVEN","GLASS","GLOBE","GOING","GRACE","GRADE","GRAND","GRANT","GRASS","GREAT","GREEN","GROSS","GROUP","GROWN","GUARD","GUESS","GUEST","GUIDE","HAPPY","HARRY","HEART","HEAVY","HENCE","HENRY","HORSE","HOTEL","HOUSE","HUMAN","IDEAL","IMAGE","INDEX","INNER","INPUT","ISSUE","JAPAN","JIMMY","JOINT","JONES","JUDGE","KNOWN","LABEL","LARGE","LASER","LATER","LAUGH","LAYER","LEARN","LEASE","LEAST","LEAVE","LEGAL","LEVEL","LEWIS","LIGHT","LIMIT","LINKS","LIVES","LOCAL","LOGIC","LOOSE","LOWER","LUCKY","LUNCH","LYING","MAGIC","MAJOR","MAKER","MARCH","MARIA","MATCH","MAYBE","MAYOR","MEANT","MEDIA","METAL","MIGHT","MINOR","MINUS","MODEL","MONEY","MONTH","MORAL","MOTOR","MOUNT","MOUSE","MOUTH","MOVIE","MUSIC","NEEDS","NEVER","NEWLY","NIGHT","NOISE","NORTH","NOTED","NOVEL","NURSE","OCCUR","OCEAN","OFFER","OFTEN","ORDER","OTHER","OUGHT","PAINT","PANEL","PAPER","PARTY","PEACE","PETER","PHASE","PHONE","PHOTO","PIECE","PILOT","PITCH","PLACE","PLAIN","PLANE","PLANT","PLATE","POINT","POUND","POWER","PRESS","PRICE","PRIDE","PRIME","PRINT","PRIOR","PRIZE","PROOF","PROUD","PROVE","QUEEN","QUICK","QUIET","QUITE","RADIO","RAISE","RANGE","RAPID","RATIO","REACH","READY","REFER","RIGHT","RIVAL","RIVER","ROBIN","ROGER","ROMAN","ROUGH","ROUND","ROUTE","ROYAL","RURAL","SCALE","SCENE","SCOPE","SCORE","SENSE","SERVE","SEVEN","SHALL","SHAPE","SHARE","SHARP","SHEET","SHELF","SHELL","SHIFT","SHIRT","SHOCK","SHOOT","SHORT","SHOWN","SIGHT","SINCE","SIXTH","SIXTY","SIZED","SKILL","SLEEP","SLIDE","SMALL","SMART","SMILE","SMITH","SMOKE","SOLID","SOLVE","SORRY","SOUND","SOUTH","SPACE","SPARE","SPEAK","SPEED","SPEND","SPENT","SPLIT","SPOKE","SPORT","STAFF","STAGE","STAKE","STAND","START","STATE","STEAM","STEEL","STICK","STILL","STOCK","STONE","STOOD","STORE","STORM","STORY","STRIP","STUCK","STUDY","STUFF","STYLE","SUGAR","SUITE","SUPER","SWEET","TABLE","TAKEN","TASTE","TAXES","TEACH","TEETH","TERRY","TEXAS","THANK","THEFT","THEIR","THEME","THERE","THESE","THICK","THING","THINK","THIRD","THOSE","THREE","THREW","THROW","TIGHT","TIMES","TIRED","TITLE","TODAY","TOPIC","TOTAL","TOUCH","TOUGH","TOWER","TRACK","TRADE","TRAIN","TREAT","TREND","TRIAL","TRIED","TRIES","TRUCK","TRULY","TRUST","TRUTH","TWICE","UNDER","UNDUE","UNION","UNITY","UNTIL","UPPER","UPSET","URBAN","USAGE","USUAL","VALID","VALUE","VIDEO","VIRUS","VISIT","VITAL","VOICE","WASTE","WATCH","WATER","WHEEL","WHERE","WHICH","WHILE","WHITE","WHOLE","WHOSE","WOMAN","WOMEN","WORLD","WORRY","WORSE","WORST","WORTH","WOULD","WOUND","WRITE","WRONG","WROTE","YIELD","YOUNG","YOUTH"
+]);
+
+/**
+ * GAME LOGIC
+ */
+class WordGame {
+    constructor() {
+        this.gridSize = 4;
+        this.grid = [];
+        this.selectedIndices = [];
+        this.foundWords = new Set();
+        this.allValidWords = new Set();
+        this.score = 0;
+        this.timeLeft = 120; // 2 minutes
+        this.timerInterval = null;
+        this.isDragging = false;
+        this.isTouchDevice = 'ontouchstart' in document.documentElement;
+
+        this.ui = {
+            grid: document.getElementById('grid'),
+            svg: document.getElementById('connection-svg'),
+            currentWord: document.getElementById('current-word-display'),
+            score: document.getElementById('score-val'),
+            count: document.getElementById('words-count'),
+            time: document.getElementById('time-val'),
+            foundPanel: document.getElementById('found-words-panel')
+        };
+
+        this.initInput();
+        this.startNewGame();
+    }
+
+    startNewGame() {
+        this.resetState();
+        this.generateGrid();
+        this.findAllValidWords();
+        this.updateUI();
+        this.startTimer();
+        SoundFX.playTone(440, 'sine', 0.5);
+        
+        // Reset Modal Button Text
+        document.getElementById('modal-action-btn').textContent = "Start Playing";
+    }
+
+    resetState() {
+        clearInterval(this.timerInterval);
+        this.selectedIndices = [];
+        this.foundWords.clear();
+        this.allValidWords.clear();
+        this.score = 0;
+        this.timeLeft = 120;
+        this.ui.foundPanel.innerHTML = '<span style="opacity: 0.6; font-size: 0.8rem;">Found: </span>';
+        this.clearVisuals();
+    }
+
+    generateGrid() {
+        this.grid = [];
+        this.ui.grid.innerHTML = '';
+        this.ui.grid.appendChild(this.ui.svg); // Keep SVG
+
+        // Roll Dice
+        let letters = [];
+        // Shuffle dice
+        const shuffledDice = [...DICE].sort(() => Math.random() - 0.5);
+        
+        for (let i = 0; i < this.gridSize * this.gridSize; i++) {
+            const die = shuffledDice[i % shuffledDice.length];
+            const letter = die[Math.floor(Math.random() * die.length)];
+            letters.push(letter);
+        }
+
+        // Create DOM elements
+        letters.forEach((letter, index) => {
+            const tile = document.createElement('div');
+            tile.className = 'tile';
+            tile.textContent = letter;
+            tile.dataset.index = index;
+            
+            // Random slight rotation for "floating" feel
+            const rot = (Math.random() - 0.5) * 10;
+            tile.style.transform = `rotate(${rot}deg)`;
+            
+            this.ui.grid.appendChild(tile);
+            this.grid.push({ char: letter, element: tile, index: index });
+        });
+    }
+
+    // Boggle Solver (DFS) to pre-calculate words
+    findAllValidWords() {
+        const visited = Array(16).fill(false);
+        const find = (index, currentStr) => {
+            if (currentStr.length >= 3 && COMMON_WORDS.has(currentStr)) {
+                this.allValidWords.add(currentStr);
+            }
+            if (currentStr.length >= 6) return; // Optimization: max length in this dict is 6 for simplicity
+
+            visited[index] = true;
+            const neighbors = this.getNeighbors(index);
+            
+            neighbors.forEach(nIndex => {
+                if (!visited[nIndex]) {
+                    find(nIndex, currentStr + this.grid[nIndex].char);
+                }
+            });
+            visited[index] = false;
+        };
+
+        for (let i = 0; i < 16; i++) {
+            find(i, this.grid[i].char);
+        }
+        console.log(`Found ${this.allValidWords.size} possible words.`);
+    }
+
+    getNeighbors(index) {
+        const row = Math.floor(index / 4);
+        const col = index % 4;
+        const neighbors = [];
+
+        for (let r = row - 1; r <= row + 1; r++) {
+            for (let c = col - 1; c <= col + 1; c++) {
+                if (r >= 0 && r < 4 && c >= 0 && c < 4 && !(r === row && c === col)) {
+                    neighbors.push(r * 4 + c);
+                }
+            }
+        }
+        return neighbors;
+    }
+
+    initInput() {
+        const startDrag = (e) => {
+            // Prevent interaction if modal is open
+            if(document.querySelector('.modal-overlay.active')) return;
+            
+            e.preventDefault(); // Prevent scrolling
+            this.isDragging = true;
+            this.handleInput(e);
+        };
+
+        const moveDrag = (e) => {
+            if (!this.isDragging) return;
+            e.preventDefault();
+            this.handleInput(e);
+        };
+
+        const endDrag = (e) => {
+            if (!this.isDragging) return;
+            this.isDragging = false;
+            this.checkWord();
+            this.clearSelection();
+        };
+
+        // Mouse Events
+        this.ui.grid.addEventListener('mousedown', startDrag);
+        window.addEventListener('mousemove', moveDrag);
+        window.addEventListener('mouseup', endDrag);
+
+        // Touch Events
+        this.ui.grid.addEventListener('touchstart', startDrag, {passive: false});
+        window.addEventListener('touchmove', moveDrag, {passive: false});
+        window.addEventListener('touchend', endDrag);
+    }
+
+    handleInput(e) {
+        let clientX, clientY;
+        if (e.touches) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
+        }
+
+        // Find element under cursor
+        // Use elementFromPoint because touchmove targets don't update
+        const target = document.elementFromPoint(clientX, clientY);
+        
+        if (target && target.classList.contains('tile')) {
+            const index = parseInt(target.dataset.index);
+            this.addToSelection(index);
+        }
+    }
+
+    addToSelection(index) {
+        if (this.selectedIndices.includes(index)) return;
+
+        // Check adjacency (allow backtracking to previous? No, simple linear chain for Boggle)
+        // Standard Boggle: must be adjacent to last selected.
+        if (this.selectedIndices.length > 0) {
+            const lastIndex = this.selectedIndices[this.selectedIndices.length - 1];
+            const neighbors = this.getNeighbors(lastIndex);
+            if (!neighbors.includes(index)) return;
+        }
+
+        this.selectedIndices.push(index);
+        this.grid[index].element.classList.add('selected');
+        SoundFX.select();
+        this.updateVisuals();
+    }
+
+    updateVisuals() {
+        // Update Text
+        const currentWord = this.selectedIndices.map(i => this.grid[i].char).join('');
+        this.ui.currentWord.textContent = currentWord;
+
+        // Draw Line
+        if (this.selectedIndices.length > 0) {
+            let d = '';
+            this.selectedIndices.forEach((idx, i) => {
+                const tile = this.grid[idx].element;
+                const rect = tile.getBoundingClientRect();
+                const gridRect = this.ui.grid.getBoundingClientRect();
+                
+                // Calculate center relative to grid container
+                const x = (rect.left + rect.width / 2) - gridRect.left;
+                const y = (rect.top + rect.height / 2) - gridRect.top;
+
+                d += (i === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`);
+            });
+            this.ui.svg.innerHTML = `<path d="${d}" class="connector" />`;
+        } else {
+            this.ui.svg.innerHTML = '';
+        }
+    }
+
+    clearSelection() {
+        this.selectedIndices.forEach(i => this.grid[i].element.classList.remove('selected'));
+        this.selectedIndices = [];
+        this.ui.currentWord.textContent = '';
+        this.ui.svg.innerHTML = '';
+    }
+
+    clearVisuals() {
+        this.grid.forEach(t => t.element.classList.remove('selected', 'found'));
+        this.ui.svg.innerHTML = '';
+    }
+
+    checkWord() {
+        const word = this.selectedIndices.map(i => this.grid[i].char).join('');
+        if (word.length < 3) return;
+
+        if (this.allValidWords.has(word) && !this.foundWords.has(word)) {
+            // Found a word
+            this.foundWords.add(word);
+            this.score += word.length * 10;
+            this.selectedIndices.forEach(i => {
+                this.grid[i].element.classList.add('found');
+            });
+            this.showToast(word, '#00ff88');
+            SoundFX.found();
+            this.addFoundWordToUI(word);
+            this.updateUI();
+        } else if (this.foundWords.has(word)) {
+            // Already found
+            // Optional: visual shake
+        } else {
+            // Invalid
+            SoundFX.error();
+            this.ui.currentWord.style.color = '#ff4444';
+            setTimeout(() => this.ui.currentWord.style.color = 'var(--accent-color)', 300);
+        }
+    }
+
+    addFoundWordToUI(word) {
+        const tag = document.createElement('span');
+        tag.className = 'found-tag';
+        tag.textContent = word;
+        this.ui.foundPanel.appendChild(tag);
+        // Scroll to right
+        this.ui.foundPanel.scrollLeft = this.ui.foundPanel.scrollWidth;
+    }
+
+    showToast(text, color) {
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.textContent = text;
+        toast.style.color = color || '#fff';
+        document.getElementById('toast-container').appendChild(toast);
+        setTimeout(() => toast.remove(), 1000);
+    }
+
+    updateUI() {
+        this.ui.score.textContent = this.score;
+        this.ui.count.textContent = `${this.foundWords.size}/${this.allValidWords.size}`;
+    }
+
+    startTimer() {
+        this.timerInterval = setInterval(() => {
+            // PAUSE LOGIC: If modal is open, skip this tick
+            if (document.querySelector('.modal-overlay.active')) return;
+
+            this.timeLeft--;
+            const m = Math.floor(this.timeLeft / 60).toString().padStart(2, '0');
+            const s = (this.timeLeft % 60).toString().padStart(2, '0');
+            this.ui.time.textContent = `${m}:${s}`;
+            
+            if (this.timeLeft <= 0) {
+                this.endGame();
+            }
+        }, 1000);
+    }
+
+    endGame() {
+        clearInterval(this.timerInterval);
+        document.getElementById('modal-title').textContent = "Time's Up!";
+        document.getElementById('modal-instructions').querySelector('p').innerHTML = 
+            `You scored <strong>${this.score}</strong> points.<br>Found ${this.foundWords.size} words.`;
+        document.getElementById('modal-action-btn').textContent = "Play Again";
+        toggleModal('modal-instructions');
+        SoundFX.playTone(300, 'sawtooth', 0.5);
+    }
+
+    // Features
+    hint() {
+        // Find an unfound word and highlight its first letter
+        for (let word of this.allValidWords) {
+            if (!this.foundWords.has(word)) {
+                // Find where this word starts
+                for (let i=0; i<16; i++) {
+                    if (this.grid[i].char === word[0]) {
+                        // Simple visual hint: flash the tile
+                        const tile = this.grid[i].element;
+                        tile.style.backgroundColor = 'rgba(255, 255, 0, 0.5)';
+                        setTimeout(() => tile.style.backgroundColor = '', 500);
+                        this.showToast(`Starts with: ${word[0]}`, '#ffff00');
+                        return;
+                    }
+                }
+            }
+        }
+        this.showToast("No more words!", "#fff");
+    }
+
+    autoSolve() {
+        // Find and reveal one word
+        for (let word of this.allValidWords) {
+            if (!this.foundWords.has(word)) {
+                this.foundWords.add(word);
+                this.score += Math.max(0, word.length * 10 - 20); // Penalty for auto-solve
+                this.addFoundWordToUI(word);
+                this.showToast(`Auto-found: ${word}`, '#00d2ff');
+                
+                // Highlight path (simple brute force to find path is complex for just visual, 
+                // so we just register the word and play sound)
+                SoundFX.found();
+                this.updateUI();
+                return;
+            }
+        }
+    }
+
+    shuffle() {
+        // Penalty for shuffling
+        if (this.score >= 50) {
+            this.score -= 50;
+            this.generateGrid();
+            this.findAllValidWords(); // Recalculate valid words for new grid
+            this.foundWords.clear(); // Shuffle invalidates found words in strict rules, 
+                                     // but let's be nice: keep score, reset words found list
+            this.ui.foundPanel.innerHTML = '<span style="opacity: 0.6; font-size: 0.8rem;">Found: </span>';
+            this.updateUI();
+            this.showToast("Shuffled! (-50 pts)", "#ff8888");
+        } else {
+            this.showToast("Need 50 pts to shuffle", "#ff8888");
+        }
+    }
+}
+
+// Modal Handling
+window.toggleModal = function(id) {
+    const el = document.getElementById(id);
+    const isGameActive = game.timeLeft > 0;
+    const actionBtn = document.getElementById('modal-action-btn');
+    const modalTitle = document.getElementById('modal-title');
+
+    if (el.classList.contains('active')) {
+        el.classList.remove('active');
+        
+        // If we closed the modal and time is up, start new game
+        if (id === 'modal-instructions' && !isGameActive) {
+             game.startNewGame();
+        }
+    } else {
+        el.classList.add('active');
+        
+        // Update Modal content based on state
+        if (id === 'modal-instructions') {
+            if (!isGameActive) {
+                // Game Over State
+                modalTitle.textContent = "Game Over";
+                actionBtn.textContent = "Play Again";
+            } else {
+                // Active Game State (Paused)
+                modalTitle.textContent = "Game Paused";
+                // Restore instructions content if it was overwritten by Game Over text
+                if(!el.querySelector('p').innerHTML.includes('Goal')) {
+                    el.querySelector('p').innerHTML = 
+                    `<strong>Goal:</strong> Find as many words as possible before time runs out.<br>
+                    <strong>Controls:</strong> Swipe across adjacent letters.<br>
+                    <strong>Rules:</strong> Words must be at least 3 letters long.`;
+                }
+                actionBtn.textContent = "Resume";
+            }
+        }
+    }
+};
+
+// Initialize Game
+let game;
+window.onload = () => {
+    game = new WordGame();
+    
+    // Button Listeners
+    document.getElementById('btn-new').onclick = () => game.startNewGame();
+    document.getElementById('btn-hint').onclick = () => game.hint();
+    document.getElementById('btn-solve').onclick = () => game.autoSolve();
+    document.getElementById('btn-shuffle').onclick = () => game.shuffle();
+    
+    // Show instructions initially
+    setTimeout(() => toggleModal('modal-instructions'), 500);
+};
+
+</script>
+</body>
+</html>
