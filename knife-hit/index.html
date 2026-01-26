@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Knife Hit - Web Game</title>
+    <style>
+        :root {
+            --primary-color: #f39c12;
+            --danger-color: #e74c3c;
+            --bg-color: #2c3e50;
+            --log-color: #8e44ad;
+            --ui-bg: rgba(0, 0, 0, 0.85);
+            --text-color: #ecf0f1;
+            --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            --hud-btn-size: 44px;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: var(--bg-color);
+            font-family: var(--font-family);
+            color: var(--text-color);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* --- UI Overlay --- */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Let clicks pass through to canvas */
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start; /* Align top items */
+            width: 100%;
+        }
+
+        .hud-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .hud-right {
+            display: flex;
+            gap: 10px;
+        }
+
+        .score-display {
+            font-size: 1.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            font-weight: bold;
+        }
+
+        .score-display span { color: var(--primary-color); }
+        .level-display { font-size: 1.2rem; opacity: 0.8; margin-top: 4px; }
+
+        /* --- HUD Buttons --- */
+        .hud-btn {
+            width: var(--hud-btn-size);
+            height: var(--hud-btn-size);
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.2);
+            background: rgba(0,0,0,0.3);
+            color: white;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            pointer-events: auto; /* Re-enable clicks */
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        .hud-btn:hover { background: rgba(255,255,255,0.2); transform: scale(1.05); }
+        .hud-btn:active { transform: scale(0.95); }
+        
+        .hud-btn svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+
+        .hud-restart-fab {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: var(--danger-color);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            z-index: 15;
+        }
+        .hud-restart-fab:hover { background: #c0392b; }
+
+        /* --- Screens (Start, Game Over, Pause) --- */
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--ui-bg);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            pointer-events: auto;
+            transition: opacity 0.3s ease;
+            backdrop-filter: blur(5px);
+        }
+
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            margin: 0 0 20px 0;
+            color: var(--primary-color);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            text-align: center;
+        }
+
+        h2 { font-size: 2rem; margin-bottom: 10px; }
+
+        p {
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+            opacity: 0.8;
+            max-width: 80%;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        .btn {
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            background: var(--primary-color);
+            color: #fff;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #d35400, 0 10px 10px rgba(0,0,0,0.3);
+            transition: transform 0.1s, box-shadow 0.1s;
+            text-transform: uppercase;
+            font-weight: bold;
+            min-width: 200px;
+        }
+
+        .btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #d35400, 0 4px 4px rgba(0,0,0,0.3);
+        }
+
+        .btn-secondary {
+            background: #7f8c8d;
+            box-shadow: 0 6px 0 #5f6a6a, 0 10px 10px rgba(0,0,0,0.3);
+            margin-top: 15px;
+            font-size: 1.2rem;
+            padding: 12px 30px;
+        }
+        .btn-secondary:active { box-shadow: 0 2px 0 #5f6a6a, 0 4px 4px rgba(0,0,0,0.3); }
+
+        .btn-restart {
+            background: var(--danger-color);
+            box-shadow: 0 6px 0 #c0392b, 0 10px 10px rgba(0,0,0,0.3);
+        }
+        .btn-restart:active { box-shadow: 0 2px 0 #c0392b, 0 4px 4px rgba(0,0,0,0.3); }
+
+        /* --- Canvas --- */
+        canvas {
+            display: block;
+            z-index: 1;
+        }
+        
+        /* Toast Messages */
+        #toast {
+            position: absolute;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 1.2rem;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 15;
+            white-space: nowrap;
+        }
+        #toast.show { opacity: 1; }
+
+        /* --- Instructions Specifics --- */
+        .instructions-grid {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 15px;
+            text-align: left;
+            margin-bottom: 30px;
+            background: rgba(255,255,255,0.05);
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .key-icon {
+            font-weight: bold;
+            color: var(--primary-color);
+            font-size: 1.2rem;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- UI Overlay -->
+    <div id="ui-layer">
+        <header>
+            <div class="hud-left">
+                <!-- Info Button -->
+                <button id="info-btn" class="hud-btn" aria-label="Instructions">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></svg>
+                </button>
+                <div class="stats">
+                    <div class="score-display">Score: <span id="score-display">0</span></div>
+                    <div class="level-display">Level: <span id="level-display">1</span></div>
+                </div>
+            </div>
+            
+            <div class="hud-right">
+                <!-- Pause Button -->
+                <button id="pause-btn" class="hud-btn" aria-label="Pause">
+                    <svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- HUD Restart Button -->
+        <button id="restart-hud-btn" class="hud-btn hud-restart-fab" aria-label="Restart Game">
+            <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+        </button>
+
+        <div id="toast">Great!</div>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="start-screen" class="screen">
+        <h1>Knife Hit</h1>
+        <p>Throw knives at the spinning log to break it.<br>Avoid hitting other knives!</p>
+        <button class="btn" id="start-btn">Play Now</button>
+    </div>
+
+    <!-- Pause / Info Screen -->
+    <div id="pause-screen" class="screen hidden">
+        <h2 id="pause-title">Paused</h2>
+        
+        <div class="instructions-grid" id="instructions-content" style="display:none;">
+            <div class="key-icon">Tap / Click</div>
+            <div>Throw a knife</div>
+            <div class="key-icon">Goal</div>
+            <div>Stick all knives to break the log</div>
+            <div class="key-icon">Avoid</div>
+            <div>Hitting other knives on the log</div>
+        </div>
+
+        <button class="btn" id="resume-btn">Resume</button>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="game-over-screen" class="screen hidden">
+        <h2 id="go-title">Game Over</h2>
+        <p id="go-message">You hit another knife!</p>
+        <div class="score-display" style="margin-bottom: 20px; font-size: 2rem;">Final Score: <span id="final-score">0</span></div>
+        <button class="btn btn-restart" id="restart-btn">Try Again</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        /**
+         * Knife Hit - Web Game Logic
+         */
+
+        // --- Configuration & State ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // UI Elements
+        const scoreDisplay = document.getElementById('score-display');
+        const levelDisplay = document.getElementById('level-display');
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const pauseScreen = document.getElementById('pause-screen');
+        const pauseTitle = document.getElementById('pause-title');
+        const instructionsContent = document.getElementById('instructions-content');
+        const resumeBtn = document.getElementById('resume-btn');
+        const finalScoreDisplay = document.getElementById('final-score');
+        
+        // Buttons
+        const startBtn = document.getElementById('start-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const restartHudBtn = document.getElementById('restart-hud-btn');
+        const pauseBtn = document.getElementById('pause-btn');
+        const infoBtn = document.getElementById('info-btn');
+        const toastEl = document.getElementById('toast');
+
+        // Game State Variables
+        let gameState = 'MENU'; // MENU, PLAYING, PAUSED, LEVEL_TRANSITION, GAMEOVER
+        let score = 0;
+        let level = 1;
+        let knivesRemaining = 0;
+        let knivesOnLog = []; 
+        let activeKnife = null; 
+        let logRotation = 0;
+        let logRotationSpeed = 0.02;
+        let logHealth = 5;
+        let logColor = '#8e44ad';
+        let logRadius = 80;
+        let shake = 0; 
+
+        // Audio Context
+        let audioCtx;
+        
+        // Constants
+        const KNIFE_WIDTH = 20;
+        const KNIFE_HEIGHT = 80;
+        const KNIFE_SPEED = 25;
+        const HANDLE_COLOR = '#95a5a6';
+        const BLADE_COLOR = '#bdc3c7';
+
+        // --- Resize Handling ---
+        let centerX, centerY;
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            centerX = canvas.width / 2;
+            centerY = canvas.height / 2;
+            logRadius = Math.min(canvas.width, canvas.height) * 0.12;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // --- Sound System ---
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+
+            if (type === 'throw') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+                gainNode.gain.setValueAtTime(0.3, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'hit') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(40, now + 0.1);
+                gainNode.gain.setValueAtTime(0.5, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } else if (type === 'gameover') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(100, now);
+                osc.frequency.linearRampToValueAtTime(50, now + 0.5);
+                gainNode.gain.setValueAtTime(0.5, now);
+                gainNode.gain.linearRampToValueAtTime(0, now + 0.5);
+                osc.start(now);
+                osc.stop(now + 0.5);
+            } else if (type === 'levelup') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.linearRampToValueAtTime(800, now + 0.1);
+                osc.frequency.linearRampToValueAtTime(1200, now + 0.3);
+                gainNode.gain.setValueAtTime(0.3, now);
+                gainNode.gain.linearRampToValueAtTime(0, now + 0.6);
+                osc.start(now);
+                osc.stop(now + 0.6);
+            }
+        }
+
+        // --- Input Handling ---
+        function handleInput(e) {
+            // Ignore clicks on HUD buttons or screens
+            if (e.target.closest('.screen') || e.target.closest('.hud-btn')) return;
+
+            if (gameState === 'PLAYING') {
+                throwKnife();
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowUp') {
+                handleInput(e);
+            }
+            if (e.code === 'Escape') {
+                togglePause();
+            }
+        });
+
+        document.addEventListener('touchstart', handleInput, { passive: false });
+        document.addEventListener('mousedown', handleInput);
+
+        // --- HUD Button Logic ---
+
+        function togglePause() {
+            if (gameState === 'PLAYING') {
+                gameState = 'PAUSED';
+                pauseTitle.innerText = "Paused";
+                instructionsContent.style.display = 'none';
+                pauseScreen.classList.remove('hidden');
+                pauseBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>'; // Change icon to Play
+            } else if (gameState === 'PAUSED') {
+                gameState = 'PLAYING';
+                pauseScreen.classList.add('hidden');
+                pauseBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>'; // Change icon to Pause
+            }
+        }
+
+        function showInfo() {
+            // Pause the game if playing
+            const wasPlaying = gameState === 'PLAYING';
+            if (wasPlaying) gameState = 'PAUSED';
+            
+            pauseTitle.innerText = "Instructions";
+            instructionsContent.style.display = 'grid';
+            pauseScreen.classList.remove('hidden');
+        }
+
+        // --- Game Logic ---
+
+        function initGame() {
+            score = 0;
+            level = 1;
+            scoreDisplay.innerText = score;
+            levelDisplay.innerText = level;
+            
+            // Hide all screens
+            startScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            pauseScreen.classList.add('hidden');
+            
+            // Reset Pause Icon
+            pauseBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
+
+            startLevel(level);
+        }
+
+        function startLevel(lvl) {
+            gameState = 'PLAYING';
+            knivesOnLog = [];
+            activeKnife = null;
+            logRotation = 0;
+            shake = 0;
+
+            logHealth = 5 + Math.floor(lvl / 2);
+            knivesRemaining = logHealth;
+            
+            let baseSpeed = 0.02 + (lvl * 0.005);
+            if (baseSpeed > 0.08) baseSpeed = 0.08;
+            logRotationSpeed = (lvl % 2 === 0) ? -baseSpeed : baseSpeed;
+
+            const hue = (lvl * 45) % 360;
+            logColor = `hsl(${hue}, 60%, 50%)`;
+
+            let preKnives = Math.min(Math.floor(lvl / 3), 5);
+            for (let i = 0; i < preKnives; i++) {
+                let angle = Math.random() * Math.PI * 2;
+                if (Math.abs(angle - Math.PI/2) < 0.5) angle += 1; 
+                knivesOnLog.push(angle);
+            }
+            updateUI();
+        }
+
+        function throwKnife() {
+            if (activeKnife || knivesRemaining <= 0) return;
+            playSound('throw');
+            activeKnife = {
+                y: centerY + 300,
+                rotation: 0
+            };
+            knivesRemaining--;
+            updateUI();
+        }
+
+        function checkCollision() {
+            let impactAngle = (Math.PI / 2) - logRotation;
+            impactAngle = impactAngle % (Math.PI * 2);
+            if (impactAngle < 0) impactAngle += Math.PI * 2;
+
+            for (let angle of knivesOnLog) {
+                let diff = Math.abs(angle - impactAngle);
+                if (diff > Math.PI) diff = (Math.PI * 2) - diff;
+                let hitThreshold = 0.15; 
+                if (diff < hitThreshold) {
+                    gameOver();
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function knifeHitLog() {
+            playSound('hit');
+            shake = 5;
+            
+            let impactAngle = (Math.PI / 2) - logRotation;
+            impactAngle = impactAngle % (Math.PI * 2);
+            if (impactAngle < 0) impactAngle += Math.PI * 2;
+            
+            knivesOnLog.push(impactAngle);
+            activeKnife = null;
+
+            score++;
+            scoreDisplay.innerText = score;
+
+            if (knivesRemaining === 0) {
+                levelComplete();
+            }
+        }
+
+        function levelComplete() {
+            playSound('levelup');
+            gameState = 'LEVEL_TRANSITION';
+            showToast("Level Complete!");
+            setTimeout(() => {
+                level++;
+                levelDisplay.innerText = level;
+                startLevel(level);
+            }, 1000);
+        }
+
+        function gameOver() {
+            playSound('gameover');
+            gameState = 'GAMEOVER';
+            shake = 20;
+            finalScoreDisplay.innerText = score;
+            setTimeout(() => {
+                gameOverScreen.classList.remove('hidden');
+            }, 500);
+        }
+
+        function updateUI() { }
+
+        function showToast(msg) {
+            toastEl.textContent = msg;
+            toastEl.classList.add('show');
+            setTimeout(() => {
+                toastEl.classList.remove('show');
+            }, 1500);
+        }
+
+        // --- Drawing ---
+
+        function drawKnife(x, y, angle, scale = 1) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angle);
+            ctx.scale(scale, scale);
+            ctx.fillStyle = BLADE_COLOR;
+            ctx.beginPath();
+            ctx.moveTo(-5, 0); ctx.lineTo(5, 0); ctx.lineTo(0, -40); ctx.fill();
+            ctx.fillStyle = HANDLE_COLOR;
+            ctx.fillRect(-6, 0, 12, 25);
+            ctx.fillStyle = '#7f8c8d';
+            ctx.fillRect(-10, 0, 20, 4);
+            ctx.restore();
+        }
+
+        function drawLog() {
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.rotate(logRotation);
+            ctx.fillStyle = logColor;
+            ctx.beginPath();
+            ctx.arc(0, 0, logRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.beginPath();
+            ctx.arc(0, 0, logRadius * 0.7, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            ctx.lineWidth = 2;
+            for(let i=0; i<8; i++) {
+                ctx.rotate(Math.PI / 4);
+                ctx.beginPath();
+                ctx.moveTo(0, -logRadius * 0.7);
+                ctx.lineTo(0, -logRadius);
+                ctx.stroke();
+            }
+            for (let angle of knivesOnLog) {
+                ctx.save();
+                ctx.rotate(angle);
+                drawKnife(0, logRadius, 0, 1);
+                ctx.restore();
+            }
+            if (level >= 3) {
+                ctx.fillStyle = 'white';
+                ctx.beginPath(); ctx.arc(-20, -20, 10, 0, Math.PI*2); ctx.arc(20, -20, 10, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = 'black';
+                ctx.beginPath(); ctx.arc(-20, -20, 4, 0, Math.PI*2); ctx.arc(20, -20, 4, 0, Math.PI*2); ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        function drawActiveKnife() {
+            if (!activeKnife) return;
+            let wobble = 0;
+            if (activeKnife.y > centerY) {
+                wobble = Math.sin(Date.now() / 50) * 0.05;
+            }
+            drawKnife(centerX, activeKnife.y, wobble);
+        }
+
+        function drawReadyKnife() {
+            if (activeKnife || gameState !== 'PLAYING') return;
+            drawKnife(centerX, centerY + 300, 0);
+        }
+
+        function render() {
+            ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--bg-color');
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            if (shake > 0) {
+                let dx = (Math.random() - 0.5) * shake;
+                let dy = (Math.random() - 0.5) * shake;
+                ctx.translate(dx, dy);
+                shake *= 0.9;
+                if (shake < 0.5) shake = 0;
+            }
+
+            drawLog();
+            drawActiveKnife();
+            drawReadyKnife();
+            
+            ctx.beginPath();
+            ctx.moveTo(centerX, 0);
+            ctx.lineTo(centerX, centerY - logRadius);
+            ctx.strokeStyle = '#555';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // --- Loop ---
+        function loop() {
+            // Only update physics/logic if we are Playing or in transition
+            if (gameState === 'PLAYING' || gameState === 'LEVEL_TRANSITION') {
+                logRotation += logRotationSpeed;
+
+                if (activeKnife) {
+                    activeKnife.y -= KNIFE_SPEED;
+                    if (activeKnife.y <= centerY + logRadius) {
+                        if (checkCollision()) {
+                            knifeHitLog();
+                        }
+                    }
+                }
+            }
+
+            render();
+            requestAnimationFrame(loop);
+        }
+
+        // --- Event Listeners ---
+        startBtn.addEventListener('click', () => {
+            initAudio();
+            initGame();
+        });
+
+        restartBtn.addEventListener('click', () => {
+            initAudio(); // Ensure context is ready
+            initGame();
+        });
+
+        restartHudBtn.addEventListener('click', () => {
+            // Add a small haptic or visual feedback if possible, but for now just restart
+            // Note: This restarts immediately without confirmation for quick gameplay
+            initAudio();
+            initGame();
+        });
+
+        pauseBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent throwing knife
+            initAudio(); // Resume audio context if needed
+            togglePause();
+        });
+
+        infoBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showInfo();
+        });
+
+        resumeBtn.addEventListener('click', () => {
+            togglePause();
+        });
+
+        // Start Loop
+        requestAnimationFrame(loop);
+
+    </script>
+</body>
+</html>
