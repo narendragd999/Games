@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Stacker Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050505;
+            --text: #FFFFFF;
+            --font: 'Exo 2', sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            font-family: var(--font);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            touch-action: none;
+            user-select: none;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        #canvas-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* HUD */
+        #hud {
+            position: absolute;
+            top: 40px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #score {
+            font-size: 6rem;
+            font-weight: 900;
+            color: rgba(255,255,255,0.08);
+            line-height: 0.8;
+            transition: transform 0.1s;
+        }
+        
+        #score.pulse {
+            transform: scale(1.1);
+            color: rgba(255,255,255,0.2);
+        }
+
+        #perfect-text {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #FFD700;
+            opacity: 0;
+            transform: translateY(50px) scale(0.5);
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: absolute;
+            top: 45%;
+            left: 50%;
+            transform: translateX(-50%) translateY(50px) scale(0.5);
+        }
+
+        #perfect-text.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(-80px) scale(1);
+        }
+
+        /* Menus */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(5, 5, 5, 0.85);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            transition: opacity 0.3s;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .card {
+            background: rgba(20, 20, 20, 1);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 40px;
+            border-radius: 16px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            width: 85%;
+            max-width: 340px;
+        }
+
+        h1 {
+            margin: 0 0 5px;
+            color: white;
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        p {
+            color: #888;
+            margin-bottom: 30px;
+            font-weight: 400;
+            font-size: 1.1rem;
+        }
+
+        .final-score {
+            font-size: 5rem;
+            font-weight: 900;
+            color: #00E5FF;
+            margin: 10px 0;
+            line-height: 1;
+        }
+
+        button {
+            background: linear-gradient(135deg, #00E5FF, #00B8D4);
+            color: #000;
+            border: none;
+            padding: 18px 0;
+            width: 100%;
+            font-size: 1.3rem;
+            font-family: var(--font);
+            font-weight: 700;
+            text-transform: uppercase;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.3);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        button:active {
+            transform: scale(0.97);
+            box-shadow: 0 0 10px rgba(0, 229, 255, 0.2);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container">
+        <div id="hud">
+            <div id="score">0</div>
+        </div>
+        <div id="perfect-text">PERFECT</div>
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Start Screen -->
+        <div id="start-screen" class="overlay">
+            <div class="card">
+                <h1>Stacker</h1>
+                <p>Tap to place. Stack high.</p>
+                <button id="start-btn">Start Game</button>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="game-over-screen" class="overlay hidden">
+            <div class="card">
+                <h1>Game Over</h1>
+                <div class="final-score" id="final-score">0</div>
+                <p>Blocks Stacked</p>
+                <button id="restart-btn">Try Again</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d', { alpha: false }); // Optimize
+    
+    // UI
+    const startScreen = document.getElementById('start-screen');
+    const gameOverScreen = document.getElementById('game-over-screen');
+    const scoreEl = document.getElementById('score');
+    const finalScoreEl = document.getElementById('final-score');
+    const perfectTextEl = document.getElementById('perfect-text');
+    const startBtn = document.getElementById('start-btn');
+    const restartBtn = document.getElementById('restart-btn');
+
+    // Game State
+    let isPlaying = false;
+    let score = 0;
+    let stack = [];
+    let debris = [];
+    let currentBlock = {};
+    let direction = 1;
+    let speed = 0;
+    let cameraY = 0;
+    let targetCameraY = 0;
+    let animationId;
+
+    // Config
+    const BLOCK_HEIGHT = 30;
+    const INITIAL_WIDTH = 200;
+    let START_Y = 0;
+    let CANVAS_CENTER = 0;
+
+    // Vibrant Palette
+    const COLORS = [
+        '#FF4081', '#E040FB', '#7C4DFF', '#536DFE', 
+        '#448AFF', '#40C4FF', '#18FFFF', '#64FFDA',
+        '#69F0AE', '#B2FF59', '#EEFF41', '#FFFF00',
+        '#FFD740', '#FFAB40', '#FF6E40'
+    ];
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        START_Y = canvas.height * 0.8;
+        CANVAS_CENTER = canvas.width / 2;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function initGame() {
+        score = 0;
+        stack = [];
+        debris = [];
+        speed = 4; // Initial Speed
+        direction = 1;
+        cameraY = 0;
+        targetCameraY = 0;
+        
+        scoreEl.innerText = score;
+        scoreEl.classList.remove('pulse');
+
+        // Create Base Block
+        const baseBlock = {
+            x: CANVAS_CENTER - (INITIAL_WIDTH / 2),
+            y: START_Y,
+            width: INITIAL_WIDTH,
+            height: BLOCK_HEIGHT,
+            color: COLORS[0]
+        };
+        stack.push(baseBlock);
+        
+        spawnNextBlock();
+
+        startScreen.classList.add('hidden');
+        gameOverScreen.classList.add('hidden');
+
+        isPlaying = true;
+        if (animationId) cancelAnimationFrame(animationId);
+        loop();
+    }
+
+    function spawnNextBlock() {
+        const prev = stack[stack.length - 1];
+        const colorIndex = stack.length % COLORS.length;
+
+        currentBlock = {
+            x: -prev.width, // Start off-screen left
+            y: prev.y - BLOCK_HEIGHT,
+            width: prev.width,
+            height: BLOCK_HEIGHT,
+            color: COLORS[colorIndex]
+        };
+    }
+
+    function placeBlock() {
+        const prev = stack[stack.length - 1];
+        const dist = currentBlock.x - prev.x;
+        const absDist = Math.abs(dist);
+
+        // 1. Check Game Over (Complete Miss)
+        if (absDist >= currentBlock.width) {
+            // Make it fall
+            currentBlock.vy = 0;
+            debris.push(currentBlock);
+            currentBlock = null;
+            gameOver();
+            return;
+        }
+
+        // 2. Handle Cutting & Perfect Matches
+        let newWidth = currentBlock.width - absDist;
+        let newX = currentBlock.x;
+
+        // Threshold for "Perfect" (very forgiving pixel-wise)
+        const PERFECT_THRESHOLD = 3;
+
+        if (absDist < PERFECT_THRESHOLD) {
+            // Perfect Match
+            newWidth = currentBlock.width;
+            newX = prev.x;
+            showPerfect();
+        } else {
+            // Cut Logic
+            // Determine which side falls
+            if (dist > 0) {
+                // Current is shifted Right -> Left overhang stays, Right falls
+                newX = prev.x;
+                debris.push({
+                    x: newX + newWidth,
+                    y: currentBlock.y,
+                    width: absDist,
+                    height: BLOCK_HEIGHT,
+                    color: currentBlock.color,
+                    vy: 0
+                });
+            } else {
+                // Current is shifted Left -> Right overhang stays, Left falls
+                newX = prev.x; // Snap to previous block's left edge
+                debris.push({
+                    x: currentBlock.x,
+                    y: currentBlock.y,
+                    width: absDist,
+                    height: BLOCK_HEIGHT,
+                    color: currentBlock.color,
+                    vy: 0
+                });
+            }
+        }
+
+        // Add New Block to Stack
+        const landedBlock = {
+            x: newX,
+            y: currentBlock.y,
+            width: newWidth,
+            height: BLOCK_HEIGHT,
+            color: currentBlock.color
+        };
+        stack.push(landedBlock);
+
+        // Update Score
+        score++;
+        scoreEl.innerText = score;
+        scoreEl.classList.remove('pulse');
+        void scoreEl.offsetWidth; // trigger reflow
+        scoreEl.classList.add('pulse');
+
+        // Increase Speed slightly every 5 blocks
+        if (score % 5 === 0) {
+            speed += 0.5;
+        }
+
+        // Update Camera Target
+        // If stack reaches 40% from top, move camera down
+        const topY = landedBlock.y;
+        const threshold = canvas.height * 0.4;
+        if (topY < threshold) {
+            const shiftNeeded = threshold - topY;
+            targetCameraY += shiftNeeded;
+        }
+
+        spawnNextBlock();
+    }
+
+    function showPerfect() {
+        perfectTextEl.classList.remove('show');
+        void perfectTextEl.offsetWidth; 
+        perfectTextEl.classList.add('show');
+    }
+
+    function gameOver() {
+        isPlaying = false;
+        setTimeout(() => {
+            finalScoreEl.innerText = score;
+            gameOverScreen.classList.remove('hidden');
+        }, 500);
+    }
+
+    function loop() {
+        if (!isPlaying && debris.length === 0) return;
+
+        // Update Game Logic
+        if (isPlaying && currentBlock) {
+            currentBlock.x += speed * direction;
+
+            // Bounce Logic
+            // We want the block to bounce off the edges of the "World"
+            // But the "World" effectively shifts with camera?
+            // Easier: Use screen bounds +/- buffer
+            if (currentBlock.x + currentBlock.width > canvas.width) {
+                direction = -1;
+            } else if (currentBlock.x < 0) {
+                direction = 1;
+            }
+        }
+
+        // Camera Smoothing (Lerp)
+        // Move current Camera Y towards Target Camera Y by 5%
+        cameraY += (targetCameraY - cameraY) * 0.1;
+
+        // Update Debris (Gravity)
+        for (let i = debris.length - 1; i >= 0; i--) {
+            let d = debris[i];
+            d.vy += 1; // Gravity
+            d.y += d.vy;
+            if (d.y > canvas.height) {
+                debris.splice(i, 1);
+            }
+        }
+
+        // Draw
+        draw();
+
+        animationId = requestAnimationFrame(loop);
+    }
+
+    function draw() {
+        // Clear Background
+        ctx.fillStyle = '#050505';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.save();
+        // Apply Camera Translation
+        ctx.translate(0, cameraY);
+
+        // Draw Stack
+        for (let b of stack) {
+            drawBlock(b);
+        }
+
+        // Draw Current Block
+        if (isPlaying && currentBlock) {
+            drawBlock(currentBlock);
+        }
+
+        // Draw Debris
+        for (let d of debris) {
+            drawBlock(d);
+        }
+
+        ctx.restore();
+    }
+
+    function drawBlock(b) {
+        // 3D Effect Gradient
+        // Top of block is brighter (lightness), bottom is darker
+        const grad = ctx.createLinearGradient(b.x, b.y, b.x, b.y + b.height);
+        grad.addColorStop(0, b.color);
+        grad.addColorStop(1, adjustColor(b.color, -40)); // Darken color
+
+        ctx.fillStyle = grad;
+        ctx.fillRect(b.x, b.y, b.width, b.height);
+
+        // Slight border for definition
+        ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(b.x, b.y, b.width, b.height);
+        
+        // Top Highlight
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        ctx.fillRect(b.x, b.y, b.width, 2);
+    }
+
+    // Helper to darken hex color
+    function adjustColor(color, amount) {
+        return '#' + color.replace(/^#/, '').replace(/../g, color => ('0'+Math.min(255, Math.max(0, parseInt(color, 16) + amount)).toString(16)).substr(-2));
+    }
+
+    // Input Handling
+    function handleTap(e) {
+        if (!isPlaying) return;
+        if (e.target.tagName === 'BUTTON') return;
+        placeBlock();
+    }
+
+    document.addEventListener('pointerdown', handleTap);
+    document.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') handleTap(e);
+    });
+
+    startBtn.addEventListener('click', initGame);
+    restartBtn.addEventListener('click', initGame);
+
+</script>
+</body>
+</html>
