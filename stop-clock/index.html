@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stop the Clock @ 10.00s</title>
+    <style>
+        /* --- CSS VARIABLES & RESET --- */
+        :root {
+            --primary-color: #6200ea; /* Deep Purple */
+            --primary-light: #9d46ff;
+            --accent-color: #03dac6; /* Teal */
+            --bg-color: #f5f5f5;
+            --surface-color: #ffffff;
+            --text-primary: #000000;
+            --text-secondary: #666666;
+            --error-color: #b00020;
+            --success-color: #00c853;
+            --shadow-1: 0 2px 1px -1px rgba(0,0,0,0.2), 0 1px 1px 0 rgba(0,0,0,0.14), 0 1px 3px 0 rgba(0,0,0,0.12);
+            --shadow-2: 0 5px 5px -3px rgba(0,0,0,0.2), 0 8px 10px 1px rgba(0,0,0,0.14), 0 3px 14px 2px rgba(0,0,0,0.12);
+            --font-stack: 'Roboto', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: var(--font-stack);
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Prevent scrolling on mobile during frantic tapping */
+        }
+
+        /* --- HEADER --- */
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 0 16px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: var(--shadow-1);
+            z-index: 10;
+        }
+
+        header h1 {
+            font-size: 1.25rem;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .icon-btn:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .icon-btn svg {
+            fill: white;
+            width: 24px;
+            height: 24px;
+        }
+
+        /* --- MAIN GAME AREA --- */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .game-card {
+            background-color: var(--surface-color);
+            border-radius: 12px;
+            box-shadow: var(--shadow-2);
+            width: 100%;
+            max-width: 400px;
+            padding: 32px 24px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* --- TIMER DISPLAY --- */
+        .timer-container {
+            position: relative;
+            padding: 20px 0;
+        }
+
+        .timer-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .timer-display {
+            font-size: 4rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            color: var(--text-primary);
+            line-height: 1;
+            transition: color 0.3s;
+        }
+
+        .timer-display.win { color: var(--success-color); }
+        .timer-display.lose { color: var(--error-color); }
+
+        .milliseconds {
+            font-size: 2rem;
+            color: var(--text-secondary);
+        }
+
+        /* --- TARGET INDICATOR --- */
+        .target-info {
+            background-color: #f0f0f0;
+            padding: 12px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .target-info span {
+            font-weight: 500;
+            color: var(--primary-color);
+        }
+
+        /* --- CONTROLS --- */
+        .controls {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 4px;
+            padding: 0 16px;
+            height: 48px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.75px;
+            cursor: pointer;
+            box-shadow: var(--shadow-1);
+            transition: box-shadow 0.2s, transform 0.1s, background-color 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 120px;
+        }
+
+        .btn:active {
+            box-shadow: none;
+            transform: translateY(2px);
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-light);
+        }
+
+        .btn-secondary {
+            background-color: white;
+            color: var(--primary-color);
+            border: 1px solid #e0e0e0;
+        }
+
+        .btn-secondary:hover {
+            background-color: #f5f5f5;
+        }
+
+        /* --- INSTRUCTIONS MODAL --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+
+        .modal-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background-color: var(--surface-color);
+            width: 90%;
+            max-width: 340px;
+            border-radius: 8px;
+            box-shadow: var(--shadow-2);
+            padding: 24px;
+            transform: scale(0.9);
+            transition: transform 0.3s;
+        }
+
+        .modal-overlay.open .modal {
+            transform: scale(1);
+        }
+
+        .modal h2 {
+            font-size: 1.5rem;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+
+        .modal p {
+            line-height: 1.5;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        /* --- TOAST NOTIFICATION --- */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background-color: #323232;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            box-shadow: var(--shadow-2);
+            transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            z-index: 50;
+            white-space: nowrap;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Utility for hiding elements */
+        .hidden { display: none !important; }
+
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header>
+        <h1>Stop The Clock</h1>
+        <button id="help-btn" class="icon-btn" aria-label="Instructions">
+            <!-- Info/Help Icon -->
+            <svg viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
+            </svg>
+        </button>
+    </header>
+
+    <!-- Main Game Area -->
+    <main>
+        <div class="game-card">
+            
+            <div class="timer-container">
+                <div class="timer-label">Time</div>
+                <div class="timer-display" id="timer">00:00<span class="milliseconds">.00</span></div>
+            </div>
+
+            <div class="target-info">
+                Target: <span>10.00</span> seconds
+            </div>
+
+            <div class="controls">
+                <!-- Main Action Button (Start / Stop) -->
+                <button id="main-btn" class="btn btn-primary">Start</button>
+                
+                <!-- Restart Button (Visible only after stop) -->
+                <button id="restart-btn" class="btn btn-secondary hidden">Restart</button>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Instructions Modal -->
+    <div id="modal-overlay" class="modal-overlay">
+        <div class="modal" role="dialog" aria-modal="true">
+            <h2>How to Play</h2>
+            <p>
+                1. Press <strong>Start</strong> to begin the timer.<br>
+                2. Wait for your intuition.<br>
+                3. Press <strong>Stop</strong> exactly when the timer reaches <strong>10.00</strong> seconds.<br><br>
+                Can you get within 0.05 seconds?
+            </p>
+            <div class="modal-actions">
+                <button id="close-modal-btn" class="btn btn-primary">Got it</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">Result message here</div>
+
+    <script>
+        // --- Elements ---
+        const timerDisplay = document.getElementById('timer');
+        const mainBtn = document.getElementById('main-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const helpBtn = document.getElementById('help-btn');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const toastEl = document.getElementById('toast');
+
+        // --- State Variables ---
+        let startTime = 0;
+        let animationFrameId = null;
+        let isRunning = false;
+        let isStopped = false;
+        const TARGET_TIME = 10000; // 10 seconds in ms
+
+        // --- Logic ---
+
+        // Helper: Format time to mm:ss.ms
+        function formatTime(ms) {
+            const totalSeconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            const milliseconds = Math.floor((ms % 1000) / 10); // Get 2 digits (e.g. 05)
+
+            const pad = (num) => num.toString().padStart(2, '0');
+            return `${pad(minutes)}:${pad(seconds)}<span class="milliseconds">.${pad(milliseconds)}</span>`;
+        }
+
+        function updateTimer() {
+            if (!isRunning) return;
+
+            const currentTime = performance.now();
+            const elapsedTime = currentTime - startTime;
+
+            timerDisplay.innerHTML = formatTime(elapsedTime);
+
+            // Continue loop
+            animationFrameId = requestAnimationFrame(updateTimer);
+        }
+
+        function startGame() {
+            isRunning = true;
+            isStopped = false;
+            startTime = performance.now();
+            
+            // UI Updates
+            mainBtn.textContent = 'Stop';
+            mainBtn.classList.remove('btn-primary'); // Style change for stop
+            mainBtn.style.backgroundColor = '#b00020'; // Red for stop
+            restartBtn.classList.add('hidden');
+            
+            timerDisplay.classList.remove('win', 'lose');
+            
+            // Start loop
+            updateTimer();
+        }
+
+        function stopGame() {
+            if (!isRunning) return;
+            
+            isRunning = false;
+            cancelAnimationFrame(animationFrameId);
+            
+            const finalTime = performance.now() - startTime;
+            timerDisplay.innerHTML = formatTime(finalTime);
+            
+            checkResult(finalTime);
+        }
+
+        function checkResult(finalMs) {
+            isStopped = true;
+            const difference = finalMs - TARGET_TIME;
+            const absDiff = Math.abs(difference);
+
+            // UI Update for buttons
+            mainBtn.textContent = 'Done'; // Disable main button visually
+            mainBtn.style.backgroundColor = '#e0e0e0';
+            mainBtn.style.color = '#9e9e9e';
+            mainBtn.style.cursor = 'default';
+            mainBtn.disabled = true;
+
+            restartBtn.classList.remove('hidden');
+
+            // Logic Tolerance: +/- 0.05 seconds (50ms)
+            if (absDiff <= 50) {
+                // WIN
+                timerDisplay.classList.add('win');
+                showToast(`Perfect! You were off by only ${(absDiff/1000).toFixed(3)}s`);
+            } else {
+                // LOSE
+                timerDisplay.classList.add('lose');
+                let msg = difference > 0 ? "Too late!" : "Too early!";
+                showToast(`${msg} Off by ${(absDiff/1000).toFixed(3)}s`);
+            }
+        }
+
+        function resetGame() {
+            // Reset State
+            isRunning = false;
+            isStopped = false;
+            startTime = 0;
+            cancelAnimationFrame(animationFrameId);
+
+            // Reset UI
+            timerDisplay.innerHTML = `00:00<span class="milliseconds">.00</span>`;
+            timerDisplay.classList.remove('win', 'lose');
+            
+            mainBtn.textContent = 'Start';
+            mainBtn.classList.add('btn-primary');
+            mainBtn.style.backgroundColor = ''; // Revert to CSS default
+            mainBtn.style.color = '';
+            mainBtn.style.cursor = '';
+            mainBtn.disabled = false;
+            
+            restartBtn.classList.add('hidden');
+        }
+
+        // --- Toast System ---
+        let toastTimeout;
+        function showToast(message) {
+            toastEl.textContent = message;
+            toastEl.classList.add('show');
+            
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toastEl.classList.remove('show');
+            }, 3000);
+        }
+
+        // --- Modal Logic ---
+        function toggleModal(show) {
+            if (show) {
+                modalOverlay.classList.add('open');
+            } else {
+                modalOverlay.classList.remove('open');
+            }
+        }
+
+        // --- Event Listeners ---
+        mainBtn.addEventListener('click', () => {
+            if (!isRunning && !isStopped) {
+                startGame();
+            } else if (isRunning) {
+                stopGame();
+            }
+        });
+
+        restartBtn.addEventListener('click', resetGame);
+
+        helpBtn.addEventListener('click', () => toggleModal(true));
+        closeModalBtn.addEventListener('click', () => toggleModal(false));
+        
+        // Close modal on click outside
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) toggleModal(false);
+        });
+
+    </script>
+</body>
+</html>
