@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Glass Bottle Flip</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-gradient-start: #0f172a;
+            --bg-gradient-end: #334155;
+            --glass-border: rgba(255, 255, 255, 0.4);
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --text-color: #f8fafc;
+            --accent: #38bdf8;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Montserrat', sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            color: var(--text-color);
+        }
+
+        /* --- Glassmorphism UI --- */
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        /* --- Header & Controls --- */
+        header {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 24px;
+            pointer-events: none; /* Let clicks pass through empty areas */
+            z-index: 10;
+        }
+
+        .header-left, .header-right {
+            display: flex;
+            gap: 15px;
+            pointer-events: auto; /* Enable clicks on buttons */
+        }
+
+        .score-card {
+            padding: 8px 20px;
+            border-radius: 16px;
+            text-align: center;
+            min-width: 90px;
+        }
+
+        .score-label {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.8;
+        }
+
+        .score-value {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--accent);
+            text-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+        }
+
+        /* Icon Buttons */
+        .icon-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 1px solid var(--glass-border);
+            background: var(--glass-bg);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.2s ease;
+        }
+
+        .icon-btn:hover {
+            background: rgba(255,255,255,0.2);
+            transform: scale(1.1);
+        }
+
+        .icon-btn svg {
+            width: 20px;
+            height: 20px;
+            fill: white;
+        }
+
+        /* --- Game Container --- */
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* --- Power Meter --- */
+        #power-meter-wrapper {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 220px;
+            height: 8px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 4px;
+            overflow: hidden;
+            display: none;
+            z-index: 5;
+            border: 1px solid var(--glass-border);
+        }
+
+        #power-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #22d3ee, #e879f9);
+            box-shadow: 0 0 10px #22d3ee;
+        }
+
+        .hint {
+            position: absolute;
+            bottom: 70px;
+            width: 100%;
+            text-align: center;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.7);
+            font-weight: 600;
+            pointer-events: none;
+            letter-spacing: 1px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        /* --- Overlays --- */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            transition: opacity 0.4s ease;
+        }
+
+        .overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        h1 {
+            font-weight: 800;
+            font-size: 3rem;
+            margin: 0 0 10px 0;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+        }
+
+        h2 {
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 20px;
+        }
+
+        p.subtitle {
+            font-size: 1rem;
+            color: #cbd5e1;
+            margin-bottom: 40px;
+            text-align: center;
+            max-width: 80%;
+            line-height: 1.6;
+        }
+        
+        ul.instruction-list {
+            color: #cbd5e1;
+            line-height: 1.8;
+            margin-bottom: 30px;
+            text-align: left;
+            background: rgba(255,255,255,0.05);
+            padding: 20px 30px;
+            border-radius: 10px;
+        }
+
+        /* --- Buttons --- */
+        .btn {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 1px solid var(--glass-border);
+            padding: 16px 48px;
+            font-size: 1rem;
+            font-weight: 700;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .btn:hover {
+            background: rgba(255,255,255,0.2);
+            transform: scale(1.05);
+            box-shadow: 0 0 25px rgba(56, 189, 248, 0.4);
+        }
+
+        /* Mobile tweaks */
+        @media (max-width: 600px) {
+            h1 { font-size: 2rem; }
+            .score-value { font-size: 1.2rem; }
+            ul.instruction-list { font-size: 0.9rem; padding: 15px 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <!-- Left Side: Scores & Restart -->
+        <div class="header-left">
+            <div class="glass-panel score-card">
+                <div class="score-label">Score</div>
+                <div class="score-value" id="score-display">0</div>
+            </div>
+            <!-- In-Game Restart Button -->
+            <button id="in-game-restart" class="icon-btn glass-panel" title="Restart Level">
+                <!-- Refresh Icon SVG -->
+                <svg viewBox="0 0 24 24">
+                    <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Right Side: Instructions -->
+        <div class="header-right">
+            <!-- Best Score -->
+            <div class="glass-panel score-card">
+                <div class="score-label">Best</div>
+                <div class="score-value" id="highscore-display">0</div>
+            </div>
+            <!-- Instructions Button -->
+            <button id="info-btn" class="icon-btn glass-panel" title="Instructions">
+                <!-- Question Mark Icon SVG -->
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="power-meter-wrapper">
+            <div id="power-fill"></div>
+        </div>
+        
+        <div class="hint" id="hint-text">Hold to Charge Power</div>
+
+        <!-- Start Screen -->
+        <div id="start-screen" class="overlay">
+            <h1>Glass Flip</h1>
+            <p class="subtitle">Precision. Physics. Style.<br>Land the bottle on the next glass pane.</p>
+            <button class="btn" id="start-btn">Start Game</button>
+        </div>
+
+        <!-- Instructions Overlay -->
+        <div id="instructions-overlay" class="overlay hidden">
+            <h2>How to Play</h2>
+            <ul class="instruction-list">
+                <li>Tap/Click <strong>Hold</strong> to charge power.</li>
+                <li><strong>Release</strong> to flip the bottle.</li>
+                <li>Land upright on the next platform to score.</li>
+                <li>Don't let the bottle fall off the screen!</li>
+            </ul>
+            <button class="btn" id="close-info-btn">Resume Game</button>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="game-over-screen" class="overlay hidden">
+            <h1>Shattered</h1>
+            <div class="glass-panel" style="padding: 20px 40px; border-radius: 16px; margin-bottom: 30px; text-align: center;">
+                <div class="score-label" style="color: #94a3b8; margin-bottom: 5px;">Final Score</div>
+                <div class="score-value" id="final-score">0</div>
+            </div>
+            <button class="btn" id="restart-btn">Try Again</button>
+        </div>
+    </div>
+
+<script>
+/**
+ * Glass Physics Game with Pause/Restart Logic
+ */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// UI Elements
+const scoreDisplay = document.getElementById('score-display');
+const highScoreDisplay = document.getElementById('highscore-display');
+const finalScoreDisplay = document.getElementById('final-score');
+const startScreen = document.getElementById('start-screen');
+const gameOverScreen = document.getElementById('game-over-screen');
+const instructionsOverlay = document.getElementById('instructions-overlay');
+const startBtn = document.getElementById('start-btn');
+const restartBtn = document.getElementById('restart-btn'); // Game Over screen button
+const inGameRestartBtn = document.getElementById('in-game-restart'); // Header button
+const infoBtn = document.getElementById('info-btn');
+const closeInfoBtn = document.getElementById('close-info-btn');
+const powerMeterWrapper = document.getElementById('power-meter-wrapper');
+const powerFill = document.getElementById('power-fill');
+const hintText = document.getElementById('hint-text');
+
+// Game State
+let gameState = 'MENU'; // MENU, IDLE, FLIPPING, LANDED, GAMEOVER, PAUSED
+let score = 0;
+let highScore = localStorage.getItem('glassFlipHighScore') || 0;
+let isPaused = false;
+let animationId;
+let cameraX = 0;
+
+// Input
+let isCharging = false;
+let chargeStartTime = 0;
+let currentPower = 0;
+
+// --- CONSTANTS ---
+const GRAVITY = 0.35;
+const GROUND_Y_OFFSET = 120;
+const PLATFORM_HEIGHT = 14;
+const BOTTLE_W = 32; 
+const BOTTLE_H = 70; 
+const MAX_POWER = 16; 
+const MIN_POWER = 4;
+const UPRIGHT_TOLERANCE = 0.5;
+
+// Colors
+const COLOR_GLASS = 'rgba(255, 255, 255, 0.25)';
+const COLOR_LIQUID = 'rgba(232, 121, 249, 0.8)'; 
+const COLOR_CAP = 'rgba(34, 211, 238, 0.9)'; 
+const COLOR_BORDER = 'rgba(255, 255, 255, 0.6)';
+const COLOR_SHADOW = 'rgba(0, 0, 0, 0.3)';
+
+// Game Objects
+let bottle = { x: 0, y: 0, vx: 0, vy: 0, angle: 0, vAngle: 0, w: BOTTLE_W, h: BOTTLE_H };
+let platforms = [];
+let particles = [];
+
+// Init
+highScoreDisplay.textContent = highScore;
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    if (gameState === 'MENU') {
+        setupLevel();
+        render();
+    }
+}
+window.addEventListener('resize', resizeCanvas);
+
+// --- LEVEL GENERATION ---
+
+function setupLevel() {
+    cameraX = 0;
+    platforms = [];
+    
+    platforms.push({
+        x: canvas.width * 0.15,
+        y: canvas.height - GROUND_Y_OFFSET,
+        w: 120,
+        h: PLATFORM_HEIGHT
+    });
+    generateNextPlatform();
+    resetBottle();
+}
+
+function generateNextPlatform() {
+    const lastPlat = platforms[platforms.length - 1];
+    
+    const minGap = 100;
+    const maxGap = 180 + (score * 10);
+    const gap = Math.floor(Math.random() * (maxGap - minGap + 1)) + minGap;
+    
+    let yChange = Math.floor(Math.random() * 120) - 60;
+    let newY = lastPlat.y + yChange;
+    
+    const minY = canvas.height * 0.3;
+    const maxY = canvas.height - 80;
+    if (newY < minY) newY = minY;
+    if (newY > maxY) newY = maxY;
+
+    platforms.push({
+        x: lastPlat.x + lastPlat.w + gap,
+        y: newY,
+        w: Math.floor(Math.random() * 40) + 90,
+        h: PLATFORM_HEIGHT
+    });
+
+    if (platforms.length > 3) platforms.shift();
+}
+
+function resetBottle() {
+    const currentPlat = platforms[0]; 
+    bottle.x = currentPlat.x + currentPlat.w / 2 - bottle.w / 2;
+    bottle.y = currentPlat.y - bottle.h;
+    bottle.vx = 0;
+    bottle.vy = 0;
+    bottle.angle = 0;
+    bottle.vAngle = 0;
+}
+
+// --- INPUT HANDLING ---
+
+function startCharging(e) {
+    if (gameState !== 'IDLE' || isPaused) return;
+    isCharging = true;
+    chargeStartTime = Date.now();
+    powerMeterWrapper.style.display = 'block';
+    hintText.style.display = 'none';
+}
+
+function endCharging(e) {
+    if (!isCharging || isPaused) return;
+    isCharging = false;
+    powerMeterWrapper.style.display = 'none';
+    
+    const duration = Date.now() - chargeStartTime;
+    const powerRatio = Math.min(duration / 1200, 1);
+    
+    currentPower = MIN_POWER + (powerRatio * (MAX_POWER - MIN_POWER));
+    
+    gameState = 'FLIPPING';
+    
+    bottle.vx = currentPower * 0.5; 
+    bottle.vy = -currentPower * 0.75; 
+    bottle.vAngle = -0.04 - (powerRatio * 0.08); 
+}
+
+// Game Area Listeners
+canvas.addEventListener('mousedown', startCharging);
+canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startCharging(e); }, {passive: false});
+window.addEventListener('mouseup', endCharging);
+window.addEventListener('touchend', endCharging);
+window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && gameState === 'IDLE' && !isPaused) startCharging();
+});
+window.addEventListener('keyup', (e) => {
+    if (e.code === 'Space') endCharging();
+});
+
+// --- CONTROL BUTTONS ---
+
+function restartGame() {
+    score = 0;
+    scoreDisplay.textContent = '0';
+    startScreen.classList.add('hidden');
+    gameOverScreen.classList.add('hidden');
+    instructionsOverlay.classList.add('hidden');
+    hintText.style.display = 'block';
+    isPaused = false;
+    
+    setupLevel();
+    gameState = 'IDLE';
+}
+
+startBtn.addEventListener('click', restartGame);
+restartBtn.addEventListener('click', restartGame);
+inGameRestartBtn.addEventListener('click', restartGame);
+
+function toggleInstructions() {
+    // If we are in MENU or GAMEOVER, don't pause logic
+    if (gameState === 'MENU' || gameState === 'GAMEOVER') return;
+
+    if (!isPaused) {
+        // PAUSE
+        isPaused = true;
+        instructionsOverlay.classList.remove('hidden');
+    } else {
+        // RESUME
+        isPaused = false;
+        instructionsOverlay.classList.add('hidden');
+    }
+}
+
+infoBtn.addEventListener('click', toggleInstructions);
+closeInfoBtn.addEventListener('click', toggleInstructions);
+
+// --- GAME LOOP ---
+
+function update() {
+    // If paused or in menu/gameover, don't update physics
+    if (isPaused || gameState === 'MENU' || gameState === 'GAMEOVER') return;
+
+    // Charging Animation
+    if (isCharging && gameState === 'IDLE') {
+        const duration = Date.now() - chargeStartTime;
+        const pct = Math.min(duration / 1200, 1);
+        powerFill.style.width = `${pct * 100}%`;
+        bottle.angle = 0.15 * pct; 
+    } else if (gameState === 'IDLE') {
+        bottle.angle = 0;
+    }
+
+    if (gameState === 'FLIPPING') {
+        bottle.vy += GRAVITY;
+        bottle.x += bottle.vx;
+        bottle.y += bottle.vy;
+        bottle.angle += bottle.vAngle;
+
+        const screenCenter = cameraX + canvas.width / 2;
+        if (bottle.x > screenCenter) {
+            cameraX = bottle.x - canvas.width / 2;
+        }
+
+        checkCollisions();
+        
+        if (bottle.y > canvas.height + 100) {
+            triggerGameOver();
+        }
+    }
+}
+
+function checkCollisions() {
+    for (let plat of platforms) {
+        const bottleBottom = bottle.y + bottle.h;
+        const bottleCenterX = bottle.x + bottle.w / 2;
+
+        const hittingY = bottleBottom >= plat.y && bottle.y < plat.y + plat.h;
+        const hittingX = bottleCenterX > plat.x && bottleCenterX < plat.x + plat.w;
+
+        if (hittingY && hittingX && bottle.vy > 0) {
+            let normalizedAngle = bottle.angle % (Math.PI * 2);
+            if (normalizedAngle > Math.PI) normalizedAngle -= Math.PI * 2;
+            if (normalizedAngle < -Math.PI) normalizedAngle += Math.PI * 2;
+
+            if (Math.abs(normalizedAngle) < UPRIGHT_TOLERANCE) {
+                handleLanding(plat);
+            } else {
+                bottle.vy = -bottle.vy * 0.3; 
+                bottle.vx *= 0.9;
+                bottle.angle += bottle.vx * 0.05;
+            }
+        }
+    }
+}
+
+function handleLanding(plat) {
+    if (gameState === 'LANDED') return; 
+
+    bottle.y = plat.y - bottle.h;
+    bottle.vx = 0;
+    bottle.vy = 0;
+    bottle.angle = 0;
+    bottle.vAngle = 0;
+    
+    gameState = 'LANDED';
+    
+    if (plat === platforms[1]) {
+        score++;
+        scoreDisplay.textContent = score;
+        createGlassShards(bottle.x + bottle.w/2, bottle.y);
+        
+        platforms.shift();
+        
+        const newCamX = bottle.x - canvas.width * 0.3;
+        cameraX = Math.max(cameraX, newCamX);
+
+        generateNextPlatform();
+    }
+
+    setTimeout(() => {
+        if(gameState === 'LANDED') {
+            gameState = 'IDLE';
+            hintText.style.display = 'block';
+        }
+    }, 100);
+}
+
+function triggerGameOver() {
+    gameState = 'GAMEOVER';
+    if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('glassFlipHighScore', highScore);
+        highScoreDisplay.textContent = highScore;
+    }
+    finalScoreDisplay.textContent = score;
+    gameOverScreen.classList.remove('hidden');
+}
+
+// --- RENDERING ---
+
+function drawBottle() {
+    ctx.save();
+    const cx = bottle.x + bottle.w / 2;
+    const cy = bottle.y + bottle.h / 2;
+    ctx.translate(cx - cameraX, cy);
+    ctx.rotate(bottle.angle);
+    
+    const w = bottle.w;
+    const h = bottle.h;
+    
+    // Bottle Path
+    ctx.beginPath();
+    ctx.moveTo(-w/2, h/2);
+    ctx.lineTo(w/2, h/2);
+    ctx.lineTo(w/2, h/2 - h*0.3);
+    ctx.lineTo(w/4, -h/2);
+    ctx.lineTo(-w/4, -h/2);
+    ctx.lineTo(-w/2, h/2 - h*0.3);
+    ctx.closePath();
+
+    // Liquid
+    ctx.save();
+    ctx.clip();
+    const liquidTop = h/2 - (h * 0.4);
+    ctx.fillStyle = COLOR_LIQUID;
+    ctx.fillRect(-w, liquidTop, w*2, h); 
+    ctx.restore();
+
+    // Glass Body
+    ctx.fillStyle = COLOR_GLASS;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = COLOR_BORDER;
+    ctx.stroke();
+
+    // Cap
+    ctx.fillStyle = COLOR_CAP;
+    ctx.beginPath();
+    ctx.roundRect(-w/4, -h/2 - 8, w/2, 8, 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Highlights
+    ctx.beginPath();
+    ctx.moveTo(-w/2 + 2, h/2 - 5);
+    ctx.lineTo(-w/2 + 2, -h/2 + 5);
+    ctx.lineTo(0, -h/2 + 8);
+    ctx.lineTo(0, h/2 - 5);
+    ctx.fillStyle = "rgba(255,255,255,0.4)";
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.ellipse(0, 0, w/2.5, h/2.5, 0, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(255,255,255,0.2)";
+    ctx.stroke();
+
+    ctx.restore();
+}
+
+function drawPlatforms() {
+    platforms.forEach(plat => {
+        const screenX = plat.x - cameraX;
+        if (screenX + plat.w < -50 || screenX > canvas.width + 50) return;
+
+        // Shadow
+        ctx.fillStyle = COLOR_SHADOW;
+        ctx.beginPath();
+        ctx.ellipse(screenX + plat.w/2, plat.y + 8, plat.w/2, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Glass Platform
+        ctx.save();
+        ctx.beginPath();
+        const r = 4;
+        const y = plat.y;
+        const w = plat.w;
+        const h = plat.h;
+        ctx.moveTo(screenX + r, y);
+        ctx.lineTo(screenX + w - r, y);
+        ctx.quadraticCurveTo(screenX + w, y, screenX + w, y + r);
+        ctx.lineTo(screenX + w, y + h - r);
+        ctx.quadraticCurveTo(screenX + w, y + h, screenX + w - r, y + h);
+        ctx.lineTo(screenX + r, y + h);
+        ctx.quadraticCurveTo(screenX, y + h, screenX, y + h - r);
+        ctx.lineTo(screenX, y + r);
+        ctx.quadraticCurveTo(screenX, y, screenX + r, y);
+        ctx.closePath();
+
+        const grad = ctx.createLinearGradient(screenX, y, screenX, y + h);
+        grad.addColorStop(0, 'rgba(255,255,255,0.15)');
+        grad.addColorStop(1, 'rgba(255,255,255,0.05)');
+        ctx.fillStyle = grad;
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.moveTo(screenX + r, y + h/2);
+        ctx.lineTo(screenX + w - r, y + h/2);
+        ctx.strokeStyle = "rgba(255,255,255,0.1)";
+        ctx.stroke();
+
+        ctx.restore();
+    });
+}
+
+function createGlassShards(x, y) {
+    for (let i = 0; i < 15; i++) {
+        particles.push({
+            x: x,
+            y: y,
+            vx: (Math.random() - 0.5) * 8,
+            vy: (Math.random() - 1) * 8,
+            life: 1.0,
+            size: Math.random() * 4 + 2
+        });
+    }
+}
+
+function updateParticles() {
+    if (isPaused) return;
+    
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.2;
+        p.life -= 0.02;
+        
+        if (p.life <= 0) {
+            particles.splice(i, 1);
+        }
+    }
+}
+
+function drawParticles() {
+    particles.forEach(p => {
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = "#fff";
+        ctx.save();
+        ctx.translate(p.x - cameraX, p.y);
+        ctx.rotate(Date.now() / 200);
+        ctx.beginPath();
+        ctx.rect(-p.size/2, -p.size/2, p.size, p.size);
+        ctx.fill();
+        ctx.restore();
+    });
+    ctx.globalAlpha = 1.0;
+}
+
+function render() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Background Parallax Orbs
+    ctx.fillStyle = "rgba(255,255,255,0.03)";
+    ctx.beginPath();
+    ctx.arc(100 + cameraX * 0.5, 200, 100, 0, Math.PI*2);
+    ctx.arc(500 + cameraX * 0.3, 500, 150, 0, Math.PI*2);
+    ctx.fill();
+
+    drawPlatforms();
+    drawBottle();
+    drawParticles();
+}
+
+function gameLoop() {
+    update();
+    render();
+    animationId = requestAnimationFrame(gameLoop);
+}
+
+// Init
+resizeCanvas();
+gameLoop();
+
+</script>
+</body>
+</html>
