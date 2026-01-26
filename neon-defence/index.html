@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Viewport locked to prevent zooming and scrolling -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Defense</title>
+    <style>
+        :root {
+            --primary: #00e676; /* Neon Green */
+            --secondary: #2979ff; /* Neon Blue */
+            --enemy: #ff1744; /* Neon Red */
+            --player-shot: #ffea00; /* Yellow Beam */
+            --bg-color: #000000; /* Pure Black */
+            --surface: #1e1e1e;
+            --header-height: 60px;
+            --panel-height: 80px;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--bg-color);
+            color: white;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* HUD Header */
+        header {
+            height: var(--header-height);
+            background-color: var(--surface);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+
+        .stats {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            font-size: 0.8rem;
+            line-height: 1.2;
+        }
+
+        .stats strong {
+            color: var(--primary);
+            font-size: 1rem;
+        }
+
+        .controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .icon-btn {
+            background: rgba(255,255,255,0.05);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .icon-btn.active {
+            background-color: var(--primary);
+            color: black;
+            box-shadow: 0 0 15px var(--primary);
+        }
+
+        .icon-btn svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+        }
+        
+        .badge {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 10px;
+            height: 10px;
+            background-color: var(--enemy);
+            border-radius: 50%;
+            display: none;
+            border: 1px solid white;
+        }
+        .icon-btn.active .badge { display: block; }
+
+        /* Game Area */
+        main {
+            flex: 1;
+            position: relative;
+            background-color: var(--bg-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* Bottom Panel */
+        .bottom-panel {
+            height: var(--panel-height);
+            background-color: var(--surface);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            padding: 0 16px;
+            border-top: 1px solid #333;
+        }
+
+        .tower-select-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            border: 2px solid transparent;
+            background: #2d2d2d;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        .tower-select-btn:active { transform: scale(0.95); }
+
+        .tower-select-btn.selected {
+            border-color: var(--primary);
+            background: rgba(0, 230, 118, 0.1);
+            box-shadow: 0 0 10px rgba(0, 230, 118, 0.2);
+        }
+        
+        .tower-select-btn.disabled {
+            opacity: 0.4;
+            pointer-events: none;
+        }
+
+        .tower-cost { font-size: 0.75rem; color: #ccc; margin-top: 4px; font-weight: bold; }
+
+        /* Toast Notification */
+        .toast {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(20, 20, 20, 0.95);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            z-index: 20;
+            border: 1px solid #444;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(10px); }
+
+        /* Floating Damage Text */
+        .float-text {
+            position: absolute;
+            color: var(--player-shot);
+            font-weight: bold;
+            font-size: 1.2rem;
+            pointer-events: none;
+            animation: floatUp 0.8s ease-out forwards;
+            text-shadow: 0 2px 4px black;
+            z-index: 15;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-40px) scale(1.2); opacity: 0; }
+        }
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+
+        .modal {
+            background: var(--surface);
+            padding: 24px;
+            border-radius: 16px;
+            width: 85%;
+            max-width: 320px;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(0, 230, 118, 0.1);
+            border: 1px solid #333;
+        }
+        .modal h2 { margin-top: 0; color: var(--primary); }
+        .modal p { color: #ccc; font-size: 0.9rem; line-height: 1.6; }
+        .modal-btn {
+            background: var(--primary); color: black; border: none;
+            padding: 12px 24px; border-radius: 25px; font-weight: bold;
+            width: 100%; margin-top: 15px; cursor: pointer;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header HUD -->
+    <header>
+        <div class="stats">
+            <div>Lives: <strong id="lives" style="color:var(--enemy)">20</strong></div>
+            <div>Money: $<strong id="money">200</strong></div>
+            <div>Wave: <strong id="wave">1</strong></div>
+        </div>
+        <div class="controls">
+            <!-- Hint Icon -->
+            <button class="icon-btn" id="btn-hint" aria-label="Hint">
+                <svg viewBox="0 0 24 24"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7zm2.85 11.1l-.85.6V16h-4v-2.3l-.85-.6C7.8 12.16 7 10.63 7 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.63-.8 3.16-2.15 4.1z"/></svg>
+            </button>
+            <!-- Auto Solve Icon -->
+            <button class="icon-btn" id="btn-auto" aria-label="Auto Solve">
+                <div class="badge"></div>
+                <svg viewBox="0 0 24 24"><path d="M19.43 12.98c.04-.32.07-.64.07-.98 0-.34-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.08-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12-.64L4.57 11c-.04.34-.07.67-.07 1 0 .33.03.66.07 1l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.39 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66z"/></svg>
+            </button>
+            <!-- New Game Icon -->
+            <button class="icon-btn" id="btn-restart" aria-label="New Game">
+                <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+            </button>
+            <!-- Instructions Icon -->
+            <button class="icon-btn" id="btn-info" aria-label="Instructions">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Game Canvas -->
+    <main id="game-container">
+        <div id="toast" class="toast">Not enough money!</div>
+        <canvas id="gameCanvas"></canvas>
+    </main>
+
+    <!-- Bottom Panel -->
+    <div class="bottom-panel">
+        <div class="tower-select-btn selected" id="tower-basic" onclick="selectTower('basic')">
+            <svg viewBox="0 0 24 24" style="width:28px;height:28px;fill:#00e676"><path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3z"/></svg>
+            <span class="tower-cost">$50</span>
+        </div>
+        <div class="tower-select-btn" id="tower-sniper" onclick="selectTower('sniper')">
+            <svg viewBox="0 0 24 24" style="width:28px;height:28px;fill:#2979ff"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+            <span class="tower-cost">$120</span>
+        </div>
+    </div>
+
+    <!-- Info Modal -->
+    <div class="modal-overlay" id="info-modal">
+        <div class="modal">
+            <h2>Neon Defense</h2>
+            <p>
+                <strong>1. MANUAL SHOOT:</strong> Tap on ENEMIES to fire your base laser.<br>
+                <strong>2. BUILD TOWERS:</strong> Tap on BLACK GROUND to place defenses.<br>
+                <strong>3. STRATEGY:</strong> Use AI Auto-Solve or Hints to plan.<br>
+                Your shots deal Critical Damage!
+            </p>
+            <button class="modal-btn" onclick="closeModal('info-modal')">Start Mission</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Config ---
+        const GRID_SIZE = 40; 
+        const COLS = 12;
+        const ROWS = 16;
+        
+        // --- Game State ---
+        let canvas, ctx;
+        let gameLoopId;
+        let money = 250;
+        let lives = 20;
+        let wave = 1;
+        let frames = 0;
+        
+        let towers = [];
+        let enemies = [];
+        let projectiles = []; // Tower bullets
+        let playerShots = []; // Player manual lasers
+        
+        let selectedTowerType = 'basic';
+        let autoSolveActive = false;
+        let hintTile = null; 
+        
+        // --- Player Weapon Config ---
+        const PLAYER_DAMAGE = 40; // High damage for manual shots
+        const PLAYER_COOLDOWN = 15; // Frames between manual shots
+        let playerCooldownTimer = 0;
+
+        // Tower Definitions
+        const TOWER_TYPES = {
+            basic: { cost: 50, range: 3.5, damage: 15, color: '#00e676', cooldown: 30, name: 'Blaster', radius: 12 },
+            sniper: { cost: 120, range: 6.5, damage: 50, color: '#2979ff', cooldown: 90, name: 'Sniper', radius: 10 }
+        };
+
+        // Path Definition (Winding Tunnel)
+        const PATH_POINTS = [
+            {c: 0, r: 1}, {c: 3, r: 1}, {c: 3, r: 5}, 
+            {c: 7, r: 5}, {c: 7, r: 2}, {c: 11, r: 2}, {c: 11, r: 10},
+            {c: 5, r: 10}, {c: 5, r: 14}, {c: 11, r: 14}
+        ];
+        
+        // Base Location (End of path)
+        const BASE_POS = {
+            x: PATH_POINTS[PATH_POINTS.length-1].c * GRID_SIZE + GRID_SIZE/2,
+            y: PATH_POINTS[PATH_POINTS.length-1].r * GRID_SIZE + GRID_SIZE/2
+        };
+
+        // DOM Elements
+        const moneyEl = document.getElementById('money');
+        const livesEl = document.getElementById('lives');
+        const waveEl = document.getElementById('wave');
+        const toastEl = document.getElementById('toast');
+        const containerEl = document.getElementById('game-container');
+        
+        // --- Init ---
+        window.onload = () => {
+            canvas = document.getElementById('gameCanvas');
+            ctx = canvas.getContext('2d');
+            
+            canvas.width = COLS * GRID_SIZE;
+            canvas.height = ROWS * GRID_SIZE;
+
+            document.getElementById('info-modal').classList.add('active');
+
+            // Events
+            canvas.addEventListener('mousedown', handleInput);
+            canvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                handleInput(e.touches[0]);
+            }, {passive: false});
+
+            document.getElementById('btn-restart').onclick = initGame;
+            document.getElementById('btn-hint').onclick = showHint;
+            document.getElementById('btn-auto').onclick = toggleAutoSolve;
+            document.getElementById('btn-info').onclick = () => document.getElementById('info-modal').classList.add('active');
+
+            initGame();
+        };
+
+        function initGame() {
+            money = 250;
+            lives = 20;
+            wave = 1;
+            frames = 0;
+            towers = [];
+            enemies = [];
+            projectiles = [];
+            playerShots = [];
+            autoSolveActive = false;
+            hintTile = null;
+            document.getElementById('btn-auto').classList.remove('active');
+            closeModal('info-modal');
+            updateUI();
+            
+            if (gameLoopId) cancelAnimationFrame(gameLoopId);
+            gameLoop();
+        }
+
+        // --- Core Logic ---
+
+        function gameLoop() {
+            frames++;
+            if (playerCooldownTimer > 0) playerCooldownTimer--;
+            
+            if (frames % 100 === 0) spawnEnemy();
+            if (autoSolveActive && frames % 120 === 0) performAutoMove();
+
+            updateEntities();
+            draw();
+            
+            if (lives > 0) gameLoopId = requestAnimationFrame(gameLoop);
+            else {
+                alert("Base Destroyed! Restarting...");
+                initGame();
+            }
+        }
+
+        function spawnEnemy() {
+            enemies.push({
+                id: Math.random(),
+                c: PATH_POINTS[0].c,
+                r: PATH_POINTS[0].r,
+                x: PATH_POINTS[0].c * GRID_SIZE + GRID_SIZE/2,
+                y: PATH_POINTS[0].r * GRID_SIZE + GRID_SIZE/2,
+                hp: 30 + (wave * 12),
+                maxHp: 30 + (wave * 12),
+                speed: 1.5 + (wave * 0.1),
+                pathIndex: 0
+            });
+        }
+
+        function updateEntities() {
+            // Update Enemies
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                let e = enemies[i];
+                let target = PATH_POINTS[e.pathIndex + 1];
+                
+                if (!target) {
+                    lives--;
+                    enemies.splice(i, 1);
+                    updateUI();
+                    continue;
+                }
+
+                let tx = target.c * GRID_SIZE + GRID_SIZE/2;
+                let ty = target.r * GRID_SIZE + GRID_SIZE/2;
+                let dx = tx - e.x;
+                let dy = ty - e.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+
+                if (dist < e.speed) e.pathIndex++;
+                else {
+                    e.x += (dx / dist) * e.speed;
+                    e.y += (dy / dist) * e.speed;
+                }
+
+                if (e.hp <= 0) {
+                    money += 15;
+                    enemies.splice(i, 1);
+                    updateUI();
+                }
+            }
+
+            // Update Towers
+            towers.forEach(t => {
+                if (t.cooldownTimer > 0) t.cooldownTimer--;
+                
+                if (t.cooldownTimer <= 0) {
+                    let target = enemies.find(e => {
+                        let dx = e.x - t.x;
+                        let dy = e.y - t.y;
+                        return Math.sqrt(dx*dx + dy*dy) <= t.typeData.range * GRID_SIZE;
+                    });
+
+                    if (target) {
+                        shootTower(t, target);
+                        t.cooldownTimer = t.typeData.cooldown;
+                    }
+                }
+            });
+
+            // Update Tower Projectiles
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                let p = projectiles[i];
+                let dx = p.target.x - p.x;
+                let dy = p.target.y - p.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                
+                if (dist < 10 || p.target.hp <= 0) {
+                    if (p.target.hp > 0) p.target.hp -= p.damage;
+                    projectiles.splice(i, 1);
+                } else {
+                    p.x += (dx/dist) * p.speed;
+                    p.y += (dy/dist) * p.speed;
+                }
+            }
+
+            // Update Player Manual Shots (Instant beams)
+            for (let i = playerShots.length - 1; i >= 0; i--) {
+                let s = playerShots[i];
+                s.life--;
+                if (s.life <= 0) playerShots.splice(i, 1);
+            }
+        }
+
+        function shootTower(tower, target) {
+            projectiles.push({
+                x: tower.x, y: tower.y,
+                target: target,
+                damage: tower.typeData.damage,
+                speed: 10,
+                color: tower.typeData.color
+            });
+        }
+
+        // --- Drawing ---
+
+        function draw() {
+            // Clear Background
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // --- FIXED: Draw The Tunnel as Full Blocks ---
+            ctx.lineCap = 'square'; // Square caps for blocky look
+            ctx.lineJoin = 'miter'; // Sharp corners
+            
+            // Road Surface (Thick Grey Blocks)
+            // Width is 0.9 of grid size, meaning it almost fills the tile
+            ctx.lineWidth = GRID_SIZE * 0.9; 
+            ctx.strokeStyle = '#222222'; // Distinct dark grey
+            ctx.beginPath();
+            ctx.moveTo(PATH_POINTS[0].c * GRID_SIZE + GRID_SIZE/2, PATH_POINTS[0].r * GRID_SIZE + GRID_SIZE/2);
+            for (let i = 1; i < PATH_POINTS.length; i++) {
+                ctx.lineTo(PATH_POINTS[i].c * GRID_SIZE + GRID_SIZE/2, PATH_POINTS[i].r * GRID_SIZE + GRID_SIZE/2);
+            }
+            ctx.stroke();
+
+            // Neon Center Line (The Tunnel Guide)
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#00e676'; // Neon Green Line
+            ctx.globalAlpha = 0.3; // Faint glow
+            ctx.setLineDash([8, 8]); 
+            ctx.beginPath();
+            ctx.moveTo(PATH_POINTS[0].c * GRID_SIZE + GRID_SIZE/2, PATH_POINTS[0].r * GRID_SIZE + GRID_SIZE/2);
+            for (let i = 1; i < PATH_POINTS.length; i++) {
+                ctx.lineTo(PATH_POINTS[i].c * GRID_SIZE + GRID_SIZE/2, PATH_POINTS[i].r * GRID_SIZE + GRID_SIZE/2);
+            }
+            ctx.stroke();
+            ctx.setLineDash([]); 
+            ctx.globalAlpha = 1.0;
+
+            // Draw Hint
+            if (hintTile) {
+                let cx = hintTile.c * GRID_SIZE + GRID_SIZE/2;
+                let cy = hintTile.r * GRID_SIZE + GRID_SIZE/2;
+                let pulse = 15 + Math.sin(Date.now() / 200) * 5;
+                ctx.beginPath();
+                ctx.arc(cx, cy, pulse, 0, Math.PI*2);
+                ctx.strokeStyle = '#ffea00';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                
+                ctx.fillStyle = 'rgba(255, 234, 0, 0.2)';
+                ctx.fill();
+            }
+
+            // Draw Towers
+            towers.forEach(t => {
+                // Base
+                ctx.fillStyle = '#1e1e1e';
+                ctx.beginPath(); ctx.arc(t.x, t.y, 14, 0, Math.PI*2); ctx.fill();
+                // Turret
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = t.typeData.color;
+                ctx.fillStyle = t.typeData.color;
+                ctx.beginPath(); ctx.arc(t.x, t.y, 8, 0, Math.PI*2); ctx.fill();
+                ctx.shadowBlur = 0;
+            });
+
+            // Draw Enemies
+            enemies.forEach(e => {
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#ff1744';
+                ctx.fillStyle = '#ff1744';
+                ctx.beginPath(); ctx.arc(e.x, e.y, 11, 0, Math.PI*2); ctx.fill();
+                ctx.shadowBlur = 0;
+                
+                // HP Bar
+                ctx.fillStyle = '#000';
+                ctx.fillRect(e.x - 12, e.y - 20, 24, 5);
+                ctx.fillStyle = '#00e676';
+                ctx.fillRect(e.x - 12, e.y - 20, 24 * (e.hp/e.maxHp), 5);
+            });
+
+            // Draw Player Base
+            ctx.fillStyle = '#333';
+            ctx.fillRect(BASE_POS.x - 20, BASE_POS.y - 20, 40, 40);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(BASE_POS.x - 20, BASE_POS.y - 20, 40, 40);
+            // Cannon
+            ctx.fillStyle = '#999';
+            ctx.beginPath(); ctx.arc(BASE_POS.x, BASE_POS.y, 10, 0, Math.PI*2); ctx.fill();
+
+            // Draw Tower Projectiles
+            projectiles.forEach(p => {
+                ctx.shadowBlur = 5;
+                ctx.shadowColor = p.color;
+                ctx.fillStyle = p.color;
+                ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI*2); ctx.fill();
+                ctx.shadowBlur = 0;
+            });
+
+            // Draw Player Manual Laser Beams
+            playerShots.forEach(s => {
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = '#ffea00';
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = `rgba(255, 234, 0, ${s.life / 10})`; // Fade out
+                ctx.beginPath();
+                ctx.moveTo(BASE_POS.x, BASE_POS.y);
+                ctx.lineTo(s.x, s.y);
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+            });
+        }
+
+        // --- Input Logic ---
+
+        function handleInput(e) {
+            if (playerCooldownTimer > 0) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const rawX = (e.clientX - rect.left) * scaleX;
+            const rawY = (e.clientY - rect.top) * scaleY;
+
+            let hitEnemy = false;
+
+            // 1. Check if we tapped an Enemy
+            for (let enemy of enemies) {
+                let dx = enemy.x - rawX;
+                let dy = enemy.y - rawY;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                
+                if (dist < 30) {
+                    manualShoot(enemy, rawX, rawY);
+                    hitEnemy = true;
+                    break;
+                }
+            }
+
+            // 2. If no enemy hit, try to build tower
+            if (!hitEnemy) {
+                const gridC = Math.floor(rawX / GRID_SIZE);
+                const gridR = Math.floor(rawY / GRID_SIZE);
+                tryPlaceTower(gridC, gridR);
+            }
+        }
+
+        function manualShoot(target, tx, ty) {
+            target.hp -= PLAYER_DAMAGE;
+            playerCooldownTimer = PLAYER_COOLDOWN;
+            
+            // Visuals: Laser Beam
+            playerShots.push({
+                x: tx, 
+                y: ty,
+                life: 10
+            });
+
+            // Visuals: Floating Text
+            spawnFloatText(tx, ty, `-${PLAYER_DAMAGE}`);
+        }
+
+        function spawnFloatText(x, y, text) {
+            const el = document.createElement('div');
+            el.className = 'float-text';
+            el.innerText = text;
+            
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = rect.width / canvas.width;
+            const scaleY = rect.height / canvas.height;
+            
+            el.style.left = (rect.left + x * scaleX) + 'px';
+            el.style.top = (rect.top + y * scaleY) + 'px';
+            
+            containerEl.appendChild(el);
+            setTimeout(() => el.remove(), 800);
+        }
+
+        function tryPlaceTower(c, r) {
+            if (c < 0 || c >= COLS || r < 0 || r >= ROWS) return;
+
+            if (isPath(c, r)) { showToast("Can't build on path!"); return; }
+            if (towers.some(t => t.c === c && t.r === r)) { showToast("Occupied!"); return; }
+
+            const type = TOWER_TYPES[selectedTowerType];
+            if (money < type.cost) { showToast("Need $" + (type.cost - money)); return; }
+
+            money -= type.cost;
+            towers.push({
+                c: c, r: r,
+                x: c * GRID_SIZE + GRID_SIZE/2,
+                y: r * GRID_SIZE + GRID_SIZE/2,
+                typeData: type,
+                cooldownTimer: 0
+            });
+            
+            hintTile = null;
+            updateUI();
+        }
+
+        function isPath(c, r) {
+            // Check distance to path segments
+            // Since we increased visual width to 0.9, this logic now matches the visual perfectly.
+            for(let i=0; i<PATH_POINTS.length-1; i++) {
+                let p1 = PATH_POINTS[i];
+                let p2 = PATH_POINTS[i+1];
+                
+                let minX = Math.min(p1.c, p2.c) * GRID_SIZE;
+                let maxX = Math.max(p1.c, p2.c) * GRID_SIZE + GRID_SIZE;
+                let minY = Math.min(p1.r, p2.r) * GRID_SIZE;
+                let maxY = Math.max(p1.r, p2.r) * GRID_SIZE + GRID_SIZE;
+                
+                let cx = c * GRID_SIZE + GRID_SIZE/2;
+                let cy = r * GRID_SIZE + GRID_SIZE/2;
+                
+                if (cx >= minX && cx <= maxX && cy >= minY && cy <= maxY) return true; 
+            }
+            return false;
+        }
+
+        // --- AI / Auto Solve ---
+        function getBestTile() {
+            let bestScore = -1;
+            let bestTile = null;
+            for(let r=1; r<ROWS-1; r++) {
+                for(let c=1; c<COLS-1; c++) {
+                    if (isPath(c, r) || towers.some(t=>t.c===c && t.r===r)) continue;
+                    let score = 0;
+                    let tx = c * GRID_SIZE + GRID_SIZE/2;
+                    let ty = r * GRID_SIZE + GRID_SIZE/2;
+                    let range = TOWER_TYPES.basic.range * GRID_SIZE;
+                    enemies.forEach(e => {
+                        let dist = Math.sqrt(Math.pow(e.x - tx, 2) + Math.pow(e.y - ty, 2));
+                        if (dist < range) score += (range - dist);
+                    });
+                    let minPathDist = 9999;
+                    PATH_POINTS.forEach(p => {
+                        let px = p.c * GRID_SIZE + GRID_SIZE/2;
+                        let py = p.r * GRID_SIZE + GRID_SIZE/2;
+                        let dist = Math.sqrt(Math.pow(px - tx, 2) + Math.pow(py - ty, 2));
+                        if(dist < minPathDist) minPathDist = dist;
+                    });
+                    score += (300 / (minPathDist + 1));
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestTile = {c, r};
+                    }
+                }
+            }
+            return bestTile;
+        }
+
+        function showHint() {
+            const best = getBestTile();
+            if (best) { hintTile = best; setTimeout(() => { hintTile = null; }, 2000); }
+            else showToast("No spots!");
+        }
+
+        function toggleAutoSolve() {
+            autoSolveActive = !autoSolveActive;
+            document.getElementById('btn-auto').classList.toggle('active');
+        }
+
+        function performAutoMove() {
+            let typeToBuild = money >= TOWER_TYPES.sniper.cost ? 'sniper' : (money >= TOWER_TYPES.basic.cost ? 'basic' : null);
+            if (!typeToBuild) return;
+            const oldSelection = selectedTowerType;
+            selectedTowerType = typeToBuild;
+            const best = getBestTile();
+            if (best) tryPlaceTower(best.c, best.r);
+            selectedTowerType = oldSelection;
+        }
+
+        // --- Helpers ---
+        window.selectTower = (type) => {
+            selectedTowerType = type;
+            document.querySelectorAll('.tower-select-btn').forEach(b => b.classList.remove('selected'));
+            document.getElementById('tower-'+type).classList.add('selected');
+        };
+
+        function updateUI() {
+            moneyEl.innerText = money;
+            livesEl.innerText = lives;
+            waveEl.innerText = wave;
+            document.getElementById('tower-basic').classList.toggle('disabled', money < TOWER_TYPES.basic.cost);
+            document.getElementById('tower-sniper').classList.toggle('disabled', money < TOWER_TYPES.sniper.cost);
+        }
+
+        function showToast(msg) {
+            toastEl.innerText = msg;
+            toastEl.classList.add('show');
+            setTimeout(() => toastEl.classList.remove('show'), 2000);
+        }
+
+        window.closeModal = (id) => document.getElementById(id).classList.remove('active');
+    </script>
+</body>
+</html>
