@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Spin the Circle</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Roboto:wght@400;700&display=swap');
+
+        :root {
+            --bg-color: #121212;
+            --text-color: #ffffff;
+            --ui-bg: rgba(30, 30, 30, 0.95);
+            --accent: #ff0055;
+            --btn-green: #00e676;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            font-family: 'Roboto', sans-serif;
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        #uiLayer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            pointer-events: none;
+        }
+
+        .score-container {
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .score-label {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            opacity: 0.6;
+        }
+
+        .score-value {
+            font-family: 'Fredoka One', cursive;
+            font-size: 3.5rem;
+            line-height: 1;
+            margin-top: -5px;
+            text-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        /* Buttons */
+        .icon-btn {
+            pointer-events: auto;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255,255,255,0.2);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Fredoka One', cursive;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        .icon-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+        
+        .icon-btn:active {
+            transform: scale(0.95);
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        #restartBtn {
+            display: none; /* Hidden initially */
+            background: rgba(255, 0, 85, 0.2);
+            border-color: rgba(255, 0, 85, 0.5);
+        }
+
+        /* Modals */
+        .modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--ui-bg);
+            backdrop-filter: blur(12px);
+            padding: 40px;
+            border-radius: 24px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+            pointer-events: auto;
+            display: none;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+            min-width: 300px;
+            max-width: 85%;
+            animation: slideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .modal.active {
+            display: block;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translate(-50%, -40%) scale(0.9); }
+            to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+
+        h1 {
+            font-family: 'Fredoka One', cursive;
+            font-size: 2.8rem;
+            margin: 0 0 10px 0;
+            background: linear-gradient(135deg, #00e676, #2979ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-family: 'Fredoka One', cursive;
+            font-size: 2.2rem;
+            color: var(--accent);
+            margin: 0 0 15px 0;
+        }
+
+        p {
+            font-size: 1.1rem;
+            line-height: 1.5;
+            margin-bottom: 25px;
+            color: #ddd;
+        }
+
+        .instruction-list {
+            text-align: left;
+            background: rgba(0,0,0,0.2);
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            font-size: 0.95rem;
+        }
+        
+        .instruction-list li {
+            margin-bottom: 8px;
+            list-style-type: none;
+        }
+        
+        .instruction-list li::before {
+            content: "•";
+            color: var(--btn-green);
+            font-weight: bold;
+            display: inline-block; 
+            width: 1em;
+            margin-left: -1em;
+        }
+
+        .primary-btn {
+            background: linear-gradient(to right, #00e676, #00c853);
+            color: #000;
+            border: none;
+            padding: 18px 0;
+            font-size: 1.3rem;
+            border-radius: 50px;
+            cursor: pointer;
+            font-family: 'Fredoka One', cursive;
+            transition: transform 0.1s, filter 0.2s;
+            box-shadow: 0 6px 0 #009624;
+            width: 100%;
+            display: block;
+        }
+
+        .primary-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #009624;
+        }
+
+        .secondary-btn {
+            background: transparent;
+            color: #aaa;
+            border: none;
+            margin-top: 15px;
+            font-size: 1rem;
+            cursor: pointer;
+            text-decoration: underline;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .high-score-display {
+            font-size: 1rem;
+            color: #888;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="uiLayer">
+        
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <div class="score-container">
+                <div class="score-label">Score</div>
+                <div class="score-value" id="scoreDisplay">0</div>
+            </div>
+            
+            <!-- In-game Restart Button -->
+            <button id="restartBtn" class="icon-btn" title="Restart Game">↻</button>
+            
+            <!-- Instructions Button -->
+            <button id="infoBtn" class="icon-btn" style="display: block;" title="How to Play">?</button>
+        </div>
+
+        <!-- Start Screen -->
+        <div id="startModal" class="modal active">
+            <h1>Spin & Match</h1>
+            <p>Tap when the circle color aligns with the pin.</p>
+            <button class="primary-btn" id="startBtn">Play Now</button>
+            <button class="secondary-btn" id="startInfoBtn">How to Play</button>
+        </div>
+
+        <!-- Instructions Modal -->
+        <div id="instructionsModal" class="modal">
+            <h2>How to Play</h2>
+            <ul class="instruction-list">
+                <li><strong>Look at the Pin:</strong> The ball at the top has a color.</li>
+                <li><strong>Watch the Wheel:</strong> The circle spins with 4 colors.</li>
+                <li><strong>Tap the Screen:</strong> Tap when the top segment matches the pin color.</li>
+                <li><strong>Don't Miss:</strong> Wrong colors end the game!</li>
+            </ul>
+            <button class="primary-btn" id="closeInfoBtn">Got it!</button>
+        </div>
+
+        <!-- Game Over Modal -->
+        <div id="gameOverModal" class="modal">
+            <h2>Game Over</h2>
+            <p>Wrong Color!</p>
+            <div class="score-label">Final Score</div>
+            <div class="score-value" id="finalScore">0</div>
+            <div class="high-score-display">Best: <span id="bestScore">0</span></div>
+            <br>
+            <button class="primary-btn" id="retryBtn">Try Again</button>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * CONFIGURATION
+         */
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        const COLORS = ['#FF0055', '#00DDFF', '#00FF66', '#FFDD00'];
+        const NUM_SEGMENTS = COLORS.length;
+        
+        let game = {
+            status: 'MENU',
+            score: 0,
+            highScore: localStorage.getItem('spinHighScore') || 0,
+            rotation: 0,
+            speed: 0.0,
+            targetColorIdx: 0,
+            particles: [],
+            floatingTexts: [], // For "+1" effects
+            shake: 0
+        };
+
+        let cx, cy, radius;
+        let lastTapTime = 0; // To prevent double tapping
+        const INPUT_COOLDOWN = 200; // ms
+
+        const ui = {
+            score: document.getElementById('scoreDisplay'),
+            finalScore: document.getElementById('finalScore'),
+            bestScore: document.getElementById('bestScore'),
+            startModal: document.getElementById('startModal'),
+            gameOverModal: document.getElementById('gameOverModal'),
+            infoModal: document.getElementById('instructionsModal'),
+            startBtn: document.getElementById('startBtn'),
+            retryBtn: document.getElementById('retryBtn'),
+            restartBtn: document.getElementById('restartBtn'),
+            infoBtn: document.getElementById('infoBtn'),
+            startInfoBtn: document.getElementById('startInfoBtn'),
+            closeInfoBtn: document.getElementById('closeInfoBtn')
+        };
+
+        /**
+         * INITIALIZATION
+         */
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            cx = canvas.width / 2;
+            cy = canvas.height / 2;
+            radius = Math.min(cx, cy) * 0.35;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+        requestAnimationFrame(gameLoop);
+
+        /**
+         * LOGIC
+         */
+        function getIndexAtTop() {
+            const PIN_ANGLE = 1.5 * Math.PI; 
+            let relativeAngle = PIN_ANGLE - game.rotation;
+            const TWO_PI = Math.PI * 2;
+            relativeAngle = relativeAngle % TWO_PI;
+            if (relativeAngle < 0) relativeAngle += TWO_PI;
+            const segmentSize = TWO_PI / NUM_SEGMENTS;
+            return Math.floor(relativeAngle / segmentSize);
+        }
+
+        function startGame() {
+            game.score = 0;
+            game.speed = 0.04; 
+            game.rotation = 0;
+            game.status = 'PLAYING';
+            game.particles = [];
+            game.floatingTexts = [];
+            game.shake = 0;
+            
+            pickNewTarget();
+            
+            ui.score.innerText = '0';
+            ui.startModal.classList.remove('active');
+            ui.gameOverModal.classList.remove('active');
+            ui.infoModal.classList.remove('active');
+            
+            ui.infoBtn.style.display = 'none';
+            ui.restartBtn.style.display = 'flex';
+        }
+
+        function pickNewTarget() {
+            const currentTopIdx = getIndexAtTop();
+            let newIdx;
+            do {
+                newIdx = Math.floor(Math.random() * NUM_SEGMENTS);
+            } while (newIdx === currentTopIdx);
+            game.targetColorIdx = newIdx;
+        }
+
+        // FIXED INPUT HANDLER WITH COOLDOWN
+        function handleTap(e) {
+            // 1. Stop if clicking buttons
+            if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+
+            // 2. Cooldown Check (Prevents double-tap bug)
+            const now = Date.now();
+            if (now - lastTapTime < INPUT_COOLDOWN) return;
+            
+            if (game.status === 'PLAYING') {
+                lastTapTime = now;
+                const currentIdx = getIndexAtTop();
+                
+                if (currentIdx === game.targetColorIdx) {
+                    success();
+                } else {
+                    fail();
+                }
+            }
+        }
+
+        function success() {
+            game.score++;
+            // Increase speed slightly more per level for better progression feel
+            game.speed += 0.003; 
+            if(game.speed > 0.25) game.speed = 0.25;
+            
+            ui.score.innerText = game.score;
+            
+            // Visual feedback
+            spawnParticles(cx, cy - radius, COLORS[game.targetColorIdx], 15);
+            spawnFloatingText(cx, cy - radius - 60, "+1");
+            
+            pickNewTarget();
+        }
+
+        function fail() {
+            game.status = 'GAMEOVER';
+            game.shake = 15;
+            
+            // Visual feedback for fail
+            spawnFloatingText(cx, cy, "X", "#ff0055");
+            
+            if (game.score > game.highScore) {
+                game.highScore = game.score;
+                localStorage.setItem('spinHighScore', game.highScore);
+            }
+
+            setTimeout(() => {
+                ui.finalScore.innerText = game.score;
+                ui.bestScore.innerText = game.highScore;
+                ui.gameOverModal.classList.add('active');
+                ui.restartBtn.style.display = 'none';
+            }, 600);
+        }
+
+        /**
+         * INPUTS
+         */
+        window.addEventListener('mousedown', handleTap);
+        window.addEventListener('touchstart', (e) => {
+            handleTap(e);
+        }, {passive: false});
+        
+        ui.startBtn.addEventListener('click', startGame);
+        ui.retryBtn.addEventListener('click', startGame);
+        ui.restartBtn.addEventListener('click', startGame); 
+        
+        ui.infoBtn.addEventListener('click', () => {
+            ui.startModal.classList.remove('active');
+            ui.infoModal.classList.add('active');
+        });
+        
+        ui.startInfoBtn.addEventListener('click', () => {
+            ui.startModal.classList.remove('active');
+            ui.infoModal.classList.add('active');
+        });
+
+        ui.closeInfoBtn.addEventListener('click', () => {
+            ui.infoModal.classList.remove('active');
+            ui.startModal.classList.add('active');
+        });
+
+        /**
+         * RENDER LOOP
+         */
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function update() {
+            if (game.status === 'PLAYING') {
+                game.rotation += game.speed;
+            }
+            if (game.shake > 0) {
+                game.shake *= 0.9;
+                if (game.shake < 0.5) game.shake = 0;
+            }
+            
+            // Particles
+            for (let i = game.particles.length - 1; i >= 0; i--) {
+                let p = game.particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.02;
+                p.size *= 0.95;
+                if (p.life <= 0) game.particles.splice(i, 1);
+            }
+
+            // Floating Text
+            for (let i = game.floatingTexts.length - 1; i >= 0; i--) {
+                let ft = game.floatingTexts[i];
+                ft.y -= 2; // Float up
+                ft.life -= 0.015;
+                if (ft.life <= 0) game.floatingTexts.splice(i, 1);
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.save();
+            
+            if (game.shake > 0) {
+                let dx = (Math.random() - 0.5) * game.shake;
+                let dy = (Math.random() - 0.5) * game.shake;
+                ctx.translate(dx, dy);
+            }
+
+            // Draw Wheel
+            const segmentAngle = (Math.PI * 2) / NUM_SEGMENTS;
+            for (let i = 0; i < NUM_SEGMENTS; i++) {
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.arc(cx, cy, radius, 
+                    game.rotation + i * segmentAngle, 
+                    game.rotation + (i + 1) * segmentAngle);
+                ctx.closePath();
+                ctx.fillStyle = COLORS[i];
+                ctx.fill();
+                ctx.strokeStyle = '#121212';
+                ctx.lineWidth = 6;
+                ctx.stroke();
+            }
+
+            // Center Hub
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius * 0.15, 0, Math.PI * 2);
+            ctx.fillStyle = '#121212';
+            ctx.fill();
+
+            // Draw Pin
+            const pinY = cy - radius - 30;
+            const targetColor = COLORS[game.targetColorIdx];
+
+            ctx.shadowColor = targetColor;
+            ctx.shadowBlur = 25;
+
+            ctx.beginPath();
+            ctx.arc(cx, pinY, 18, 0, Math.PI * 2);
+            ctx.fillStyle = targetColor;
+            ctx.fill();
+            
+            ctx.shadowBlur = 0;
+
+            // Connector Line
+            ctx.beginPath();
+            ctx.moveTo(cx, pinY + 18);
+            ctx.lineTo(cx, cy - radius + 5);
+            ctx.strokeStyle = targetColor;
+            ctx.lineWidth = 5;
+            ctx.stroke();
+
+            // Draw Particles
+            for (let p of game.particles) {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, p.size, p.size); 
+                ctx.globalAlpha = 1.0;
+            }
+
+            // Draw Floating Text
+            ctx.font = "bold 30px 'Fredoka One', sans-serif";
+            ctx.textAlign = "center";
+            for (let ft of game.floatingTexts) {
+                ctx.globalAlpha = ft.life;
+                ctx.fillStyle = ft.color || "#ffffff";
+                ctx.fillText(ft.text, ft.x, ft.y);
+                ctx.globalAlpha = 1.0;
+            }
+
+            ctx.restore();
+        }
+
+        // Init
+        game.targetColorIdx = Math.floor(Math.random() * NUM_SEGMENTS);
+        ui.bestScore.innerText = game.highScore;
+        draw();
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 4 + 2;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.life = 1.0;
+                this.size = Math.random() * 10 + 5;
+            }
+        }
+
+        function spawnParticles(x, y, color, count) {
+            for(let i=0; i<count; i++) {
+                game.particles.push(new Particle(x, y, color));
+            }
+        }
+        
+        function spawnFloatingText(x, y, text, color) {
+            game.floatingTexts.push({
+                x: x, y: y, text: text, color: color, life: 1.0
+            });
+        }
+
+    </script>
+</body>
+</html>
