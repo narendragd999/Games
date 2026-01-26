@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tower of Hanoi Pro</title>
+    <!-- Importing a clean Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            --surface-color: #ffffff;
+            --text-primary: #2c3e50;
+            --text-secondary: #7f8c8d;
+            --accent-color: #3498db;
+            --shadow-light: 0 10px 30px rgba(0,0,0,0.1);
+            --shadow-deep: 0 20px 50px rgba(0,0,0,0.15);
+            --disk-shadow: 0 4px 6px rgba(0,0,0,0.1), inset 0 2px 4px rgba(255,255,255,0.3);
+            --peg-color: #bdc3c7;
+        }
+
+        * {
+            box-sizing: border-box;
+            touch-action: none; /* Critical for preventing scrolling while dragging */
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: var(--bg-gradient);
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            color: var(--text-primary);
+        }
+
+        /* --- UI Header --- */
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            animation: fadeInDown 0.8s ease;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -1px;
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 10px;
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(10px);
+            padding: 8px 20px;
+            border-radius: 50px;
+            box-shadow: var(--shadow-light);
+        }
+
+        .stat-item {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .stat-value {
+            color: var(--text-primary);
+            font-weight: 700;
+            margin-left: 5px;
+        }
+
+        /* --- Game Board --- */
+        .game-container {
+            position: relative;
+            background: var(--surface-color);
+            padding: 40px 20px 20px 20px;
+            border-radius: 20px;
+            box-shadow: var(--shadow-deep);
+            width: 90%;
+            max-width: 800px;
+            height: 400px;
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end;
+            animation: scaleIn 0.5s ease;
+        }
+
+        /* Base Line */
+        .base-line {
+            position: absolute;
+            bottom: 20px;
+            left: 10%;
+            right: 10%;
+            height: 10px;
+            background: #ecf0f1;
+            border-radius: 5px;
+            z-index: 0;
+        }
+
+        /* --- Pegs --- */
+        .peg-wrapper {
+            position: relative;
+            width: 25%;
+            height: 300px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            z-index: 1;
+            /* Invisible hit area for drop detection */
+        }
+
+        .peg-rod {
+            position: absolute;
+            bottom: 20px; /* Sit on base */
+            width: 14px;
+            height: 260px;
+            background: linear-gradient(90deg, #bdc3c7, #e0e0e0);
+            border-radius: 10px 10px 0 0;
+            box-shadow: inset 2px 0 5px rgba(0,0,0,0.05);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .peg-label {
+            position: absolute;
+            bottom: -30px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+        }
+
+        /* Highlight Peg when dragging over */
+        .peg-wrapper.drag-over .peg-rod {
+            background: linear-gradient(90deg, #a29bfe, #6c5ce7);
+            box-shadow: 0 0 15px rgba(108, 92, 231, 0.4);
+        }
+
+        /* --- Disks --- */
+        .disk {
+            height: 35px;
+            border-radius: 10px;
+            cursor: grab;
+            position: relative; /* Stack normally */
+            transition: box-shadow 0.2s, transform 0.1s;
+            z-index: 10;
+            /* Gradient colors applied via JS */
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 10px;
+            color: rgba(255,255,255,0.5);
+            font-weight: bold;
+        }
+
+        .disk:hover {
+            filter: brightness(1.1);
+        }
+
+        .disk.dragging {
+            position: fixed; /* Break out of flow */
+            z-index: 1000;
+            cursor: grabbing;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            transform: scale(1.05);
+            pointer-events: none; /* Let events pass through to detect elements below */
+            transition: none; /* No transition during direct drag for responsiveness */
+        }
+
+        /* Stacking container inside peg wrapper */
+        .disk-stack {
+            display: flex;
+            flex-direction: column-reverse;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+            padding-bottom: 20px; /* Base height */
+            pointer-events: none; /* Let clicks pass through stack container to specific disks */
+        }
+        
+        .disk {
+            pointer-events: auto; /* Re-enable pointer events for disks */
+        }
+
+        /* --- Controls --- */
+        .controls {
+            margin-top: 30px;
+            display: flex;
+            gap: 15px;
+            background: white;
+            padding: 10px;
+            border-radius: 15px;
+            box-shadow: var(--shadow-light);
+            animation: fadeInUp 0.8s ease;
+        }
+
+        select {
+            padding: 10px 15px;
+            border-radius: 10px;
+            border: 1px solid #eee;
+            background: #f9f9f9;
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            outline: none;
+        }
+
+        button.btn-reset {
+            background: var(--text-primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.1s, background 0.2s;
+        }
+
+        button.btn-reset:hover {
+            background: #000;
+            transform: translateY(-2px);
+        }
+
+        button.btn-reset:active {
+            transform: translateY(0);
+        }
+
+        /* --- Win Modal --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-card {
+            background: white;
+            padding: 40px;
+            border-radius: 25px;
+            text-align: center;
+            box-shadow: var(--shadow-deep);
+            transform: scale(0.8);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            max-width: 90%;
+            width: 400px;
+        }
+
+        .modal-overlay.active .modal-card {
+            transform: scale(1);
+        }
+
+        .modal-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            margin: 0 0 10px 0;
+            color: var(--text-primary);
+        }
+
+        .modal-btn {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background 0.2s;
+        }
+
+        .modal-btn:hover {
+            background: #2980b9;
+        }
+
+        /* Animations */
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <h1>Tower of Hanoi</h1>
+        <div class="stats-bar">
+            <div class="stat-item">Moves: <span id="move-count" class="stat-value">0</span></div>
+            <div class="stat-item">Min: <span id="min-moves" class="stat-value">7</span></div>
+        </div>
+    </header>
+
+    <main class="game-container">
+        <div class="base-line"></div>
+
+        <!-- Peg A -->
+        <div class="peg-wrapper" data-peg="0">
+            <div class="peg-rod"></div>
+            <div class="disk-stack" id="stack-0"></div>
+            <div class="peg-label">A</div>
+        </div>
+
+        <!-- Peg B -->
+        <div class="peg-wrapper" data-peg="1">
+            <div class="peg-rod"></div>
+            <div class="disk-stack" id="stack-1"></div>
+            <div class="peg-label">B</div>
+        </div>
+
+        <!-- Peg C -->
+        <div class="peg-wrapper" data-peg="2">
+            <div class="peg-rod"></div>
+            <div class="disk-stack" id="stack-2"></div>
+            <div class="peg-label">C</div>
+        </div>
+    </main>
+
+    <div class="controls">
+        <select id="disk-select" aria-label="Number of Disks">
+            <option value="3" selected>3 Disks</option>
+            <option value="4">4 Disks</option>
+            <option value="5">5 Disks</option>
+            <option value="6">6 Disks</option>
+            <option value="7">7 Disks</option>
+            <option value="8">8 Disks</option>
+        </select>
+        <button class="btn-reset" onclick="resetGame()">Restart</button>
+    </div>
+
+    <!-- Win Modal -->
+    <div class="modal-overlay" id="win-modal">
+        <div class="modal-card">
+            <span class="modal-icon">🏆</span>
+            <h2 class="modal-title">Excellent!</h2>
+            <p>Puzzle solved in <span id="final-score">0</span> moves.</p>
+            <button class="modal-btn" onclick="closeModal()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Game Configuration & State ---
+        const COLORS = [
+            'linear-gradient(135deg, #FF9A9E 0%, #FECFEF 100%)', // Pink
+            'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)', // Purple
+            'linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)', // Cyan/Green
+            'linear-gradient(135deg, #fccb90 0%, #d57eeb 100%)', // Orange/Purple
+            'linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)', // Blue/Pink
+            'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', // Red/Pink
+            'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', // Blue
+            'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'  // Green
+        ];
+
+        let towers = [[], [], []];
+        let moveCount = 0;
+        let totalDisks = 3;
+        let isDragging = false;
+        let draggedDisk = null;
+        let draggedDiskValue = null;
+        let sourcePegIndex = null;
+        let startX, startY;
+        let originalRect;
+
+        // DOM Elements
+        const stacks = [
+            document.getElementById('stack-0'),
+            document.getElementById('stack-1'),
+            document.getElementById('stack-2')
+        ];
+        const pegWrappers = document.querySelectorAll('.peg-wrapper');
+        const moveDisplay = document.getElementById('move-count');
+        const minMovesDisplay = document.getElementById('min-moves');
+        const diskSelect = document.getElementById('disk-select');
+        const winModal = document.getElementById('win-modal');
+        const finalScoreSpan = document.getElementById('final-score');
+
+        // --- Initialization ---
+
+        function init() {
+            // Set listeners
+            diskSelect.addEventListener('change', (e) => {
+                totalDisks = parseInt(e.target.value);
+                resetGame();
+            });
+
+            // Add global Pointer Events (Mouse + Touch)
+            window.addEventListener('pointermove', onPointerMove);
+            window.addEventListener('pointerup', onPointerUp);
+            
+            resetGame();
+        }
+
+        function resetGame() {
+            // Reset State
+            towers = [[], [], []];
+            moveCount = 0;
+            moveDisplay.textContent = 0;
+            minMovesDisplay.textContent = Math.pow(2, totalDisks) - 1;
+            winModal.classList.remove('active');
+
+            // Fill Peg A
+            for (let i = totalDisks; i >= 1; i--) {
+                towers[0].push(i);
+            }
+
+            render();
+        }
+
+        // --- Rendering ---
+
+        function render() {
+            stacks.forEach((stackEl, index) => {
+                stackEl.innerHTML = ''; // Clear current stack
+                
+                towers[index].forEach(diskVal => {
+                    const disk = createDiskElement(diskVal);
+                    stackEl.appendChild(disk);
+                });
+            });
+        }
+
+        function createDiskElement(value) {
+            const disk = document.createElement('div');
+            disk.classList.add('disk');
+            
+            // Size Calculation
+            // Base width 30%, grows to 95%
+            const widthPercentage = 35 + ((value / totalDisks) * 60);
+            disk.style.width = `${widthPercentage}%`;
+            
+            // Color & Style
+            disk.style.background = COLORS[(value - 1) % COLORS.length];
+            disk.textContent = value; // Show number slightly
+            
+            // Attach event listener ONLY to top disks
+            const currentPeg = towers.findIndex(t => t.includes(value));
+            const topDisk = towers[currentPeg][towers[currentPeg].length - 1];
+
+            if (value === topDisk) {
+                disk.dataset.value = value;
+                disk.addEventListener('pointerdown', onPointerDown);
+                disk.style.cursor = 'grab';
+            } else {
+                disk.style.cursor = 'default';
+            }
+
+            return disk;
+        }
+
+        // --- Drag and Drop Logic ---
+
+        function onPointerDown(e) {
+            // Prevent default to avoid scrolling/blocking
+            e.preventDefault();
+            
+            const disk = e.target;
+            const pegIndex = towers.findIndex(t => t.includes(parseInt(disk.dataset.value)));
+            
+            // Safety check
+            if (pegIndex === -1) return;
+
+            isDragging = true;
+            sourcePegIndex = pegIndex;
+            draggedDiskValue = parseInt(disk.dataset.value);
+            draggedDisk = disk;
+
+            // Get original position for visual snapping
+            originalRect = disk.getBoundingClientRect();
+            
+            // Calculate offset so the disk doesn't jump to top-left of cursor
+            startX = e.clientX - originalRect.left;
+            startY = e.clientY - originalRect.top;
+
+            // Set dragging styles
+            draggedDisk.classList.add('dragging');
+            
+            // Set initial fixed position
+            updateDiskPosition(e.clientX, e.clientY);
+        }
+
+        function onPointerMove(e) {
+            if (!isDragging || !draggedDisk) return;
+            e.preventDefault();
+
+            updateDiskPosition(e.clientX, e.clientY);
+
+            // Hit testing for peg highlighting
+            highlightNearestPeg(e.clientX, e.clientY);
+        }
+
+        function onPointerUp(e) {
+            if (!isDragging || !draggedDisk) return;
+
+            // Find where we dropped
+            const dropX = e.clientX;
+            const dropY = e.clientY;
+            
+            // Hide disk momentarily to find element below it
+            draggedDisk.hidden = true;
+            const elemBelow = document.elementFromPoint(dropX, dropY);
+            draggedDisk.hidden = false;
+
+            // Find closest peg wrapper
+            const pegWrapper = elemBelow ? elemBelow.closest('.peg-wrapper') : null;
+            
+            let successfulMove = false;
+
+            if (pegWrapper) {
+                const targetPegIndex = parseInt(pegWrapper.dataset.peg);
+                successfulMove = attemptMove(sourcePegIndex, targetPegIndex);
+            }
+
+            if (!successfulMove) {
+                // Animation back to source
+                // We simply remove the 'dragging' class, which reverts to static relative position
+                // But we need to ensure it snaps back visually without a jump.
+                // Since we re-render on fail, it snaps instantly back.
+            }
+
+            // Cleanup
+            isDragging = false;
+            draggedDisk.classList.remove('dragging');
+            draggedDisk = null;
+            draggedDiskValue = null;
+            sourcePegIndex = null;
+
+            // Remove highlights
+            pegWrappers.forEach(p => p.classList.remove('drag-over'));
+            
+            // Re-render to clean up DOM state
+            render();
+        }
+
+        function updateDiskPosition(x, y) {
+            draggedDisk.style.left = (x - startX) + 'px';
+            draggedDisk.style.top = (y - startY) + 'px';
+        }
+
+        function highlightNearestPeg(x, y) {
+            pegWrappers.forEach(wrapper => {
+                const rect = wrapper.getBoundingClientRect();
+                // Simple AABB collision logic or center distance
+                // Center distance feels better for vertical columns
+                const centerX = rect.left + rect.width / 2;
+                const dist = Math.abs(x - centerX);
+
+                // Highlight if mouse is horizontally close to the peg center
+                if (dist < rect.width / 2) {
+                    wrapper.classList.add('drag-over');
+                } else {
+                    wrapper.classList.remove('drag-over');
+                }
+            });
+        }
+
+        function attemptMove(fromIndex, toIndex) {
+            if (fromIndex === toIndex) return false;
+
+            const sourceTower = towers[fromIndex];
+            const targetTower = towers[toIndex];
+
+            if (sourceTower.length === 0) return false;
+
+            const diskToMove = sourceTower[sourceTower.length - 1];
+            const targetTopDisk = targetTower.length > 0 ? targetTower[targetTower.length - 1] : Infinity;
+
+            // Rule: Can't place larger on smaller
+            if (diskToMove > targetTopDisk) {
+                // Visual feedback for error could go here (e.g., shake animation)
+                return false;
+            }
+
+            // Execute Move
+            sourceTower.pop();
+            targetTower.push(diskToMove);
+            moveCount++;
+            moveDisplay.textContent = moveCount;
+
+            checkWin();
+            return true;
+        }
+
+        // --- Game Logic ---
+
+        function checkWin() {
+            // Target is Peg C (Index 2)
+            if (towers[2].length === totalDisks) {
+                setTimeout(() => {
+                    finalScoreSpan.textContent = moveCount;
+                    winModal.classList.add('active');
+                }, 300);
+            }
+        }
+
+        function closeModal() {
+            winModal.classList.remove('active');
+            resetGame();
+        }
+
+        // Run
+        init();
+
+    </script>
+</body>
+</html>
