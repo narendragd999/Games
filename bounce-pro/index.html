@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BOUNCE PRO</title>
+    <style>
+        :root {
+            --primary: #6200ee;
+            --accent: #03dac6;
+            --bg-grad: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            --surface: rgba(255, 255, 255, 0.1);
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; font-family: 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-grad); color: white;
+            display: flex; flex-direction: column;
+        }
+
+        /* Material UI Header */
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%;
+            padding: 15px; box-sizing: border-box;
+            display: flex; justify-content: space-between; align-items: center;
+            z-index: 10;
+        }
+
+        .stats-card {
+            background: var(--surface);
+            padding: 8px 16px; border-radius: 12px;
+            backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        #game-canvas { width: 100%; height: 100%; touch-action: none; }
+
+        /* Controls & Buttons */
+        .btn {
+            background: var(--primary); border: none; color: white;
+            padding: 10px; border-radius: 50%; width: 45px; height: 45px;
+            cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        /* Popup Overlay */
+        #overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 100; padding: 20px; text-align: center;
+        }
+
+        .modal {
+            background: #222; padding: 30px; border-radius: 24px;
+            max-width: 300px; border: 2px solid var(--accent);
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div class="stats-card">Score: <span id="score">0</span></div>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn" onclick="toggleHint()">💡</button>
+            <button class="btn" onclick="showHelp()">❓</button>
+        </div>
+    </div>
+
+    <canvas id="game-canvas"></canvas>
+
+    <div id="overlay" onclick="closeOverlay()">
+        <div class="modal">
+            <h2 id="modal-title">BOUNCE</h2>
+            <p id="modal-desc">Keep the ball in the air! Tap the ball to bounce it up. Don't let it touch the ground.</p>
+            <button class="btn" style="width: auto; border-radius: 8px; padding: 10px 25px; margin: 0 auto;">START</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        
+        let width, height, ball, gravity, friction;
+        let score = 0;
+        let gameActive = false;
+        let hintActive = false;
+
+        // Audio Context for "Pro" feel
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playTone(freq, type = 'sine') {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.5);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        function init() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            gravity = 0.25;
+            friction = 0.98;
+            ball = {
+                x: width / 2,
+                y: height / 3,
+                radius: 25,
+                vx: 0,
+                vy: 0,
+                color: '#03dac6'
+            };
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw Hint if active
+            if (hintActive && ball.vy > 0) {
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.setLineDash([5, 5]);
+                ctx.moveTo(ball.x, ball.y);
+                ctx.lineTo(ball.x, height);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // Draw Ball
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fillStyle = ball.color;
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = ball.color;
+            ctx.fill();
+            ctx.closePath();
+            ctx.shadowBlur = 0;
+
+            if (gameActive) {
+                update();
+            }
+            requestAnimationFrame(draw);
+        }
+
+        function update() {
+            ball.vy += gravity;
+            ball.x += ball.vx;
+            ball.y += ball.vy;
+
+            // Wall Collisions
+            if (ball.x + ball.radius > width || ball.x - ball.radius < 0) {
+                ball.vx *= -1;
+                playTone(200, 'square');
+            }
+
+            // Floor Collision (Game Over)
+            if (ball.y + ball.radius > height) {
+                gameOver();
+            }
+        }
+
+        function handleInput(e) {
+            if (!gameActive) return;
+            const touchX = e.clientX || e.touches[0].clientX;
+            const touchY = e.clientY || e.touches[0].clientY;
+
+            // Check if tap is near ball
+            const dist = Math.hypot(touchX - ball.x, touchY - ball.y);
+            if (dist < ball.radius + 30) {
+                ball.vy = -12; // Bounce up
+                ball.vx = (Math.random() - 0.5) * 10; // Random horizontal
+                score++;
+                scoreEl.innerText = score;
+                playTone(400 + (score * 10));
+                
+                // Visual feedback
+                ball.color = '#fff';
+                setTimeout(() => ball.color = '#03dac6', 100);
+            }
+        }
+
+        function gameOver() {
+            gameActive = false;
+            playTone(100, 'sawtooth');
+            document.getElementById('modal-title').innerText = "GAME OVER";
+            document.getElementById('modal-desc').innerText = `Your score: ${score}. Try again?`;
+            document.getElementById('overlay').classList.remove('hidden');
+        }
+
+        function closeOverlay() {
+            document.getElementById('overlay').classList.add('hidden');
+            resetGame();
+        }
+
+        function resetGame() {
+            score = 0;
+            scoreEl.innerText = score;
+            init();
+            gameActive = true;
+        }
+
+        function toggleHint() {
+            hintActive = !hintActive;
+            playTone(600);
+        }
+
+        function showHelp() {
+            gameActive = false;
+            document.getElementById('modal-title').innerText = "HOW TO PLAY";
+            document.getElementById('modal-desc').innerText = "Tap the ball while it's in the air to keep it up. Don't let it touch the bottom!";
+            document.getElementById('overlay').classList.remove('hidden');
+        }
+
+        // Event Listeners
+        window.addEventListener('mousedown', handleInput);
+        window.addEventListener('touchstart', handleInput);
+        window.addEventListener('resize', init);
+
+        init();
+        draw();
+    </script>
+</body>
+</html>
