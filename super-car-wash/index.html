@@ -1,0 +1,904 @@
+!DOCTYPE html
+html lang=en
+head
+    meta charset=UTF-8
+    meta name=viewport content=width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no
+    titleSuper Car Wash Simulationtitle
+    style
+        root {
+            --primary #2196F3;
+            --accent #FF4081;
+            --bg-gradient linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            --glass rgba(255, 255, 255, 0.1);
+            --glass-border rgba(255, 255, 255, 0.2);
+            --text-color #ffffff;
+            --tool-active #4CAF50;
+        }
+
+         {
+            box-sizing border-box;
+            user-select none;
+            -webkit-user-select none;
+            touch-action none;  Prevent scrolling 
+        }
+
+        body {
+            margin 0;
+            padding 0;
+            font-family 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background var(--bg-gradient);
+            height 100vh;
+            width 100vw;
+            overflow hidden;
+            display flex;
+            flex-direction column;
+            color var(--text-color);
+        }
+
+         --- UI Header --- 
+        header {
+            padding 10px 20px;
+            display flex;
+            justify-content space-between;
+            align-items center;
+            background rgba(0, 0, 0, 0.2);
+            backdrop-filter blur(10px);
+            z-index 10;
+            height 60px;
+        }
+
+        h1 {
+            margin 0;
+            font-size 1.2rem;
+            font-weight 700;
+            letter-spacing 1px;
+        }
+
+        .stats {
+            display flex;
+            gap 15px;
+            font-size 0.9rem;
+            font-weight 600;
+        }
+
+        .stat-box {
+            background var(--glass);
+            padding 5px 10px;
+            border-radius 12px;
+            border 1px solid var(--glass-border);
+            display flex;
+            align-items center;
+            gap 5px;
+        }
+
+         --- Game Area --- 
+        #game-container {
+            flex 1;
+            position relative;
+            display flex;
+            justify-content center;
+            align-items center;
+            overflow hidden;
+        }
+
+        canvas {
+            box-shadow 0 10px 30px rgba(0,0,0,0.5);
+            border-radius 8px;
+            max-width 95%;
+            max-height 80%;
+            cursor crosshair;
+        }
+
+         --- Controls --- 
+        .controls {
+            height 90px;
+            background rgba(0, 0, 0, 0.3);
+            backdrop-filter blur(10px);
+            display flex;
+            justify-content center;
+            align-items center;
+            gap 15px;
+            padding-bottom env(safe-area-inset-bottom);
+            z-index 10;
+        }
+
+        .tool-btn {
+            background var(--glass);
+            border 2px solid var(--glass-border);
+            border-radius 16px;
+            width 70px;
+            height 70px;
+            display flex;
+            flex-direction column;
+            justify-content center;
+            align-items center;
+            color white;
+            cursor pointer;
+            transition all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+            position relative;
+        }
+
+        .tool-btnactive {
+            transform scale(0.9);
+        }
+
+        .tool-btn.active {
+            background var(--tool-active);
+            border-color #81C784;
+            box-shadow 0 0 15px var(--tool-active);
+        }
+
+        .tool-icon {
+            font-size 24px;
+            margin-bottom 4px;
+        }
+
+        .tool-label {
+            font-size 10px;
+            font-weight bold;
+            text-transform uppercase;
+        }
+
+         --- Action Buttons (Top Right Overlay) --- 
+        .action-bar {
+            position absolute;
+            top 70px;
+            right 20px;
+            display flex;
+            flex-direction column;
+            gap 10px;
+        }
+
+        .action-btn {
+            width 44px;
+            height 44px;
+            border-radius 50%;
+            border none;
+            background white;
+            color #333;
+            box-shadow 0 4px 6px rgba(0,0,0,0.2);
+            cursor pointer;
+            display flex;
+            justify-content center;
+            align-items center;
+            font-size 18px;
+            transition transform 0.2s;
+        }
+
+        .action-btnhover {
+            transform scale(1.1);
+        }
+
+         --- Modals & Popups --- 
+        .modal-overlay {
+            position fixed;
+            top 0;
+            left 0;
+            width 100%;
+            height 100%;
+            background rgba(0,0,0,0.8);
+            display flex;
+            justify-content center;
+            align-items center;
+            z-index 100;
+            opacity 0;
+            pointer-events none;
+            transition opacity 0.3s;
+        }
+
+        .modal-overlay.open {
+            opacity 1;
+            pointer-events all;
+        }
+
+        .modal {
+            background #fff;
+            color #333;
+            width 90%;
+            max-width 400px;
+            padding 25px;
+            border-radius 20px;
+            text-align center;
+            box-shadow 0 20px 50px rgba(0,0,0,0.5);
+            transform translateY(20px);
+            transition transform 0.3s;
+        }
+
+        .modal-overlay.open .modal {
+            transform translateY(0);
+        }
+
+        .modal h2 {
+            margin-top 0;
+            color var(--primary);
+        }
+
+        .modal p {
+            line-height 1.5;
+            color #666;
+            margin-bottom 20px;
+        }
+
+        .btn-primary {
+            background var(--primary);
+            color white;
+            border none;
+            padding 12px 24px;
+            border-radius 30px;
+            font-size 1rem;
+            font-weight bold;
+            cursor pointer;
+            box-shadow 0 4px 10px rgba(33, 150, 243, 0.4);
+            transition background 0.2s;
+        }
+
+        .btn-primaryhover {
+            background #1976D2;
+        }
+
+         --- Progress Bar --- 
+        .progress-container {
+            position absolute;
+            bottom 110px;
+            left 50%;
+            transform translateX(-50%);
+            width 200px;
+            height 10px;
+            background rgba(0,0,0,0.5);
+            border-radius 5px;
+            overflow hidden;
+            border 1px solid rgba(255,255,255,0.3);
+        }
+
+        .progress-fill {
+            height 100%;
+            background linear-gradient(90deg, #FF9800, #4CAF50);
+            width 0%;
+            transition width 0.3s;
+        }
+        
+         Hints 
+        .hint-text {
+            position absolute;
+            top 50%;
+            left 50%;
+            transform translate(-50%, -50%);
+            color white;
+            background rgba(0,0,0,0.6);
+            padding 8px 16px;
+            border-radius 20px;
+            pointer-events none;
+            opacity 0;
+            transition opacity 0.5s;
+            font-size 0.9rem;
+        }
+        
+        .hint-text.visible {
+            opacity 1;
+            animation float 2s infinite ease-in-out;
+        }
+
+        @keyframes float {
+            0%, 100% { transform translate(-50%, -50%); }
+            50% { transform translate(-50%, -60%); }
+        }
+
+    style
+head
+body
+
+    header
+        h1SUPER CAR WASHh1
+        div class=stats
+            div class=stat-box
+                span⏱️span span id=time-display0000span
+            div
+            div class=stat-box
+                span✨span span id=score-display0%span
+            div
+        div
+    header
+
+    div id=game-container
+        canvas id=gameCanvascanvas
+        div class=hint-text id=hint-textStart Scrubbing!div
+        div class=progress-container
+            div class=progress-fill id=progress-bardiv
+        div
+    div
+
+    div class=action-bar
+        button class=action-btn id=btn-info title=Instructionsℹ️button
+        button class=action-btn id=btn-auto-solve title=Auto Solve⚡button
+        button class=action-btn id=btn-reset title=New Car🔄button
+    div
+
+    div class=controls
+        div class=tool-btn active data-tool=scrub
+            div class=tool-icon🧽div
+            div class=tool-labelScrubdiv
+        div
+        div class=tool-btn data-tool=foam
+            div class=tool-icon🧴div
+            div class=tool-labelFoamdiv
+        div
+        div class=tool-btn data-tool=rinse
+            div class=tool-icon🚿div
+            div class=tool-labelRinsediv
+        div
+    div
+
+    !-- Instructions Modal --
+    div class=modal-overlay id=info-modal
+        div class=modal
+            h2How to Playh2
+            p1. bScrubb the heavy mud off with the sponge.br
+               2. Apply bFoamb to loosen the grime.br
+               3. Use the bRinseb hose to wash it all away!p
+            pClean the car to 100% to win.p
+            button class=btn-primary id=btn-startGot it!button
+        div
+    div
+
+    !-- Win Modal --
+    div class=modal-overlay id=win-modal
+        div class=modal
+            h2🚗 Sparkling Clean! 🚗h2
+            pGreat job! The car looks brand new.p
+            pTime span id=final-time0000spanp
+            button class=btn-primary id=btn-play-againNew Carbutton
+        div
+    div
+
+script
+
+  Super Car Wash Game Logic
+  Uses HTML5 Canvas API for procedural drawing and pixel manipulation.
+ 
+
+ --- Configuration ---
+const CANVAS_WIDTH = 800;
+const CANVAS_HEIGHT = 500;
+const CAR_COLOR = '#E53935';  Red sports car
+const CLEAN_THRESHOLD = 0.96;  96% clean to win
+
+ --- State Management ---
+const state = {
+    tool 'scrub',  scrub, foam, rinse
+    isPlaying false,
+    startTime 0,
+    cleanPercentage 0,
+    mouseX 0,
+    mouseY 0,
+    isDragging false,
+    particles []
+};
+
+ --- Audio System (Web Audio API) ---
+const audioCtx = new (window.AudioContext  window.webkitAudioContext)();
+const Sound = {
+    playTone (freq, type, duration, vol = 0.1) = {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    },
+    playScrub () = {
+         White noise approximation for scrubbing
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        const bufferSize = audioCtx.sampleRate  0.1;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i  bufferSize; i++) {
+            data[i] = Math.random()  2 - 1;
+        }
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+        const gain = audioCtx.createGain();
+        gain.gain.value = 0.05;
+        noise.connect(gain);
+        gain.connect(audioCtx.destination);
+        noise.start();
+    },
+    playSpray () = Sound.playTone(300, 'triangle', 0.1, 0.05),
+    playWin () = {
+        setTimeout(() = Sound.playTone(400, 'sine', 0.2, 0.2), 0);
+        setTimeout(() = Sound.playTone(500, 'sine', 0.2, 0.2), 200);
+        setTimeout(() = Sound.playTone(800, 'square', 0.4, 0.2), 400);
+    }
+};
+
+ --- DOM Elements ---
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d', { willReadFrequently true });
+const timeDisplay = document.getElementById('time-display');
+const scoreDisplay = document.getElementById('score-display');
+const progressBar = document.getElementById('progress-bar');
+const hintText = document.getElementById('hint-text');
+
+ Offscreen canvases for layer management
+const cleanCarCanvas = document.createElement('canvas');
+cleanCarCanvas.width = CANVAS_WIDTH;
+cleanCarCanvas.height = CANVAS_HEIGHT;
+const cleanCtx = cleanCarCanvas.getContext('2d');
+
+const dirtCanvas = document.createElement('canvas');
+dirtCanvas.width = CANVAS_WIDTH;
+dirtCanvas.height = CANVAS_HEIGHT;
+const dirtCtx = dirtCanvas.getContext('2d');
+
+ --- Initialization ---
+function init() {
+     Setup display canvas size
+    canvas.width = CANVAS_WIDTH;
+    canvas.height = CANVAS_HEIGHT;
+
+     Initial draw
+    resetGame();
+
+     Event Listeners
+    setupInput();
+    
+     Tool Selection
+    document.querySelectorAll('.tool-btn').forEach(btn = {
+        btn.addEventListener('click', (e) = {
+            document.querySelectorAll('.tool-btn').forEach(b = b.classList.remove('active'));
+            const target = e.currentTarget;
+            target.classList.add('active');
+            state.tool = target.dataset.tool;
+            
+             Hint update
+            updateHint();
+        });
+    });
+
+     Action Buttons
+    document.getElementById('btn-start').addEventListener('click', () = {
+        closeModal('info-modal');
+        if (!state.isPlaying) startGame();
+    });
+
+    document.getElementById('btn-info').addEventListener('click', () = {
+        openModal('info-modal');
+    });
+
+    document.getElementById('btn-reset').addEventListener('click', () = {
+        resetGame();
+    });
+
+    document.getElementById('btn-auto-solve').addEventListener('click', autoSolve);
+    
+    document.getElementById('btn-play-again').addEventListener('click', () = {
+        closeModal('win-modal');
+        resetGame();
+    });
+
+     Start Loop
+    requestAnimationFrame(gameLoop);
+    
+     Show instructions on load
+    openModal('info-modal');
+    updateHint();
+}
+
+function startGame() {
+    state.isPlaying = true;
+    state.startTime = Date.now();
+}
+
+ --- Drawing Logic ---
+
+function drawCar(ctx) {
+     Background  Environment (Optional, keep simple for focus)
+     Draw Car Body (Simplified Sports Car)
+    ctx.save();
+    
+     Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(400, 420, 250, 40, 0, 0, Math.PI  2);
+    ctx.fill();
+
+     Main Chassis
+    ctx.fillStyle = CAR_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(150, 400);
+    ctx.lineTo(650, 400);
+    ctx.lineTo(650, 300);
+    ctx.quadraticCurveTo(600, 250, 500, 250);  Hood
+    ctx.lineTo(350, 250);
+    ctx.quadraticCurveTo(200, 250, 150, 300);  Trunk
+    ctx.closePath();
+    
+     Gradient for metallic look
+    const grd = ctx.createLinearGradient(0, 250, 0, 400);
+    grd.addColorStop(0, '#FF5252');
+    grd.addColorStop(0.5, CAR_COLOR);
+    grd.addColorStop(1, '#B71C1C');
+    ctx.fillStyle = grd;
+    ctx.fill();
+
+     Windows
+    ctx.fillStyle = '#1A237E';
+    ctx.beginPath();
+    ctx.moveTo(220, 300);
+    ctx.lineTo(480, 300);
+    ctx.lineTo(500, 260);
+    ctx.lineTo(350, 230);  Windshield
+    ctx.lineTo(200, 260);
+    ctx.closePath();
+    ctx.fill();
+
+     Roof highlight
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(205, 295);
+    ctx.lineTo(495, 295);
+    ctx.stroke();
+
+     Wheels
+    drawWheel(ctx, 250, 400);
+    drawWheel(ctx, 550, 400);
+
+     Headlights
+    ctx.fillStyle = '#FFF9C4';
+    ctx.beginPath();
+    ctx.ellipse(630, 310, 10, 20, 0, 0, Math.PI  2);
+    ctx.fill();
+
+     Taillights
+    ctx.fillStyle = '#D32F2F';
+    ctx.beginPath();
+    ctx.ellipse(170, 310, 8, 15, 0, 0, Math.PI  2);
+    ctx.fill();
+
+    ctx.restore();
+}
+
+function drawWheel(ctx, x, y) {
+    ctx.save();
+    ctx.translate(x, y);
+     Tire
+    ctx.fillStyle = '#212121';
+    ctx.beginPath();
+    ctx.arc(0, 0, 45, 0, Math.PI  2);
+    ctx.fill();
+     Rim
+    ctx.fillStyle = '#BDBDBD';
+    ctx.beginPath();
+    ctx.arc(0, 0, 25, 0, Math.PI  2);
+    ctx.fill();
+     Details
+    ctx.fillStyle = '#616161';
+    ctx.beginPath();
+    ctx.arc(0, 0, 10, 0, Math.PI  2);
+    ctx.fill();
+    ctx.restore();
+}
+
+function generateDirt() {
+    dirtCtx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    
+     Fill with Brown
+    dirtCtx.fillStyle = '#5D4037'; 
+    dirtCtx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+     Add NoiseTexture
+    const imageData = dirtCtx.getImageData(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    const data = imageData.data;
+    for (let i = 0; i  data.length; i += 4) {
+         Random noise for mud texture
+        const noise = Math.random()  50 - 25;
+        data[i] = Math.min(255, Math.max(0, data[i] + noise));      R
+        data[i+1] = Math.min(255, Math.max(0, data[i+1] + noise));  G
+        data[i+2] = Math.min(255, Math.max(0, data[i+2] + noise));  B
+         Alpha remains 255
+    }
+    dirtCtx.putImageData(imageData, 0, 0);
+
+     Mask Only keep dirt where the car is (simulated)
+     We draw the car shape in destination-in to clip dirt to car shape
+    dirtCtx.globalCompositeOperation = 'destination-in';
+    drawCar(dirtCtx);
+    dirtCtx.globalCompositeOperation = 'source-over';
+}
+
+function resetGame() {
+    state.isPlaying = false;
+    state.cleanPercentage = 0;
+    scoreDisplay.textContent = 0%;
+    progressBar.style.width = 0%;
+    timeDisplay.textContent = 0000;
+    
+     Draw Clean Car to Buffer
+    cleanCtx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    drawCar(cleanCtx);
+    
+     Generate Dirt Layer
+    generateDirt();
+    
+     Reset Loop
+    state.particles = [];
+    updateHint();
+}
+
+function updateHint() {
+    hintText.classList.remove('visible');
+    setTimeout(() = {
+        hintText.classList.add('visible');
+        if(state.tool === 'scrub') hintText.textContent = Scrub the mud!;
+        else if(state.tool === 'foam') hintText.textContent = Apply Soap Foam!;
+        else if(state.tool === 'rinse') hintText.textContent = Rinse it clean!;
+    }, 500);
+}
+
+function autoSolve() {
+    if(!state.isPlaying) state.startTime = Date.now();
+    dirtCtx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);  Remove dirt
+    state.particles = [];
+     Create massive sparkle effect
+    for(let i=0; i50; i++) {
+        state.particles.push({
+            x Math.random()  CANVAS_WIDTH,
+            y Math.random()  CANVAS_HEIGHT,
+            vx (Math.random() - 0.5)  5,
+            vy (Math.random() - 0.5)  5,
+            life 1.0,
+            color '#FFFFFF',
+            size Math.random()  5 + 2
+        });
+    }
+    checkProgress();
+}
+
+ --- Input Handling ---
+function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width  rect.width;
+    const scaleY = canvas.height  rect.height;
+    
+    let clientX, clientY;
+    if (e.changedTouches) {
+        clientX = e.changedTouches[0].clientX;
+        clientY = e.changedTouches[0].clientY;
+    } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+    }
+    
+    return {
+        x (clientX - rect.left)  scaleX,
+        y (clientY - rect.top)  scaleY
+    };
+}
+
+function setupInput() {
+    const handleStart = (e) = {
+        state.isDragging = true;
+        const pos = getPos(e);
+        state.mouseX = pos.x;
+        state.mouseY = pos.y;
+        applyTool(pos.x, pos.y);
+    };
+    
+    const handleMove = (e) = {
+        const pos = getPos(e);
+        state.mouseX = pos.x;
+        state.mouseY = pos.y;
+        if (state.isDragging) applyTool(pos.x, pos.y);
+    };
+    
+    const handleEnd = () = {
+        state.isDragging = false;
+        checkProgress();
+    };
+
+    canvas.addEventListener('mousedown', handleStart);
+    canvas.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleEnd);
+
+    canvas.addEventListener('touchstart', handleStart, {passive false});
+    canvas.addEventListener('touchmove', (e) = { e.preventDefault(); handleMove(e); }, {passive false});
+    window.addEventListener('touchend', handleEnd);
+}
+
+function applyTool(x, y) {
+    if (!state.isPlaying) startGame();
+    
+     Hide hint on interaction
+    hintText.classList.remove('visible');
+
+    const radius = 40;
+    
+    if (state.tool === 'scrub') {
+         Erase dirt
+        dirtCtx.globalCompositeOperation = 'destination-out';
+        dirtCtx.beginPath();
+        dirtCtx.arc(x, y, radius, 0, Math.PI  2);
+        dirtCtx.fill();
+        
+         Rough edges for scrub
+        for(let i=0; i5; i++) {
+            const rx = x + (Math.random() - 0.5)  radius  2;
+            const ry = y + (Math.random() - 0.5)  radius  2;
+            dirtCtx.beginPath();
+            dirtCtx.arc(rx, ry, radius  0.4, 0, Math.PI  2);
+            dirtCtx.fill();
+        }
+        
+        Sound.playScrub();
+        spawnParticles(x, y, '#5D4037', 2);  Mud particles
+
+    } else if (state.tool === 'foam') {
+         Add foam (Draw white bubbles on top)
+         We draw foam onto the main canvas context directly in render loop or here
+         Let's draw onto a temporary foam layer, but for simplicity, we will just spawn visual particles 
+         that stick or draw onto a separate overlay. 
+         Better approach Draw foam circles on the dirt canvas using source-over.
+        dirtCtx.globalCompositeOperation = 'source-over';
+        dirtCtx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        
+         Create bubble clusters
+        for(let i=0; i3; i++) {
+            const rx = x + (Math.random() - 0.5)  radius;
+            const ry = y + (Math.random() - 0.5)  radius;
+            const r = Math.random()  15 + 5;
+            dirtCtx.beginPath();
+            dirtCtx.arc(rx, ry, r, 0, Math.PI  2);
+            dirtCtx.fill();
+        }
+        Sound.playTone(100, 'sine', 0.1, 0.02);
+
+    } else if (state.tool === 'rinse') {
+         Powerful water jet Erases everything (foam and dirt)
+        dirtCtx.globalCompositeOperation = 'destination-out';
+        dirtCtx.beginPath();
+        dirtCtx.arc(x, y, radius  1.5, 0, Math.PI  2);
+        dirtCtx.fill();
+        
+        Sound.playSpray();
+        spawnParticles(x, y, '#4FC3F7', 5);  Water particles
+    }
+
+     Reset composite op
+    dirtCtx.globalCompositeOperation = 'source-over';
+}
+
+function spawnParticles(x, y, color, count) {
+    for(let i=0; icount; i++) {
+        state.particles.push({
+            x x + (Math.random() - 0.5)  20,
+            y y + (Math.random() - 0.5)  20,
+            vx (Math.random() - 0.5)  4,
+            vy (Math.random() - 0.5)  4 - 2,  Gravity-ish
+            life 1.0,
+            color color,
+            size Math.random()  3 + 1
+        });
+    }
+}
+
+ --- Core Logic ---
+
+function checkProgress() {
+     Sample pixels from dirt canvas center area to estimate cleanliness
+     To save performance, we sample every 10th pixel
+    const imageData = dirtCtx.getImageData(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    const data = imageData.data;
+    let transparentPixels = 0;
+    let totalPixels = 0;
+
+     Optimization Only scan the middle band where the car is
+    for (let y = 200; y  450; y += 5) {
+        for (let x = 150; x  650; x += 5) {
+            totalPixels++;
+             Alpha channel is 4th value
+            if (data[(y  CANVAS_WIDTH + x)  4 + 3] === 0) {
+                transparentPixels++;
+            }
+        }
+    }
+
+    const ratio = transparentPixels  totalPixels;
+    state.cleanPercentage = Math.min(100, Math.floor(ratio  100));
+
+     Update UI
+    scoreDisplay.textContent = state.cleanPercentage + %;
+    progressBar.style.width = state.cleanPercentage + %;
+
+     Check Win
+    if (state.cleanPercentage = 100 && state.isPlaying) {
+        winGame();
+    }
+}
+
+function winGame() {
+    state.isPlaying = false;
+    Sound.playWin();
+    document.getElementById('final-time').textContent = timeDisplay.textContent;
+    
+     Sparkles explosion
+    for(let i=0; i100; i++) {
+        spawnParticles(Math.random()CANVAS_WIDTH, Math.random()CANVAS_HEIGHT, '#FFD700', 1);
+    }
+    
+    setTimeout(() = {
+        openModal('win-modal');
+    }, 1000);
+}
+
+function updateTimer() {
+    if (!state.isPlaying) return;
+    const diff = Math.floor((Date.now() - state.startTime)  1000);
+    const m = Math.floor(diff  60).toString().padStart(2, '0');
+    const s = (diff % 60).toString().padStart(2, '0');
+    timeDisplay.textContent = `${m}${s}`;
+}
+
+ --- Game Loop ---
+function gameLoop() {
+    updateTimer();
+
+     1. Draw Clean Car
+    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    ctx.drawImage(cleanCarCanvas, 0, 0);
+
+     2. Draw DirtFoam Layer on top
+    ctx.drawImage(dirtCanvas, 0, 0);
+
+     3. Draw Particles
+    for (let i = state.particles.length - 1; i = 0; i--) {
+        const p = state.particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= 0.02;
+        
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI  2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+
+        if (p.life = 0) {
+            state.particles.splice(i, 1);
+        }
+    }
+    
+     4. Draw Cursor Effect (Tool Ring)
+    if (state.mouseX  0 && state.mouseY  0) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        let r = 40;
+        if(state.tool === 'rinse') r = 60;
+        ctx.arc(state.mouseX, state.mouseY, r, 0, Math.PI2);
+        ctx.stroke();
+    }
+
+    requestAnimationFrame(gameLoop);
+}
+
+ --- UI Utilities ---
+function openModal(id) {
+    document.getElementById(id).classList.add('open');
+}
+
+function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+}
+
+ Run
+window.onload = init;
+
+script
+body
+html
