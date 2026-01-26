@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Count Down: Math Challenge</title>
+    <style>
+        :root {
+            --primary: #6200ea;
+            --primary-light: #b388ff;
+            --bg-gradient: linear-gradient(135deg, #1a237e 0%, #311b92 100%);
+            --surface: rgba(255, 255, 255, 0.95);
+            --surface-glass: rgba(255, 255, 255, 0.15);
+            --text-main: #212121;
+            --text-secondary: #757575;
+            --accent-success: #00c853;
+            --accent-error: #d50000;
+            --shadow-card: 0 4px 6px rgba(0,0,0,0.2), 0 1px 3px rgba(0,0,0,0.15);
+            --shadow-float: 0 10px 20px rgba(0,0,0,0.25);
+            --radius: 12px;
+            --font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            background: var(--bg-gradient);
+            font-family: var(--font-family);
+            display: flex;
+            flex-direction: column;
+            color: var(--text-main);
+            user-select: none;
+        }
+
+        /* --- Header & Target --- */
+        header {
+            flex: 0 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+            color: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+
+        .brand {
+            font-size: 1.2rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .target-box {
+            text-align: right;
+        }
+
+        .target-label {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .target-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            line-height: 1;
+            color: #ffeb3b;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        /* --- Main Game Area --- */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            gap: 20px;
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Number Cards Grid */
+        .numbers-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px;
+            width: 100%;
+            min-height: 140px;
+            perspective: 1000px;
+        }
+
+        .number-card {
+            background: var(--surface);
+            height: 70px;
+            min-width: 70px;
+            flex: 1 1 auto;
+            max-width: 100px;
+            border-radius: var(--radius);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+            box-shadow: var(--shadow-card);
+            cursor: pointer;
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.2s, box-shadow 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .number-card:active {
+            transform: scale(0.95);
+        }
+
+        .number-card.selected {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-float);
+            border: 2px solid white;
+        }
+
+        .number-card.result-anim {
+            animation: popIn 0.3s ease-out;
+            background: #ffeb3b;
+            color: var(--primary);
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            80% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Operators */
+        .operators-container {
+            display: flex;
+            gap: 15px;
+        }
+
+        .op-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: none;
+            background: var(--surface-glass);
+            color: white;
+            font-size: 1.8rem;
+            font-weight: 300;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .op-btn:active {
+            transform: scale(0.9);
+            background: rgba(255,255,255,0.3);
+        }
+
+        .op-btn.active {
+            background: white;
+            color: var(--primary);
+            transform: scale(1.1);
+            font-weight: 700;
+        }
+
+        /* Controls / Footer */
+        .controls {
+            flex: 0 0 auto;
+            width: 100%;
+            padding: 15px 20px;
+            background: rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-around;
+            gap: 10px;
+            backdrop-filter: blur(10px);
+        }
+
+        .ctrl-btn {
+            background: var(--surface);
+            border: none;
+            border-radius: 30px;
+            padding: 10px 16px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-main);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: transform 0.1s;
+            text-transform: uppercase;
+        }
+
+        .ctrl-btn:active {
+            transform: translateY(2px);
+        }
+
+        .ctrl-btn.primary {
+            background: #ffeb3b;
+            color: #3e2723;
+        }
+
+        .ctrl-btn.danger {
+            color: var(--accent-error);
+        }
+
+        /* --- Modals & Overlays --- */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            padding: 20px;
+        }
+
+        .overlay.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal {
+            background: white;
+            width: 100%;
+            max-width: 400px;
+            border-radius: 16px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: var(--shadow-float);
+            transform: translateY(20px);
+            transition: transform 0.3s;
+        }
+
+        .overlay.visible .modal {
+            transform: translateY(0);
+        }
+
+        .modal h2 {
+            margin-top: 0;
+            color: var(--primary);
+        }
+
+        .modal-content-text {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        
+        .solution-step {
+            background: #f5f5f5;
+            padding: 8px;
+            margin: 4px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 1.1rem;
+        }
+
+        .modal-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        /* --- Toast Notification --- */
+        .toast {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-20px);
+            background: #323232;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            opacity: 0;
+            transition: all 0.3s;
+            pointer-events: none;
+            z-index: 200;
+            white-space: nowrap;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* --- Icons (SVG) --- */
+        .icon {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
+            COUNTDOWN
+        </div>
+        <div class="target-box">
+            <div class="target-label">Target</div>
+            <div class="target-number" id="targetDisplay">---</div>
+        </div>
+    </header>
+
+    <main>
+        <div class="numbers-container" id="numbersBoard">
+            <!-- Numbers generated by JS -->
+        </div>
+
+        <div class="operators-container">
+            <button class="op-btn" data-op="+">×</button>
+            <button class="op-btn" data-op="-">−</button>
+            <button class="op-btn" data-op="*">×</button>
+            <button class="op-btn" data-op="/">÷</button>
+        </div>
+    </main>
+
+    <div class="controls">
+        <button class="ctrl-btn danger" id="undoBtn">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
+            Undo
+        </button>
+        <button class="ctrl-btn" id="solveBtn">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+            Solve
+        </button>
+        <button class="ctrl-btn" id="newGameBtn">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+            New
+        </button>
+        <button class="ctrl-btn primary" id="checkBtn">
+            Check
+        </button>
+        <button class="ctrl-btn" id="helpBtn">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M11 18h2v-2h-2v2zm1-16C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-2.21 0-4 1.79-4 4h2c0-1.1.9-2 2-2s2 .9 2 2c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5 0-2.21-1.79-4-4-4z"/></svg>
+        </button>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast">Message</div>
+
+    <!-- Instructions Modal -->
+    <div id="helpModal" class="overlay">
+        <div class="modal">
+            <h2>How to Play</h2>
+            <div class="modal-content-text">
+                1. Reach the <b>Target Number</b> using the 6 numbers provided.<br><br>
+                2. Select a number, then an operator (+, −, ×, ÷), then another number.<br><br>
+                3. The result replaces the two numbers.<br><br>
+                4. Repeat until one number remains. If it matches the target, you win!<br><br>
+                <small>You don't have to use all numbers, but you can only use each once.</small>
+            </div>
+            <button class="modal-btn" onclick="closeModal('helpModal')">Got it!</button>
+        </div>
+    </div>
+
+    <!-- Solution Modal -->
+    <div id="solutionModal" class="overlay">
+        <div class="modal">
+            <h2 id="solutionTitle">Solution Found</h2>
+            <div id="solutionContent" class="modal-content-text"></div>
+            <button class="modal-btn" onclick="closeModal('solutionModal')">Close</button>
+        </div>
+    </div>
+
+    <!-- Win/Lose Modal -->
+    <div id="resultModal" class="overlay">
+        <div class="modal">
+            <h2 id="resultTitle">Victory!</h2>
+            <p id="resultMessage" class="modal-content-text" style="text-align:center;">You reached the target.</p>
+            <button class="modal-btn primary" onclick="initGame()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Game State ---
+        const state = {
+            target: 0,
+            numbers: [], // Current numbers on board
+            history: [], // For Undo functionality
+            selectedIdx: null,
+            selectedOp: null
+        };
+
+        // --- Audio Context (Synth) ---
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+
+        function playTone(freq, type, duration) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        const sounds = {
+            select: () => playTone(440, 'sine', 0.1),
+            op: () => playTone(660, 'triangle', 0.1),
+            combine: () => {
+                playTone(300, 'sine', 0.1);
+                setTimeout(() => playTone(500, 'sine', 0.15), 50);
+            },
+            error: () => playTone(150, 'sawtooth', 0.3),
+            win: () => {
+                [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                    setTimeout(() => playTone(freq, 'sine', 0.3), i * 100);
+                });
+            }
+        };
+
+        // --- Logic ---
+
+        function initGame() {
+            closeModal('resultModal');
+            closeModal('solutionModal');
+            
+            // Generate Target (101 - 999)
+            state.target = Math.floor(Math.random() * 899) + 101;
+            document.getElementById('targetDisplay').textContent = state.target;
+
+            // Generate Numbers
+            state.numbers = generateNumbers();
+            state.history = [];
+            state.selectedIdx = null;
+            state.selectedOp = null;
+
+            renderBoard();
+            updateControls();
+            
+            showToast("New Game Started");
+        }
+
+        function generateNumbers() {
+            // Standard Countdown distribution: 
+            // 1-10 (two of each), 25, 50, 75, 100
+            const smallNumbers = [1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10];
+            const largeNumbers = [25, 50, 75, 100];
+            const deck = [...smallNumbers, ...largeNumbers];
+            
+            const nums = [];
+            // Choose 6 numbers. Simple logic: random pick from deck
+            for(let i=0; i<6; i++) {
+                const idx = Math.floor(Math.random() * deck.length);
+                nums.push(deck[idx]);
+                deck.splice(idx, 1); // Remove used number
+            }
+            return nums;
+        }
+
+        function renderBoard() {
+            const board = document.getElementById('numbersBoard');
+            board.innerHTML = '';
+
+            state.numbers.forEach((num, idx) => {
+                const card = document.createElement('div');
+                card.className = `number-card ${state.selectedIdx === idx ? 'selected' : ''}`;
+                card.textContent = num;
+                card.onclick = () => handleNumberClick(idx);
+                board.appendChild(card);
+            });
+
+            // Update operator buttons style
+            document.querySelectorAll('.op-btn').forEach(btn => {
+                if (btn.dataset.op === state.selectedOp) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+        }
+
+        function handleNumberClick(idx) {
+            // If nothing selected, select this
+            if (state.selectedIdx === null) {
+                state.selectedIdx = idx;
+                sounds.select();
+            } 
+            // If clicking same number, deselect
+            else if (state.selectedIdx === idx) {
+                state.selectedIdx = null;
+                state.selectedOp = null;
+                sounds.select();
+            } 
+            // If another number selected...
+            else {
+                if (state.selectedOp) {
+                    // Perform Operation
+                    performOperation(state.selectedIdx, idx, state.selectedOp);
+                } else {
+                    // Just switch selection
+                    state.selectedIdx = idx;
+                    sounds.select();
+                }
+            }
+            renderBoard();
+        }
+
+        // Operator Click Handling
+        document.querySelectorAll('.op-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (state.selectedIdx === null) {
+                    showToast("Select a number first");
+                    sounds.error();
+                    return;
+                }
+                state.selectedOp = btn.dataset.op;
+                sounds.op();
+                renderBoard();
+            });
+        });
+
+        function performOperation(idx1, idx2, op) {
+            const n1 = state.numbers[idx1];
+            const n2 = state.numbers[idx2];
+            let result = 0;
+            let valid = true;
+
+            switch(op) {
+                case '+': result = n1 + n2; break;
+                case '-': 
+                    if (n1 - n2 < 0) valid = false; // Usually Countdown disallows negatives
+                    result = Math.abs(n1 - n2); // We enforce larger minus smaller logic implicitly by swapping if needed, or just check
+                    // Let's stick to strict rule: Result must be positive. 
+                    if (n1 < n2) valid = false;
+                    else result = n1 - n2;
+                    break;
+                case '*': result = n1 * n2; break;
+                case '/': 
+                    if (n2 === 0 || n1 % n2 !== 0) valid = false; // Integer division only
+                    else result = n1 / n2;
+                    break;
+            }
+
+            if (!valid) {
+                showToast("Invalid Move");
+                sounds.error();
+                state.selectedIdx = null;
+                state.selectedOp = null;
+                return;
+            }
+
+            // Save state for undo
+            state.history.push({
+                numbers: [...state.numbers],
+                target: state.target
+            });
+
+            // Create new array: remove idx1, idx2, add result
+            const newNumbers = state.numbers.filter((_, i) => i !== idx1 && i !== idx2);
+            newNumbers.push(result);
+            
+            state.numbers = newNumbers;
+            state.selectedIdx = null;
+            state.selectedOp = null;
+
+            sounds.combine();
+            renderBoard();
+            updateControls();
+            checkWinCondition(false); // Silent check
+        }
+
+        function undo() {
+            if (state.history.length === 0) {
+                showToast("Nothing to Undo");
+                return;
+            }
+            const lastState = state.history.pop();
+            state.numbers = lastState.numbers;
+            state.target = lastState.target;
+            state.selectedIdx = null;
+            state.selectedOp = null;
+            renderBoard();
+            updateControls();
+        }
+
+        function updateControls() {
+            // Can undo?
+            document.getElementById('undoBtn').style.opacity = state.history.length > 0 ? '1' : '0.5';
+        }
+
+        function checkWinCondition(manualCheck = true) {
+            if (state.numbers.length === 1) {
+                const diff = Math.abs(state.numbers[0] - state.target);
+                if (diff === 0) {
+                    if(manualCheck) {
+                        sounds.win();
+                        showModal('resultModal', 'Victory!', `You reached the target ${state.target} exactly!`);
+                    }
+                    return true;
+                } else if (diff <= 5 && manualCheck) {
+                    showModal('resultModal', 'So Close!', `You got ${state.numbers[0]}, target was ${state.target}.`);
+                    return true;
+                } else if (manualCheck) {
+                    showModal('resultModal', 'Failed', `Final number: ${state.numbers[0]}. Target: ${state.target}.`);
+                    return true;
+                }
+            } else if (manualCheck) {
+                showToast("More calculations needed!");
+            }
+            return false;
+        }
+
+        // --- Solver Algorithm ---
+
+        function solveGame() {
+            const initialNums = [...state.numbers];
+            const target = state.target;
+            const solution = solveRecursive(initialNums, target);
+            
+            const modalTitle = document.getElementById('solutionTitle');
+            const modalContent = document.getElementById('solutionContent');
+            
+            if (solution) {
+                modalTitle.textContent = "Solution Found";
+                modalTitle.style.color = "var(--accent-success)";
+                modalContent.innerHTML = solution.map(s => `<div class="solution-step">${s}</div>`).join('');
+            } else {
+                modalTitle.textContent = "No Solution";
+                modalTitle.style.color = "var(--text-secondary)";
+                modalContent.innerHTML = "It is mathematically impossible to reach this target with these numbers.";
+            }
+            showModal('solutionModal');
+        }
+
+        function solveRecursive(nums, target) {
+            if (nums.length === 1) {
+                if (nums[0] === target) return [];
+                else return null;
+            }
+
+            // Try every pair
+            for (let i = 0; i < nums.length; i++) {
+                for (let j = 0; j < nums.length; j++) {
+                    if (i === j) continue;
+
+                    const a = nums[i];
+                    const b = nums[j];
+
+                    // Create new list without i and j
+                    const remaining = nums.filter((_, idx) => idx !== i && idx !== j);
+
+                    // Try operations
+                    // 1. Add
+                    let res = solveRecursive([...remaining, a + b], target);
+                    if (res) return [`${a} + ${b} = ${a+b}`, ...res];
+
+                    // 2. Subtract (only if positive)
+                    if (a > b) {
+                        res = solveRecursive([...remaining, a - b], target);
+                        if (res) return [`${a} - ${b} = ${a-b}`, ...res];
+                    }
+
+                    // 3. Multiply
+                    res = solveRecursive([...remaining, a * b], target);
+                    if (res) return [`${a} × ${b} = ${a*b}`, ...res];
+
+                    // 4. Divide (must be integer)
+                    if (b !== 0 && a % b === 0) {
+                        res = solveRecursive([...remaining, a / b], target);
+                        if (res) return [`${a} ÷ ${b} = ${a/b}`, ...res];
+                    }
+                }
+            }
+            return null;
+        }
+
+        // --- UI Helpers ---
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2000);
+        }
+
+        function showModal(id, title, msg) {
+            const el = document.getElementById(id);
+            if (title) el.querySelector('h2').textContent = title;
+            if (msg) {
+                const p = el.querySelector('.modal-content-text');
+                if(p) p.textContent = msg;
+            }
+            el.classList.add('visible');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('visible');
+        }
+
+        // --- Event Listeners ---
+
+        document.getElementById('undoBtn').addEventListener('click', undo);
+        document.getElementById('newGameBtn').addEventListener('click', initGame);
+        document.getElementById('checkBtn').addEventListener('click', () => checkWinCondition(true));
+        document.getElementById('solveBtn').addEventListener('click', solveGame);
+        document.getElementById('helpBtn').addEventListener('click', () => {
+            // Audio context requires user gesture to start
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            showModal('helpModal');
+        });
+
+        // Initialize
+        window.onload = () => {
+             // Show help on first load
+             showModal('helpModal');
+             initGame();
+        };
+
+    </script>
+</body>
+</html>
