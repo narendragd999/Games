@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Pong-Breakout</title>
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            --primary-color: #00f260;
+            --secondary-color: #0575e6;
+            --accent-color: #ff0055;
+            --text-color: #ffffff;
+            --font-main: 'Courier New', Courier, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            touch-action: none; /* Prevent scroll on mobile */
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: var(--bg-gradient);
+            font-family: var(--font-main);
+            color: var(--text-color);
+        }
+
+        /* Game Container */
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.2);
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        /* UI Overlay Layer */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Let clicks pass through to canvas */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+        }
+
+        /* HUD */
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 0 0 5px var(--primary-color);
+            pointer-events: none;
+        }
+
+        .hud span {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* Controls Area (Bottom) */
+        .controls {
+            pointer-events: auto;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            color: white;
+            padding: 10px 20px;
+            font-family: var(--font-main);
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: var(--primary-color);
+            color: #000;
+            box-shadow: 0 0 15px var(--primary-color);
+        }
+
+        button.secondary {
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+        }
+        button.secondary:hover {
+            background: var(--accent-color);
+            color: white;
+            box-shadow: 0 0 15px var(--accent-color);
+        }
+
+        /* Modals */
+        .modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            pointer-events: auto;
+            backdrop-filter: blur(8px);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s;
+        }
+
+        .modal.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: #1a1a2e;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 90%;
+            width: 400px;
+            border: 2px solid var(--secondary-color);
+            box-shadow: 0 0 30px rgba(5, 117, 230, 0.3);
+        }
+
+        h1 {
+            margin-top: 0;
+            font-size: 24px;
+            color: var(--primary-color);
+            text-shadow: 0 0 10px var(--primary-color);
+        }
+
+        h2 {
+            color: var(--accent-color);
+        }
+
+        p {
+            line-height: 1.5;
+            color: #ddd;
+            font-size: 14px;
+        }
+
+        .key-instruction {
+            display: inline-block;
+            background: #333;
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid #555;
+            margin: 0 2px;
+        }
+
+        /* Toast Notification */
+        #toast {
+            position: absolute;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 242, 96, 0.9);
+            color: #000;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.5s;
+            pointer-events: none;
+            z-index: 50;
+            text-align: center;
+            box-shadow: 0 0 15px var(--primary-color);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        
+        <!-- HUD -->
+        <div id="ui-layer">
+            <div class="hud">
+                <span id="scoreDisplay">Score: 0</span>
+                <span id="levelDisplay">Level: 1</span>
+                <span id="livesDisplay">Lives: 3</span>
+            </div>
+            
+            <!-- Controls -->
+            <div class="controls">
+                <button id="btn-pause">Pause / Menu</button>
+                <button id="btn-auto" class="secondary">Auto-Solve</button>
+            </div>
+        </div>
+
+        <!-- Start / Menu Modal -->
+        <div id="startModal" class="modal active">
+            <div class="modal-content">
+                <h1>PONG + BREAKOUT</h1>
+                <p>Break the bricks while battling the AI paddle at the top!</p>
+                <ul style="text-align: left; padding-left: 20px; color: #ccc; font-size: 13px;">
+                    <li>Move mouse or drag finger to control the <strong>Bottom Paddle</strong>.</li>
+                    <li>Deflect the ball to destroy <strong>Bricks</strong>.</li>
+                    <li>Watch out for the <strong>Top AI Paddle</strong> trying to block your shots.</li>
+                    <li>Don't let the ball drop past your paddle.</li>
+                </ul>
+                <button id="btn-start" style="width: 100%; margin-top: 20px;">Start Game</button>
+            </div>
+        </div>
+
+        <!-- Game Over / Win Modal -->
+        <div id="endModal" class="modal">
+            <div class="modal-content">
+                <h2 id="endTitle">Game Over</h2>
+                <p id="endMessage">Score: 0</p>
+                <button id="btn-restart" style="width: 100%;">Play Again</button>
+            </div>
+        </div>
+
+        <!-- Toast -->
+        <div id="toast">Level Complete!</div>
+    </div>
+
+    <script>
+        /**
+         * Game Constants & Setup
+         */
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Colors
+        const COLOR_PADDLE_PLAYER = '#00f260';
+        const COLOR_PADDLE_AI = '#ff0055';
+        const COLOR_BALL = '#ffffff';
+        const COLOR_BRICKS = ['#0575e6', '#00f260', '#ff0055', '#e100ff'];
+
+        // Game State
+        let animationId;
+        let lastTime = 0;
+        let isPaused = false;
+        let isGameOver = false;
+        let isAutoSolving = false;
+        
+        let score = 0;
+        let level = 1;
+        let lives = 3;
+        
+        // Entities
+        const ball = {
+            x: 0, y: 0, radius: 6,
+            dx: 0, dy: 0, speed: 0,
+            active: false
+        };
+        
+        const playerPaddle = {
+            x: 0, y: 0, width: 100, height: 12, speed: 8, color: COLOR_PADDLE_PLAYER
+        };
+        
+        const aiPaddle = {
+            x: 0, y: 0, width: 100, height: 12, speed: 5, color: COLOR_PADDLE_AI
+        };
+        
+        let bricks = [];
+        let particles = [];
+        
+        // Input
+        let inputX = 0;
+
+        /**
+         * Audio System (Synthesizer)
+         */
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        const playSound = (type) => {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            const now = audioCtx.currentTime;
+            
+            if (type === 'hit-paddle') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'hit-brick') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'lose-life') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(50, now + 0.3);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'win') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.setValueAtTime(800, now + 0.1);
+                osc.frequency.setValueAtTime(1200, now + 0.2);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.5);
+                osc.start(now);
+                osc.stop(now + 0.5);
+            }
+        };
+
+        /**
+         * Particle System
+         */
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.size = Math.random() * 3 + 1;
+                this.speedX = Math.random() * 4 - 2;
+                this.speedY = Math.random() * 4 - 2;
+                this.life = 1.0;
+            }
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.life -= 0.02;
+            }
+            draw(ctx) {
+                ctx.globalAlpha = this.life;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            }
+        }
+
+        function createExplosion(x, y, color) {
+            for (let i = 0; i < 10; i++) {
+                particles.push(new Particle(x, y, color));
+            }
+        }
+
+        /**
+         * Initialization & Resizing
+         */
+        function resize() {
+            canvas.width = document.getElementById('game-container').clientWidth;
+            canvas.height = document.getElementById('game-container').clientHeight;
+            resetPaddlePositions();
+            if (!ball.active && !isGameOver) {
+                resetBall();
+            }
+        }
+        
+        function resetPaddlePositions() {
+            playerPaddle.y = canvas.height - 30;
+            playerPaddle.width = Math.min(120, canvas.width * 0.25);
+            
+            aiPaddle.y = 30;
+            aiPaddle.width = Math.min(120, canvas.width * 0.25);
+            
+            // Ensure paddles are within bounds
+            if(playerPaddle.x > canvas.width - playerPaddle.width) playerPaddle.x = canvas.width - playerPaddle.width;
+        }
+
+        window.addEventListener('resize', resize);
+        
+        function initLevel(lvl) {
+            bricks = [];
+            const rows = Math.min(3 + lvl, 8);
+            const cols = 8;
+            const brickWidth = (canvas.width - 40) / cols;
+            const brickHeight = 20;
+            const startY = 100;
+            
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    // Create gaps for visual style
+                    if (r % 2 === 0 && c === 0) continue; 
+                    
+                    bricks.push({
+                        x: 20 + c * brickWidth,
+                        y: startY + r * (brickHeight + 10),
+                        w: brickWidth - 4,
+                        h: brickHeight,
+                        status: 1,
+                        color: COLOR_BRICKS[r % COLOR_BRICKS.length]
+                    });
+                }
+            }
+            
+            // Increase AI speed slightly per level
+            aiPaddle.speed = 3 + (lvl * 0.5);
+            
+            updateHUD();
+            resetBall();
+        }
+
+        function resetBall() {
+            ball.x = canvas.width / 2;
+            ball.y = canvas.height / 2;
+            ball.speed = 5 + (level * 0.5);
+            ball.dx = ball.speed * (Math.random() > 0.5 ? 1 : -1);
+            ball.dy = ball.speed;
+            ball.active = true;
+        }
+
+        /**
+         * Game Logic
+         */
+        function update(dt) {
+            if (isPaused || isGameOver) return;
+
+            // --- AI Paddle Logic ---
+            // AI tries to follow the ball, but with a speed limit
+            let aiCenter = aiPaddle.x + aiPaddle.width / 2;
+            if (aiCenter < ball.x - 10) {
+                aiPaddle.x += aiPaddle.speed;
+            } else if (aiCenter > ball.x + 10) {
+                aiPaddle.x -= aiPaddle.speed;
+            }
+            // Clamp AI paddle
+            if (aiPaddle.x < 0) aiPaddle.x = 0;
+            if (aiPaddle.x + aiPaddle.width > canvas.width) aiPaddle.x = canvas.width - aiPaddle.width;
+
+            // --- Player Paddle Logic ---
+            if (isAutoSolving) {
+                // Perfect tracking
+                let playerCenter = playerPaddle.width / 2;
+                playerPaddle.x = ball.x - playerCenter;
+            } else {
+                // Follow Mouse/Touch
+                let playerCenter = playerPaddle.width / 2;
+                playerPaddle.x = inputX - playerCenter;
+            }
+            // Clamp Player paddle
+            if (playerPaddle.x < 0) playerPaddle.x = 0;
+            if (playerPaddle.x + playerPaddle.width > canvas.width) playerPaddle.x = canvas.width - playerPaddle.width;
+
+            // --- Ball Movement ---
+            ball.x += ball.dx;
+            ball.y += ball.dy;
+
+            // Wall Collisions
+            if (ball.x + ball.radius > canvas.width || ball.x - ball.radius < 0) {
+                ball.dx *= -1;
+                playSound('hit-paddle');
+            }
+            
+            // Ceiling Collision (Top)
+            if (ball.y - ball.radius < 0) {
+                ball.dy *= -1;
+                playSound('hit-paddle');
+            }
+
+            // Floor Collision (Lose Life)
+            if (ball.y - ball.radius > canvas.height) {
+                lives--;
+                playSound('lose-life');
+                updateHUD();
+                createExplosion(ball.x, ball.y, '#fff');
+                if (lives <= 0) {
+                    gameOver(false);
+                } else {
+                    resetBall();
+                    showToast("Life Lost!");
+                }
+            }
+
+            // Paddle Collisions
+            // Player (Bottom)
+            if (ball.dy > 0 &&
+                ball.y + ball.radius >= playerPaddle.y &&
+                ball.y - ball.radius <= playerPaddle.y + playerPaddle.height &&
+                ball.x >= playerPaddle.x &&
+                ball.x <= playerPaddle.x + playerPaddle.width) {
+                
+                ball.dy = -Math.abs(ball.speed); // Ensure it goes up
+                // Add "English" (spin effect based on where it hit the paddle)
+                let hitPoint = ball.x - (playerPaddle.x + playerPaddle.width / 2);
+                ball.dx = hitPoint * 0.15; 
+                ball.speed += 0.2; // Increase speed slightly on hit
+                playSound('hit-paddle');
+                createExplosion(ball.x, ball.y, COLOR_PADDLE_PLAYER);
+            }
+
+            // AI (Top)
+            if (ball.dy < 0 &&
+                ball.y - ball.radius <= aiPaddle.y + aiPaddle.height &&
+                ball.y + ball.radius >= aiPaddle.y &&
+                ball.x >= aiPaddle.x &&
+                ball.x <= aiPaddle.x + aiPaddle.width) {
+                
+                ball.dy = Math.abs(ball.speed); // Bounce down
+                let hitPoint = ball.x - (aiPaddle.x + aiPaddle.width / 2);
+                ball.dx = hitPoint * 0.2;
+                playSound('hit-paddle');
+                createExplosion(ball.x, ball.y, COLOR_PADDLE_AI);
+            }
+
+            // Brick Collisions
+            let activeBricksCount = 0;
+            bricks.forEach(b => {
+                if (b.status === 1) {
+                    activeBricksCount++;
+                    if (ball.x > b.x && ball.x < b.x + b.w && 
+                        ball.y > b.y && ball.y < b.y + b.h) {
+                        ball.dy *= -1;
+                        b.status = 0;
+                        score += 10;
+                        playSound('hit-brick');
+                        createExplosion(b.x + b.w/2, b.y + b.h/2, b.color);
+                        updateHUD();
+                    }
+                }
+            });
+
+            // Level Win Check
+            if (activeBricksCount === 0) {
+                levelUp();
+            }
+
+            // Particles Update
+            particles.forEach((p, index) => {
+                p.update();
+                if (p.life <= 0) particles.splice(index, 1);
+            });
+        }
+
+        function draw() {
+            // Clear Canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Bricks
+            bricks.forEach(b => {
+                if (b.status === 1) {
+                    ctx.fillStyle = b.color;
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = b.color;
+                    ctx.fillRect(b.x, b.y, b.w, b.h);
+                    ctx.shadowBlur = 0; // Reset
+                }
+            });
+
+            // Draw Paddles
+            // Player
+            ctx.fillStyle = playerPaddle.color;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = playerPaddle.color;
+            ctx.fillRect(playerPaddle.x, playerPaddle.y, playerPaddle.width, playerPaddle.height);
+
+            // AI
+            ctx.fillStyle = aiPaddle.color;
+            ctx.shadowColor = aiPaddle.color;
+            ctx.fillRect(aiPaddle.x, aiPaddle.y, aiPaddle.width, aiPaddle.height);
+            ctx.shadowBlur = 0;
+
+            // Draw Ball
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fillStyle = COLOR_BALL;
+            ctx.fill();
+            ctx.closePath();
+
+            // Draw Aim Line (if Auto-Solve is on)
+            if (isAutoSolving) {
+                ctx.beginPath();
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+                ctx.setLineDash([5, 5]);
+                ctx.moveTo(ball.x, ball.y);
+                ctx.lineTo(ball.x + ball.dx * 10, ball.y + ball.dy * 10);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // Draw Particles
+            particles.forEach(p => p.draw(ctx));
+        }
+
+        function loop(timestamp) {
+            let dt = timestamp - lastTime;
+            lastTime = timestamp;
+
+            update(dt);
+            draw();
+
+            animationId = requestAnimationFrame(loop);
+        }
+
+        /**
+         * Game Flow Helpers
+         */
+        function updateHUD() {
+            document.getElementById('scoreDisplay').textContent = `Score: ${score}`;
+            document.getElementById('levelDisplay').textContent = `Level: ${level}`;
+            document.getElementById('livesDisplay').textContent = `Lives: ${lives}`;
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.style.opacity = 1;
+            setTimeout(() => { toast.style.opacity = 0; }, 2000);
+        }
+
+        function levelUp() {
+            playSound('win');
+            showToast("Level Complete! Loading next...");
+            level++;
+            initLevel(level);
+        }
+
+        function gameOver(win) {
+            isGameOver = true;
+            const modal = document.getElementById('endModal');
+            const title = document.getElementById('endTitle');
+            const msg = document.getElementById('endMessage');
+            
+            if (win) {
+                title.textContent = "You Win!";
+                title.style.color = COLOR_PADDLE_PLAYER;
+            } else {
+                title.textContent = "Game Over";
+                title.style.color = COLOR_PADDLE_AI;
+            }
+            msg.textContent = `Final Score: ${score} - Level: ${level}`;
+            modal.classList.add('active');
+        }
+
+        function startGame() {
+            score = 0;
+            lives = 3;
+            level = 1;
+            isGameOver = false;
+            isPaused = false;
+            document.getElementById('startModal').classList.remove('active');
+            document.getElementById('endModal').classList.remove('active');
+            
+            resize(); // Ensure size is correct
+            initLevel(level);
+            
+            // Reset Animation Frame if needed
+            if (animationId) cancelAnimationFrame(animationId);
+            lastTime = performance.now();
+            animationId = requestAnimationFrame(loop);
+        }
+
+        /**
+         * Event Listeners
+         */
+        
+        // Mouse Move
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            inputX = e.clientX - rect.left;
+        });
+
+        // Touch Move
+        canvas.addEventListener('touchmove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            inputX = e.touches[0].clientX - rect.left;
+            e.preventDefault();
+        }, { passive: false });
+
+        // Touch Start (Update initial position immediately)
+        canvas.addEventListener('touchstart', (e) => {
+             const rect = canvas.getBoundingClientRect();
+             inputX = e.touches[0].clientX - rect.left;
+        }, { passive: false });
+
+        // UI Buttons
+        document.getElementById('btn-start').addEventListener('click', startGame);
+        document.getElementById('btn-restart').addEventListener('click', startGame);
+        
+        document.getElementById('btn-pause').addEventListener('click', () => {
+            isPaused = !isPaused;
+            if (isPaused) {
+                document.getElementById('startModal').classList.add('active');
+                // Pause Modal Hack: Just change title visually to "Paused"
+                document.querySelector('#startModal h1').textContent = "PAUSED";
+                document.querySelector('#startModal button').textContent = "Resume";
+                // Logic to handle resume vs start
+                document.querySelector('#startModal button').onclick = () => {
+                    isPaused = false;
+                    document.getElementById('startModal').classList.remove('active');
+                    // Reset button text for next time
+                    document.querySelector('#startModal h1').textContent = "PONG + BREAKOUT";
+                    document.querySelector('#startModal button').textContent = "Start Game";
+                };
+            }
+        });
+
+        document.getElementById('btn-auto').addEventListener('click', () => {
+            isAutoSolving = !isAutoSolving;
+            const btn = document.getElementById('btn-auto');
+            if (isAutoSolving) {
+                btn.style.background = COLOR_PADDLE_PLAYER;
+                btn.style.color = "#000";
+                btn.textContent = "Auto-Solve: ON";
+                showToast("Auto-Pilot Engaged");
+            } else {
+                btn.style.background = "";
+                btn.style.color = "";
+                btn.textContent = "Auto-Solve";
+                showToast("Manual Control");
+            }
+        });
+
+        // Initial setup call
+        resize();
+
+    </script>
+</body>
+</html>
