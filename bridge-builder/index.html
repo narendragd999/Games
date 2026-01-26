@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bridge Builder</title>
+    <style>
+        :root {
+            --primary-color: #6200EE;
+            --primary-variant: #3700B3;
+            --secondary-color: #03DAC6;
+            --background-color: #F5F5F5;
+            --surface-color: #FFFFFF;
+            --error-color: #B00020;
+            --on-primary: #FFFFFF;
+            --on-surface: #000000;
+            --shadow-1: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+            --shadow-2: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+            --shadow-3: 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23);
+            --font-family: 'Roboto', 'Segoe UI', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-family);
+            background-color: var(--background-color);
+            color: var(--on-surface);
+            overflow: hidden; /* Prevent scrolling on mobile */
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* Header */
+        header {
+            background-color: var(--surface-color);
+            padding: 16px;
+            box-shadow: var(--shadow-1);
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: var(--primary-color);
+        }
+
+        /* Status Bar */
+        .status-bar {
+            display: flex;
+            gap: 15px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #757575;
+        }
+
+        /* Game Container */
+        main {
+            flex: 1;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #E0E0E0;
+            overflow: hidden;
+        }
+
+        canvas {
+            background: white;
+            box-shadow: var(--shadow-2);
+            border-radius: 4px;
+            touch-action: none; /* Crucial for drawing on canvas */
+            cursor: crosshair;
+        }
+
+        /* Controls Area */
+        .controls {
+            position: absolute;
+            bottom: 24px;
+            right: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            z-index: 20;
+        }
+
+        /* Material Design Buttons (FAB style) */
+        .btn {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            border: none;
+            box-shadow: var(--shadow-1);
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+            background-color: var(--surface-color);
+            color: var(--on-surface);
+        }
+
+        .btn:hover {
+            box-shadow: var(--shadow-2);
+            transform: translateY(-2px);
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: var(--on-primary);
+        }
+
+        .btn-accent {
+            background-color: var(--secondary-color);
+            color: #000;
+        }
+
+        .btn svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+
+        /* Ink Meter */
+        .ink-container {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            width: 150px;
+            background: rgba(255,255,255,0.8);
+            padding: 8px;
+            border-radius: 8px;
+            box-shadow: var(--shadow-1);
+            pointer-events: none;
+        }
+        
+        .ink-label {
+            font-size: 12px;
+            margin-bottom: 4px;
+            display: block;
+            color: #555;
+        }
+
+        .progress-track {
+            height: 8px;
+            background: #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary-color);
+            width: 100%;
+            transition: width 0.1s;
+        }
+
+        /* Modal / Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal {
+            background: var(--surface-color);
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: var(--shadow-3);
+            max-width: 90%;
+            width: 320px;
+            text-align: center;
+            transform: translateY(20px);
+            transition: transform 0.3s;
+        }
+
+        .modal-overlay.active .modal {
+            transform: translateY(0);
+        }
+
+        .modal h2 {
+            margin-top: 0;
+            color: var(--primary-color);
+        }
+
+        .modal p {
+            color: #555;
+            line-height: 1.5;
+            margin-bottom: 24px;
+        }
+
+        .modal-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: var(--shadow-1);
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%) translateY(50px);
+            background: #323232;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 4px;
+            opacity: 0;
+            transition: transform 0.3s, opacity 0.3s;
+            z-index: 50;
+            font-size: 0.9rem;
+        }
+
+        .toast.visible {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            h1 { font-size: 1rem; }
+            .ink-container { width: 100px; }
+            .btn { width: 48px; height: 48px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Bridge Builder</h1>
+        <div class="status-bar" id="level-display">Level: 1</div>
+    </header>
+
+    <main id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div class="ink-container">
+            <span class="ink-label">Ink Left</span>
+            <div class="progress-track">
+                <div class="progress-fill" id="ink-bar"></div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <!-- Instructions Button -->
+            <button class="btn" id="btn-instructions" aria-label="Instructions">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
+                </svg>
+            </button>
+            <!-- Play/Run Button -->
+            <button class="btn btn-primary" id="btn-play" aria-label="Run">
+                <svg id="icon-play" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z"/>
+                </svg>
+                <svg id="icon-reset" viewBox="0 0 24 24" style="display:none;">
+                    <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
+                </svg>
+            </button>
+            <!-- Restart Level Button -->
+            <button class="btn" id="btn-restart" aria-label="Restart Level">
+                <svg viewBox="0 0 24 24">
+                    <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+                </svg>
+            </button>
+        </div>
+    </main>
+
+    <!-- Instructions Modal -->
+    <div class="modal-overlay" id="modal-instructions">
+        <div class="modal">
+            <h2>How to Play</h2>
+            <p>Draw a line to create a bridge over the gap so the hero can reach the flag.</p>
+            <p>1. <strong>Draw</strong> with your finger or mouse.<br>
+            2. Watch your <strong>Ink</strong> limit!<br>
+            3. Press <strong>Run</strong> to start walking.<br>
+            4. If you fail, press <strong>Reset</strong> to try again.</p>
+            <button class="modal-btn" id="btn-close-instructions">Got it!</button>
+        </div>
+    </div>
+
+    <!-- Game Over / Win Modal -->
+    <div class="modal-overlay" id="modal-result">
+        <div class="modal">
+            <h2 id="result-title">Level Complete!</h2>
+            <p id="result-message">Great job!</p>
+            <button class="modal-btn" id="btn-next-level">Next Level</button>
+        </div>
+    </div>
+
+    <div class="toast" id="toast">Message here</div>
+
+    <script>
+        /**
+         * Bridge Builder Game
+         * Materialistic Design & Mobile Friendly
+         */
+
+        // --- Configuration ---
+        const CONFIG = {
+            gravity: 0.4,
+            moveSpeed: 3,
+            jumpForce: -7, // Not used for auto-walk, but good for physics
+            maxInk: 300, // Total pixels of line allowed
+            lineColor: '#333',
+            lineWidth: 6,
+            heroColor: '#6200EE',
+            heroSize: 20
+        };
+
+        // --- Game State ---
+        let canvas, ctx;
+        let gameState = {
+            level: 1,
+            status: 'idle', // idle, drawing, running, won, lost
+            inkUsed: 0,
+            path: [], // Array of {x, y} points
+            platforms: [], // Static blocks
+            hero: { x: 0, y: 0, vx: 0, vy: 0, width: 20, height: 20, onGround: false },
+            startPos: { x: 0, y: 0 },
+            endPos: { x: 0, y: 0 },
+            width: 0,
+            height: 0
+        };
+
+        // --- DOM Elements ---
+        const elInkBar = document.getElementById('ink-bar');
+        const btnPlay = document.getElementById('btn-play');
+        const btnRestart = document.getElementById('btn-restart');
+        const btnInstructions = document.getElementById('btn-instructions');
+        const btnCloseInstructions = document.getElementById('btn-close-instructions');
+        const btnNextLevel = document.getElementById('btn-next-level');
+        const modalInstructions = document.getElementById('modal-instructions');
+        const modalResult = document.getElementById('modal-result');
+        const resultTitle = document.getElementById('result-title');
+        const resultMessage = document.getElementById('result-message');
+        const iconPlay = document.getElementById('icon-play');
+        const iconReset = document.getElementById('icon-reset');
+        const levelDisplay = document.getElementById('level-display');
+        const toast = document.getElementById('toast');
+
+        // --- Initialization ---
+        function init() {
+            canvas = document.getElementById('gameCanvas');
+            ctx = canvas.getContext('2d');
+            
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            setupLevel(gameState.level);
+
+            // Input Events (Mouse & Touch)
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseleave', stopDrawing);
+
+            canvas.addEventListener('touchstart', (e) => startDrawing(e.touches[0]));
+            canvas.addEventListener('touchmove', (e) => {
+                e.preventDefault(); // Stop scrolling
+                draw(e.touches[0]);
+            });
+            canvas.addEventListener('touchend', stopDrawing);
+
+            // Button Events
+            btnPlay.addEventListener('click', togglePlay);
+            btnRestart.addEventListener('click', resetLevel);
+            btnInstructions.addEventListener('click', () => openModal(modalInstructions));
+            btnCloseInstructions.addEventListener('click', () => closeModal(modalInstructions));
+            btnNextLevel.addEventListener('click', nextLevel);
+
+            // Start Loop
+            requestAnimationFrame(gameLoop);
+            
+            // Show instructions on first load
+            setTimeout(() => openModal(modalInstructions), 500);
+        }
+
+        // --- Resizing ---
+        function resizeCanvas() {
+            const container = document.getElementById('game-container');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            gameState.width = canvas.width;
+            gameState.height = canvas.height;
+            
+            // If resizing during idle, we might need to reset positions if they are relative
+            if(gameState.status === 'idle') {
+                setupLevel(gameState.level);
+            }
+        }
+
+        // --- Level Design ---
+        function setupLevel(lvl) {
+            gameState.status = 'idle';
+            gameState.inkUsed = 0;
+            gameState.path = [];
+            gameState.hero.vx = 0;
+            gameState.hero.vy = 0;
+            updateUIButtons();
+
+            const w = gameState.width;
+            const h = gameState.height;
+            const groundY = h - 50;
+
+            // Reset Hero
+            gameState.hero.width = CONFIG.heroSize;
+            gameState.hero.height = CONFIG.heroSize;
+
+            if (lvl === 1) {
+                // Simple Gap
+                gameState.platforms = [
+                    { x: 0, y: groundY, w: w * 0.2, h: 50 }, // Start
+                    { x: w * 0.8, y: groundY, w: w * 0.2, h: 50 } // End
+                ];
+                gameState.startPos = { x: w * 0.15, y: groundY - 20 };
+                gameState.endPos = { x: w * 0.9, y: groundY - 40 }; // Flag position
+            } else if (lvl === 2) {
+                // Wider Gap
+                gameState.platforms = [
+                    { x: 0, y: groundY, w: w * 0.15, h: 50 },
+                    { x: w * 0.85, y: groundY, w: w * 0.15, h: 50 }
+                ];
+                gameState.startPos = { x: w * 0.1, y: groundY - 20 };
+                gameState.endPos = { x: w * 0.92, y: groundY - 40 };
+                CONFIG.maxInk = 350; // More ink
+            } else if (lvl === 3) {
+                // Higher platform
+                gameState.platforms = [
+                    { x: 0, y: groundY, w: w * 0.2, h: 50 },
+                    { x: w * 0.7, y: groundY - 80, w: w * 0.3, h: 130 } // Higher end
+                ];
+                gameState.startPos = { x: w * 0.15, y: groundY - 20 };
+                gameState.endPos = { x: w * 0.85, y: groundY - 120 };
+                CONFIG.maxInk = 320;
+            } else {
+                // Random generated endless mode
+                const gapSize = 0.3 + Math.random() * 0.4; // 30% to 70% gap
+                const heightDiff = (Math.random() - 0.5) * 100;
+                gameState.platforms = [
+                    { x: 0, y: groundY, w: w * (1 - gapSize - 0.1), h: 50 },
+                    { x: w * (0.9 + gapSize * 0), y: groundY + heightDiff, w: w * 0.1, h: 50 - heightDiff }
+                ];
+                // Adjust end platform to be at right edge visually
+                gameState.platforms[1].x = w - (w * 0.1);
+                gameState.platforms[1].w = w * 0.15;
+                
+                gameState.startPos = { x: gameState.platforms[0].w / 2, y: groundY - 20 };
+                gameState.endPos = { x: w - 40, y: groundY + heightDiff - 40 };
+                CONFIG.maxInk = Math.abs(w * gapSize) + 100;
+            }
+
+            // Place Hero
+            gameState.hero.x = gameState.startPos.x;
+            gameState.hero.y = gameState.startPos.y;
+            
+            levelDisplay.textContent = `Level: ${lvl}`;
+            updateInkBar();
+        }
+
+        // --- Drawing Logic ---
+        let isDrawing = false;
+        let lastPoint = null;
+
+        function startDrawing(e) {
+            if (gameState.status !== 'idle') return;
+            if (gameState.inkUsed >= CONFIG.maxInk) {
+                showToast("No ink left!");
+                return;
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            // Check if touching near hero or platform start
+            isDrawing = true;
+            lastPoint = { x, y };
+            gameState.path.push({ x, y });
+        }
+
+        function draw(e) {
+            if (!isDrawing || gameState.status !== 'idle') return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            // Calculate distance
+            const dist = Math.hypot(x - lastPoint.x, y - lastPoint.y);
+
+            if (dist > 5) { // Minimum segment length to save performance
+                if (gameState.inkUsed + dist > CONFIG.maxInk) {
+                    showToast("Out of ink!");
+                    isDrawing = false;
+                    return;
+                }
+                
+                gameState.inkUsed += dist;
+                gameState.path.push({ x, y });
+                lastPoint = { x, y };
+                updateInkBar();
+            }
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        function updateInkBar() {
+            const pct = 100 - ((gameState.inkUsed / CONFIG.maxInk) * 100);
+            elInkBar.style.width = `${Math.max(0, pct)}%`;
+        }
+
+        // --- Physics & Gameplay ---
+        function togglePlay() {
+            if (gameState.status === 'idle') {
+                if (gameState.path.length < 2) {
+                    showToast("Draw a line first!");
+                    return;
+                }
+                gameState.status = 'running';
+                gameState.hero.vx = CONFIG.moveSpeed;
+                gameState.hero.vy = 0;
+                updateUIButtons();
+            } else if (gameState.status === 'running' || gameState.status === 'won' || gameState.status === 'lost') {
+                resetLevel();
+            }
+        }
+
+        function resetLevel() {
+            setupLevel(gameState.level);
+        }
+
+        function nextLevel() {
+            closeModal(modalResult);
+            gameState.level++;
+            setupLevel(gameState.level);
+        }
+
+        function updateUIButtons() {
+            if (gameState.status === 'idle') {
+                iconPlay.style.display = 'block';
+                iconReset.style.display = 'none';
+                btnPlay.classList.add('btn-primary');
+                btnPlay.classList.remove('btn-accent');
+            } else {
+                // Running or result
+                iconPlay.style.display = 'none';
+                iconReset.style.display = 'block';
+                btnPlay.classList.remove('btn-primary');
+                btnPlay.classList.add('btn-accent'); // Use accent for reset
+            }
+        }
+
+        function checkWinCondition() {
+            const dx = gameState.hero.x - gameState.endPos.x;
+            const dy = gameState.hero.y - gameState.endPos.y;
+            
+            // If close enough to flag
+            if (Math.abs(dx) < 30 && Math.abs(dy) < 30) {
+                gameState.status = 'won';
+                resultTitle.textContent = "Level Complete!";
+                resultMessage.textContent = `Ready for Level ${gameState.level + 1}?`;
+                btnNextLevel.textContent = "Next Level";
+                openModal(modalResult);
+                updateUIButtons();
+            }
+        }
+
+        function checkLossCondition() {
+            // Fell off screen
+            if (gameState.hero.y > gameState.height) {
+                gameState.status = 'lost';
+                resultTitle.textContent = "Oops!";
+                resultMessage.textContent = "The bridge wasn't strong enough.";
+                btnNextLevel.textContent = "Try Again";
+                btnNextLevel.onclick = resetLevel; // Override next level to restart
+                openModal(modalResult);
+                updateUIButtons();
+            }
+        }
+
+        // --- Physics Engine (Custom Simple) ---
+        function updatePhysics() {
+            if (gameState.status !== 'running') return;
+
+            const hero = gameState.hero;
+            
+            // Apply Gravity
+            hero.vy += CONFIG.gravity;
+            
+            // Apply Velocity
+            hero.x += hero.vx;
+            hero.y += hero.vy;
+            hero.onGround = false;
+
+            // 1. Collision with Static Platforms
+            for (let p of gameState.platforms) {
+                resolveRectCollision(hero, p);
+            }
+
+            // 2. Collision with Drawn Lines (Path)
+            if (gameState.path.length > 1) {
+                resolveLineCollision(hero);
+            }
+
+            checkWinCondition();
+            checkLossCondition();
+        }
+
+        function resolveRectCollision(circle, rect) {
+            // Simple AABB vs Point (treated as rect bottom-center)
+            // Checking feet
+            const feetY = circle.y + circle.height;
+            const centerX = circle.x + circle.width / 2;
+
+            // Check if above and within horizontal bounds
+            if (feetY >= rect.y && feetY <= rect.y + 20 && // Was previously above slightly (tolerance)
+                circle.y + circle.height + circle.vy >= rect.y &&
+                centerX > rect.x && centerX < rect.x + rect.w) {
+                
+                // Land on top
+                circle.y = rect.y - circle.height;
+                circle.vy = 0;
+                circle.onGround = true;
+            }
+        }
+
+        function resolveLineCollision(hero) {
+            // We check collision between the hero's bottom edge and the line segments
+            const feetX = hero.x + hero.width / 2;
+            const feetY = hero.y + hero.height;
+            const prevFeetY = feetY - hero.vy; // Position before this frame
+
+            let onAnyLine = false;
+
+            for (let i = 0; i < gameState.path.length - 1; i++) {
+                const p1 = gameState.path[i];
+                const p2 = gameState.path[i+1];
+
+                // Broad phase: check Y range
+                const minY = Math.min(p1.y, p2.y);
+                const maxY = Math.max(p1.y, p2.y);
+
+                // Only care if we are crossing downwards through the line or touching it
+                if (feetY >= minY - 5 && feetY <= maxY + 5 && prevFeetY <= maxY) {
+                    
+                    // Narrow phase: Point-Line Distance
+                    // Project point (feetX, feetY) onto line segment p1-p2
+                    const lineLenSq = Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2);
+                    if (lineLenSq === 0) continue;
+
+                    let t = ((feetX - p1.x) * (p2.x - p1.x) + (feetY - p1.y) * (p2.y - p1.y)) / lineLenSq;
+                    t = Math.max(0, Math.min(1, t)); // Clamp to segment
+
+                    const closestX = p1.x + t * (p2.x - p1.x);
+                    const closestY = p1.y + t * (p2.y - p1.y);
+
+                    const dist = Math.hypot(feetX - closestX, feetY - closestY);
+
+                    if (dist < CONFIG.lineWidth + 5 && hero.vy >= 0) {
+                        // Collision detected
+                        hero.y = closestY - hero.height;
+                        hero.vy = 0;
+                        hero.onGround = true;
+                        onAnyLine = true;
+                        
+                        // Simple slope sliding adjustment (friction)
+                        // hero.x += 0.5; 
+                    }
+                }
+            }
+        }
+
+        // --- Rendering ---
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Platforms
+            ctx.fillStyle = '#795548'; // Brown
+            for (let p of gameState.platforms) {
+                ctx.fillRect(p.x, p.y, p.w, p.h);
+                // Grass on top
+                ctx.fillStyle = '#4CAF50';
+                ctx.fillRect(p.x, p.y, p.w, 10);
+                ctx.fillStyle = '#795548';
+            }
+
+            // Draw Flag
+            ctx.beginPath();
+            ctx.moveTo(gameState.endPos.x, gameState.endPos.y);
+            ctx.lineTo(gameState.endPos.x, gameState.endPos.y + 40);
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.moveTo(gameState.endPos.x, gameState.endPos.y);
+            ctx.lineTo(gameState.endPos.x + 20, gameState.endPos.y + 10);
+            ctx.lineTo(gameState.endPos.x, gameState.endPos.y + 20);
+            ctx.fillStyle = '#F44336';
+            ctx.fill();
+
+            // Draw Bridge (Lines)
+            if (gameState.path.length > 0) {
+                ctx.beginPath();
+                ctx.moveTo(gameState.path[0].x, gameState.path[0].y);
+                for (let i = 1; i < gameState.path.length; i++) {
+                    ctx.lineTo(gameState.path[i].x, gameState.path[i].y);
+                }
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.lineWidth = CONFIG.lineWidth;
+                ctx.strokeStyle = gameState.inkUsed > CONFIG.maxInk ? '#B00020' : '#607D8B'; // Red if out, Blue-Grey if ok
+                ctx.stroke();
+            }
+
+            // Draw Hero
+            ctx.fillStyle = CONFIG.heroColor;
+            // Shadow
+            if(gameState.hero.onGround) {
+                ctx.shadowColor = 'rgba(0,0,0,0.3)';
+                ctx.shadowBlur = 5;
+                ctx.shadowOffsetY = 2;
+            }
+            
+            ctx.fillRect(gameState.hero.x, gameState.hero.y, gameState.hero.width, gameState.hero.height);
+            
+            // Eyes
+            ctx.shadowColor = 'transparent';
+            ctx.fillStyle = 'white';
+            ctx.fillRect(gameState.hero.x + 12, gameState.hero.y + 4, 4, 4);
+            
+            // Walking animation (simple leg bounce)
+            if (gameState.status === 'running') {
+                const bounce = Math.sin(Date.now() / 50) * 2;
+                ctx.fillRect(gameState.hero.x, gameState.hero.y + bounce, 4, 4);
+                ctx.fillRect(gameState.hero.x + 16, gameState.hero.y - bounce, 4, 4);
+            }
+        }
+
+        function gameLoop() {
+            updatePhysics();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // --- Modal Helpers ---
+        function openModal(modal) {
+            modal.classList.add('active');
+        }
+
+        function closeModal(modal) {
+            modal.classList.remove('active');
+        }
+
+        function showToast(msg) {
+            toast.textContent = msg;
+            toast.classList.add('visible');
+            setTimeout(() => {
+                toast.classList.remove('visible');
+            }, 3000);
+        }
+
+        // --- Start ---
+        window.onload = init;
+
+    </script>
+</body>
+</html>
