@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Doodle Ascent: Procedural Jumper</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #fcfcfc;
+            --grid-color: #e0e0e0;
+            --primary-color: #555;
+            --accent-color: #ff6b6b;
+            --platform-color: #6bcf6b;
+            --platform-moving: #4da6ff;
+            --ui-bg: rgba(255, 255, 255, 0.9);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Patrick Hand', cursive, sans-serif;
+            background-color: var(--bg-color);
+            /* Grid paper pattern */
+            background-image: 
+                linear-gradient(var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 40px 40px;
+            color: var(--primary-color);
+        }
+
+        /* UI Overlay Layer */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Let clicks pass through to game generally */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            z-index: 10;
+        }
+
+        /* Header / Score */
+        header {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.5rem;
+            text-shadow: 2px 2px 0px white;
+        }
+
+        #score-container {
+            font-weight: bold;
+            background: var(--ui-bg);
+            padding: 5px 15px;
+            border-radius: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border: 2px solid var(--primary-color);
+        }
+
+        /* Screens (Start / Game Over) */
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(4px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            transition: opacity 0.3s ease;
+        }
+
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            margin-bottom: 0.5rem;
+            transform: rotate(-2deg);
+            color: var(--accent-color);
+            text-shadow: 3px 3px 0px var(--primary-color);
+        }
+
+        p {
+            font-size: 1.2rem;
+            margin: 10px 0;
+            max-width: 400px;
+            text-align: center;
+            line-height: 1.4;
+        }
+
+        .btn {
+            background: var(--accent-color);
+            color: white;
+            border: 3px solid var(--primary-color);
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            font-family: inherit;
+            border-radius: 50px;
+            cursor: pointer;
+            margin-top: 20px;
+            box-shadow: 0 6px 0 var(--primary-color);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .btn:active {
+            transform: translateY(6px);
+            box-shadow: 0 0 0 var(--primary-color);
+        }
+
+        .controls-hint {
+            margin-top: 30px;
+            font-size: 1rem;
+            opacity: 0.7;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .key-icon {
+            border: 2px solid #555;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            background: white;
+        }
+
+        /* Game Canvas */
+        #game-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Mobile specific adjustments */
+        @media (max-width: 600px) {
+            h1 { font-size: 2.5rem; }
+            .btn { padding: 12px 30px; font-size: 1.2rem; }
+            .controls-hint { flex-direction: column; gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- UI Layer -->
+    <div id="ui-layer">
+        <header>
+            <div id="score-container">Score: 0</div>
+            <div style="font-size: 0.9rem; opacity: 0.7;">High: <span id="high-score">0</span></div>
+        </header>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="start-screen" class="screen">
+        <h1>Doodle Ascent</h1>
+        <p>Jump up the infinite procedural platforms!</p>
+        <div class="controls-hint">
+            <span><span class="key-icon">←</span> <span class="key-icon">→</span> to Move</span>
+            <span>or Tap Sides</span>
+        </div>
+        <button class="btn" id="start-btn">Play</button>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="game-over-screen" class="screen hidden">
+        <h1>Game Over</h1>
+        <p>You fell into the abyss.</p>
+        <p style="font-size: 1.5rem; font-weight: bold;">Score: <span id="final-score">0</span></p>
+        <button class="btn" id="restart-btn">Try Again</button>
+    </div>
+
+    <!-- The Game -->
+    <canvas id="game-canvas"></canvas>
+
+    <script>
+        /**
+         * Game Configuration & Constants
+         */
+        const CONFIG = {
+            gravity: 0.25,
+            jumpForce: -9.5,
+            playerSpeed: 6,
+            platformWidth: 70,
+            platformHeight: 18,
+            platformGapMin: 60, // Minimum vertical space between platforms
+            platformGapMax: 110, // Maximum vertical space (tuned for reachability)
+            screenScrollThreshold: 0.45, // Scroll when player is in top 45% of screen
+            colors: {
+                player: '#333',
+                playerEye: '#fff',
+                pupil: '#000',
+                platformNormal: '#6bcf6b',
+                platformMoving: '#4da6ff',
+                platformBreakable: '#ff6b6b' // Visual only for now
+            }
+        };
+
+        /**
+         * Sound System (Synthesized)
+         * Uses Web Audio API to avoid external assets.
+         */
+        class SoundSystem {
+            constructor() {
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                this.enabled = true;
+            }
+
+            playJump() {
+                if (!this.enabled || this.ctx.state === 'suspended') this.ctx.resume();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(500, this.ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.1);
+            }
+
+            playFall() {
+                if (!this.enabled) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(200, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(50, this.ctx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.3);
+            }
+        }
+
+        /**
+         * Input Handling
+         * Supports Keyboard and Touch zones.
+         */
+        class InputHandler {
+            constructor() {
+                this.keys = { left: false, right: false };
+                this.touchX = null;
+
+                // Keyboard
+                window.addEventListener('keydown', (e) => this.toggleKey(e.code, true));
+                window.addEventListener('keyup', (e) => this.toggleKey(e.code, false));
+
+                // Touch
+                window.addEventListener('touchstart', (e) => this.handleTouch(e));
+                window.addEventListener('touchmove', (e) => this.handleTouch(e));
+                window.addEventListener('touchend', () => { this.keys.left = false; this.keys.right = false; });
+            }
+
+            toggleKey(code, state) {
+                if (code === 'ArrowLeft' || code === 'KeyA') this.keys.left = state;
+                if (code === 'ArrowRight' || code === 'KeyD') this.keys.right = state;
+            }
+
+            handleTouch(e) {
+                // Prevent default scrolling
+                e.preventDefault(); 
+                const touch = e.touches[0];
+                const halfWidth = window.innerWidth / 2;
+                
+                if (touch.clientX < halfWidth) {
+                    this.keys.left = true;
+                    this.keys.right = false;
+                } else {
+                    this.keys.left = false;
+                    this.keys.right = true;
+                }
+            }
+
+            getDirection() {
+                if (this.keys.left) return -1;
+                if (this.keys.right) return 1;
+                return 0;
+            }
+        }
+
+        /**
+         * Game Entities
+         */
+        class Player {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = 30;
+                this.height = 30;
+                this.vx = 0;
+                this.vy = 0;
+                this.facingRight = true;
+            }
+
+            update(inputDir, canvasWidth) {
+                // Horizontal Movement
+                this.vx = inputDir * CONFIG.playerSpeed;
+                this.x += this.vx;
+
+                // Screen Wrapping
+                if (this.x + this.width < 0) this.x = canvasWidth;
+                else if (this.x > canvasWidth) this.x = -this.width;
+
+                // Gravity
+                this.vy += CONFIG.gravity;
+                this.y += this.vy;
+
+                // Facing direction for drawing
+                if (inputDir !== 0) this.facingRight = inputDir > 0;
+            }
+
+            jump() {
+                this.vy = CONFIG.jumpForce;
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+                
+                // Squash and stretch effect
+                const scaleX = 1 + Math.abs(this.vy) * 0.02;
+                const scaleY = 1 - Math.abs(this.vy) * 0.02;
+                const scale = Math.min(scaleX, 1.3); // clamp
+                ctx.scale(this.facingRight ? scale : -scale, scaleY);
+
+                // Body (Bean shape)
+                ctx.fillStyle = CONFIG.colors.player;
+                ctx.beginPath();
+                ctx.arc(0, -5, 15, Math.PI, 0); // Top half circle
+                ctx.lineTo(15, 10);
+                ctx.quadraticCurveTo(0, 20, -15, 10); // Bottom curve
+                ctx.fill();
+
+                // Eyes
+                ctx.fillStyle = CONFIG.colors.playerEye;
+                ctx.beginPath();
+                ctx.arc(6, -5, 5, 0, Math.PI * 2);
+                ctx.arc(-4, -5, 4, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Pupils
+                ctx.fillStyle = CONFIG.colors.pupil;
+                ctx.beginPath();
+                ctx.arc(7, -5, 2, 0, Math.PI * 2);
+                ctx.arc(-3, -5, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Nose/Snout
+                ctx.fillStyle = "#ffd166";
+                ctx.beginPath();
+                ctx.arc(0, 0, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+        class Platform {
+            constructor(x, y, type = 'normal') {
+                this.x = x;
+                this.y = y;
+                this.width = CONFIG.platformWidth;
+                this.height = CONFIG.platformHeight;
+                this.type = type;
+                
+                // Moving platform properties
+                this.speed = (Math.random() > 0.5 ? 1 : -1) * (2 + Math.random());
+                this.minX = 0;
+                this.maxX = 0; // Set during resize/update
+            }
+
+            update(canvasWidth) {
+                if (this.type === 'moving') {
+                    this.x += this.speed;
+                    if (this.x <= 0 || this.x + this.width >= canvasWidth) {
+                        this.speed *= -1;
+                    }
+                }
+            }
+
+            draw(ctx) {
+                ctx.fillStyle = this.type === 'normal' ? CONFIG.colors.platformNormal : CONFIG.colors.platformMoving;
+                
+                // Draw rounded rect
+                ctx.beginPath();
+                const r = 8;
+                ctx.moveTo(this.x + r, this.y);
+                ctx.lineTo(this.x + this.width - r, this.y);
+                ctx.quadraticCurveTo(this.x + this.width, this.y, this.x + this.width, this.y + r);
+                ctx.lineTo(this.x + this.width, this.y + this.height - r);
+                ctx.quadraticCurveTo(this.x + this.width, this.y + this.height, this.x + this.width - r, this.y + this.height);
+                ctx.lineTo(this.x + r, this.y + this.height);
+                ctx.quadraticCurveTo(this.x, this.y + this.height, this.x, this.y + this.height - r);
+                ctx.lineTo(this.x, this.y + r);
+                ctx.quadraticCurveTo(this.x, this.y, this.x + r, this.y);
+                ctx.fill();
+
+                // Outline for doodle effect
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Details for moving platforms
+                if (this.type === 'moving') {
+                    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                    ctx.fillRect(this.x + 5, this.y + 5, this.width - 10, this.height - 10);
+                }
+            }
+        }
+
+        /**
+         * Main Game Logic
+         */
+        class Game {
+            constructor() {
+                this.canvas = document.getElementById('game-canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.ui = {
+                    score: document.getElementById('score-container'),
+                    highScore: document.getElementById('high-score'),
+                    finalScore: document.getElementById('final-score'),
+                    startScreen: document.getElementById('start-screen'),
+                    gameOverScreen: document.getElementById('game-over-screen')
+                };
+                
+                this.input = new InputHandler();
+                this.sound = new SoundSystem();
+                
+                this.state = 'MENU'; // MENU, PLAYING, GAMEOVER
+                this.score = 0;
+                this.highScore = localStorage.getItem('doodleHighScore') || 0;
+                this.ui.highScore.textContent = this.highScore;
+
+                this.player = null;
+                this.platforms = [];
+                this.animationId = null;
+
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+
+                // Bind buttons
+                document.getElementById('start-btn').addEventListener('click', () => this.start());
+                document.getElementById('restart-btn').addEventListener('click', () => this.start());
+
+                // Initial render
+                this.renderBackground();
+            }
+
+            resize() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+                // Recalculate moving platforms bounds if game is running
+                if (this.platforms.length > 0) {
+                    this.platforms.forEach(p => {
+                        if(p.type === 'moving') {
+                           if (p.x > this.canvas.width) p.x = this.canvas.width - p.width;
+                        }
+                    });
+                }
+            }
+
+            reset() {
+                this.score = 0;
+                this.updateScore(0);
+                this.player = new Player(this.canvas.width / 2, this.canvas.height - 200);
+                this.platforms = [];
+                
+                // Generate initial set of platforms
+                let y = this.canvas.height - 50;
+                // First platform is always directly under player
+                this.platforms.push(new Platform(this.canvas.width/2 - CONFIG.platformWidth/2, y, 'normal'));
+                y -= CONFIG.platformGapMin;
+
+                while (y > 0) {
+                    this.generatePlatform(y);
+                    y -= Math.floor(Math.random() * (CONFIG.platformGapMax - CONFIG.platformGapMin + 1) + CONFIG.platformGapMin);
+                }
+            }
+
+            start() {
+                this.ui.startScreen.classList.add('hidden');
+                this.ui.gameOverScreen.classList.add('hidden');
+                this.state = 'PLAYING';
+                
+                // Initialize audio context on user interaction
+                if (this.sound.ctx.state === 'suspended') {
+                    this.sound.ctx.resume();
+                }
+
+                this.reset();
+                this.lastTime = performance.now();
+                this.loop();
+            }
+
+            gameOver() {
+                this.state = 'GAMEOVER';
+                this.sound.playFall();
+                this.ui.finalScore.textContent = Math.floor(this.score);
+                
+                if (this.score > this.highScore) {
+                    this.highScore = Math.floor(this.score);
+                    localStorage.setItem('doodleHighScore', this.highScore);
+                    this.ui.highScore.textContent = this.highScore;
+                }
+                
+                this.ui.gameOverScreen.classList.remove('hidden');
+                cancelAnimationFrame(this.animationId);
+            }
+
+            generatePlatform(yPosition) {
+                // Randomize x, keep within screen bounds
+                const x = Math.random() * (this.canvas.width - CONFIG.platformWidth);
+                
+                // Determine type based on difficulty (score)
+                // As score increases, chance of moving platforms increases
+                const typeRoll = Math.random();
+                let type = 'normal';
+                
+                // Difficulty curve: 10% chance at 0, up to 40% at high score
+                const difficulty = Math.min(this.score / 5000, 0.4); 
+                
+                if (typeRoll < difficulty) {
+                    type = 'moving';
+                }
+
+                this.platforms.push(new Platform(x, yPosition, type));
+            }
+
+            update() {
+                if (this.state !== 'PLAYING') return;
+
+                const inputDir = this.input.getDirection();
+                this.player.update(inputDir, this.canvas.width);
+
+                // Check Collisions (only when falling)
+                if (this.player.vy > 0) {
+                    for (let p of this.platforms) {
+                        // AABB Collision detection
+                        if (
+                            this.player.x < p.x + p.width &&
+                            this.player.x + this.player.width > p.x &&
+                            this.player.y + this.player.height > p.y &&
+                            this.player.y + this.player.height < p.y + p.height + this.player.vy + 2 // Tolerance
+                        ) {
+                            this.player.jump();
+                            this.sound.playJump();
+                        }
+                    }
+                }
+
+                // Camera / Scrolling Logic
+                if (this.player.y < this.canvas.height * CONFIG.screenScrollThreshold) {
+                    const diff = (this.canvas.height * CONFIG.screenScrollThreshold) - this.player.y;
+                    this.player.y += diff;
+                    
+                    // Move platforms down
+                    this.platforms.forEach(p => p.y += diff);
+                    
+                    // Add score proportional to distance moved
+                    this.updateScore(this.score + diff * 0.5);
+
+                    // Generate new platforms
+                    // Find the highest platform (lowest y value)
+                    const highestPlatform = this.platforms[this.platforms.length - 1];
+                    
+                    // If the highest platform is now visible enough, spawn a new one
+                    if (highestPlatform.y > CONFIG.platformGapMin) {
+                        // Determine Y for new platform (randomized gap above current highest)
+                        // We use negative logic because Y grows downwards in Canvas
+                        // But here we are just checking how much space we have above the top-most platform
+                        // Actually, simply: generate at `highestPlatform.y - randomGap`
+                        const newGap = Math.floor(Math.random() * (CONFIG.platformGapMax - CONFIG.platformGapMin + 1) + CONFIG.platformGapMin);
+                        this.generatePlatform(highestPlatform.y - newGap);
+                    }
+
+                    // Remove platforms that fell off the bottom
+                    this.platforms = this.platforms.filter(p => p.y < this.canvas.height);
+                }
+
+                // Update Moving Platforms
+                this.platforms.forEach(p => p.update(this.canvas.width));
+
+                // Check Game Over (Fell off screen)
+                if (this.player.y > this.canvas.height) {
+                    this.gameOver();
+                }
+            }
+
+            updateScore(val) {
+                this.score = val;
+                this.ui.score.textContent = "Score: " + Math.floor(this.score);
+            }
+
+            draw() {
+                // Clear screen
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Draw Platforms
+                this.platforms.forEach(p => p.draw(this.ctx));
+
+                // Draw Player
+                if (this.player) this.player.draw(this.ctx);
+            }
+
+            renderBackground() {
+                // Just a static draw if needed, but we rely on CSS for the grid
+            }
+
+            loop() {
+                if (this.state === 'PLAYING') {
+                    this.update();
+                    this.draw();
+                    this.animationId = requestAnimationFrame(() => this.loop());
+                }
+            }
+        }
+
+        // Initialize Game
+        window.onload = () => {
+            const game = new Game();
+        };
+
+    </script>
+</body>
+</html>
